@@ -3,6 +3,7 @@
 import React from 'react';
 import AnalyticsContent from './AnalyticsContent';
 import FornecedoresAvaliados from './FornecedoresAvaliados';
+import DiversidadeEtnicaIBGEBarras from './DiversidadeEtnicaIBGEBarras'; // Importação correta
 
 function GovernancaAnalytics({ selectedYear }) {
   return (
@@ -10,6 +11,7 @@ function GovernancaAnalytics({ selectedYear }) {
       <h2 className="text-2xl font-bold">Análise de Governança</h2>
       <AnalyticsContent category="governance" selectedYear={selectedYear} />
       <FornecedoresAvaliados />
+      <DiversidadeEtnicaIBGEBarras /> {/* Renderização do componente */}
     </div>
   );
 }
