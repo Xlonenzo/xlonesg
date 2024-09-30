@@ -1,4 +1,5 @@
 // src/data/menuItems.js
+
 import React from 'react';
 import {
   Home,
@@ -10,59 +11,33 @@ import {
   Book,
   ClipboardList,
   Database,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 
-const menuItems = [
+const menuItemsData = [
   { name: 'Home', icon: <Home size={20} />, path: '/' },
-  {
-    name: 'Painel de Administração',
-    icon: <Settings size={20} />,
+  { 
+    name: 'Painel de Administração', 
+    icon: <Settings size={20} />, 
     path: '/admin',
     subItems: [
-      {
-        name: 'Fonte de Dados',
-        icon: <Database size={20} />,
-        path: '/admin/data-source',
-      },
-    ],
+      { name: 'Fonte de Dados', icon: <Database size={20} />, path: '/admin/data-source' },
+    ]
   },
   {
     name: 'Análises',
     icon: <BarChart2 size={20} />,
     path: '/analytics',
     subItems: [
-      {
-        name: 'Meio Ambiente',
-        icon: <Leaf size={20} />,
-        path: '/analytics/environment',
-      },
-      {
-        name: 'Governança',
-        icon: <Briefcase size={20} />,
-        path: '/analytics/governance',
-      },
-      {
-        name: 'Social',
-        icon: <Users size={20} />,
-        path: '/analytics/social',
-      },
+      { name: 'Meio Ambiente', icon: <Leaf size={20} />, path: '/analytics/environment' },
+      { name: 'Governança', icon: <Briefcase size={20} />, path: '/analytics/governance' },
+      { name: 'Social', icon: <Users size={20} />, path: '/analytics/social' },
     ],
   },
-  {
-    name: 'Gerenciamento de KPIs',
-    icon: <Settings size={20} />,
-    path: '/kpi-management',
-  },
-  {
-    name: 'Biblioteca de Informações',
-    icon: <Book size={20} />,
-    path: '/info-library',
-  },
-  {
-    name: 'Plano de Ação',
-    icon: <ClipboardList size={20} />,
-    path: '/action-plan',
-  },
+  { name: 'Gerenciamento de KPIs', icon: <Settings size={20} />, path: '/kpi-management' }, // Adicionar esta linha
+  { name: 'Biblioteca de Informações', icon: <Book size={20} />, path: '/info-library' },
+  { name: 'Plano de Ação', icon: <ClipboardList size={20} />, path: '/action-plan' },
 ];
 
-export default menuItems;
+export default menuItemsData;

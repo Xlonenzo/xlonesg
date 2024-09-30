@@ -20,6 +20,7 @@ import {
 import articlesData from './data/articles';
 import actionPlansData from './data/actionPlans';
 import dataSourcesData from './data/dataSources';
+import kpisData from './data/kpis'; // Importar os dados dos KPIs
 import yearsData from './data/years';
 import menuItemsData from './data/menuItems';
 
@@ -49,6 +50,7 @@ function App() {
   const [articles, setArticles] = useState(articlesData);
   const [actionPlans, setActionPlans] = useState(actionPlansData);
   const [dataSources, setDataSources] = useState(dataSourcesData);
+  const [kpis, setKpis] = useState(kpisData); // Inicializar estado dos KPIs
   const years = yearsData;
   const menuItems = menuItemsData;
 
@@ -122,7 +124,7 @@ function App() {
   const renderContent = () => {
     switch (activeMenuItem) {
       case '/':
-        return <HomeContent selectedYear={selectedYear} />;
+        return <HomeContent kpis={kpis} selectedYear={selectedYear} />;
       case '/admin':
         return <AdminContent />;
       case '/info-library':
@@ -136,21 +138,31 @@ function App() {
         );
       case '/analytics/environment':
         return (
-          <AnalyticsContent category="environment" selectedYear={selectedYear} />
+          <AnalyticsContent
+            category="environment"
+            kpis={kpis}
+            selectedYear={selectedYear}
+          />
         );
       case '/analytics/governance':
         return <GovernancaAnalytics selectedYear={selectedYear} />;
       case '/analytics/social':
         return (
-          <AnalyticsContent category="social" selectedYear={selectedYear} />
+          <AnalyticsContent
+            category="social"
+            kpis={kpis}
+            selectedYear={selectedYear}
+          />
         );
       case '/kpi-management':
-        return <KPIManagement />;
+        return <KPIManagement kpis={kpis} setKpis={setKpis} />; // Passar props
       case '/action-plan':
         return (
           <ActionPlanManagement
             actionPlans={actionPlans}
             setActionPlans={setActionPlans}
+            kpis={kpis}
+            setKpis={setKpis}
           />
         );
       default:
