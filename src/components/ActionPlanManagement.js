@@ -1,5 +1,3 @@
-// src/components/ActionPlanManagement.js
-
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
@@ -19,7 +17,22 @@ function ActionPlanManagement() {
     resources: '',
     deadline: '',
     risks: '',
+    kpis: [],
   });
+
+  // Lista de KPIs disponíveis para serem selecionados
+  const availableKPIs = [
+    'Redução de custos (%)',
+    'Aumento de produtividade (%)',
+    'Satisfação do cliente (NPS)',
+    'Eficiência energética (kWh/m²)',
+    'Tempo de inatividade (horas)',
+    'Taxa de conversão (%)',
+    'Emissões de CO₂ (tCO₂e)',
+    'Taxa de crescimento (%)',
+    'Retorno sobre investimento (ROI)',
+    'Índice de qualidade (%)',
+  ];
 
   useEffect(() => {
     fetchActionPlans();
@@ -82,8 +95,17 @@ function ActionPlanManagement() {
       resources: '',
       deadline: '',
       risks: '',
+      kpis: [],
     });
     setIsAddingTask(false);
+  };
+
+  const handleKpiChange = (e) => {
+    const value = Array.from(
+      e.target.selectedOptions,
+      (option) => option.value
+    );
+    setNewTask({ ...newTask, kpis: value });
   };
 
   return (
@@ -123,6 +145,7 @@ function ActionPlanManagement() {
               onChange={(e) => setNewActionPlan({ ...newActionPlan, end_date: e.target.value })}
               className="w-full p-2 border rounded"
             />
+
             {/* Listagem das tarefas adicionadas */}
             <div>
               <h4 className="text-lg font-bold">Tarefas</h4>
@@ -133,6 +156,7 @@ function ActionPlanManagement() {
                   <p><strong>Recursos:</strong> {task.resources}</p>
                   <p><strong>Prazo:</strong> {task.deadline}</p>
                   <p><strong>Riscos:</strong> {task.risks}</p>
+                  <p><strong>KPIs:</strong> {task.kpis.join(', ')}</p> {/* Exibição dos KPIs selecionados */}
                 </div>
               ))}
               {/* Botão para adicionar nova tarefa */}
@@ -182,6 +206,21 @@ function ActionPlanManagement() {
                   onChange={(e) => setNewTask({ ...newTask, risks: e.target.value })}
                   className="w-full p-2 border rounded mb-2"
                 />
+                
+                {/* Seleção de KPIs */}
+                <select
+                  multiple
+                  value={newTask.kpis}
+                  onChange={handleKpiChange}
+                  className="w-full p-2 border rounded mb-2"
+                >
+                  {availableKPIs.map((kpi, index) => (
+                    <option key={index} value={kpi}>
+                      {kpi}
+                    </option>
+                  ))}
+                </select>
+
                 <div className="space-x-2">
                   <button
                     onClick={handleAddTask}
@@ -233,13 +272,13 @@ function ActionPlanManagement() {
                     <p><strong>Recursos:</strong> {task.resources}</p>
                     <p><strong>Prazo:</strong> {task.deadline}</p>
                     <p><strong>Riscos:</strong> {task.risks}</p>
+                    <p><strong>KPIs:</strong> {task.kpis.join(', ')}</p>
                   </div>
                 ))
               ) : (
                 <p>Sem tarefas.</p>
               )}
               <div className="mt-2 space-x-2">
-                {/* Aqui você pode adicionar botões para editar o plano de ação ou adicionar tarefas */}
                 <button
                   onClick={() => handleDeleteActionPlan(plan.id)}
                   className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
