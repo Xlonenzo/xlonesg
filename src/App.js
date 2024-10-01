@@ -33,7 +33,8 @@ import GovernancaAnalytics from './components/GovernancaAnalytics';
 import AnalyticsContent from './components/AnalyticsContent';
 import KPIChart from './components/KPIChart';
 import FornecedoresAvaliados from './components/FornecedoresAvaliados';
-import UserManagement from './components/admin/UserManagement';  // Novo Componente
+import UserManagement from './components/admin/UserManagement';
+import LoginPage from './components/LoginPage';  // Novo Componente
 
 // Importar estilos (se estiver usando Tailwind CSS ou outro CSS)
 import './index.css';
@@ -44,6 +45,7 @@ function App() {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [isLoggedIn, setIsLoggedIn] = useState(false);  // Estado para login
 
   // Inicializar estado com dados importados
   const [articles, setArticles] = useState(articlesData);
@@ -55,6 +57,10 @@ function App() {
 
   const toggleSidebar = () => {
     setIsSidebarCollapsed(!isSidebarCollapsed);
+  };
+
+  const handleLogin = () => {
+    setIsLoggedIn(true);  // Atualiza o estado quando o login for bem-sucedido
   };
 
   const renderMenuItem = (item, isSubItem = false) => (
@@ -170,6 +176,11 @@ function App() {
         return <div>Selecione uma opção do menu</div>;
     }
   };
+
+  // Verifica se o usuário está logado
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
 
   return (
     <div className="flex h-screen bg-gray-100">
