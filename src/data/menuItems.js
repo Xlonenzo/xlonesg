@@ -11,8 +11,7 @@ import {
   Book,
   ClipboardList,
   Database,
-  ChevronDown,
-  ChevronRight,
+  User,
 } from 'lucide-react';
 
 const menuItemsData = [
@@ -23,6 +22,7 @@ const menuItemsData = [
     path: '/admin',
     subItems: [
       { name: 'Fonte de Dados', icon: <Database size={20} />, path: '/admin/data-source' },
+      { name: 'Perfis e Usuários', icon: <User size={20} />, path: '/admin/user-management' }, // Adicionar aqui
     ]
   },
   {
@@ -35,7 +35,7 @@ const menuItemsData = [
       { name: 'Social', icon: <Users size={20} />, path: '/analytics/social' },
     ],
   },
-  { name: 'Gerenciamento de KPIs', icon: <Settings size={20} />, path: '/kpi-management' }, // Adicionar esta linha
+  { name: 'Gerenciamento de KPIs', icon: <Settings size={20} />, path: '/kpi-management' },
   { name: 'Biblioteca de Informações', icon: <Book size={20} />, path: '/info-library' },
   { name: 'Plano de Ação', icon: <ClipboardList size={20} />, path: '/action-plan' },
 ];

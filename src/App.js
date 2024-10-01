@@ -1,5 +1,3 @@
-// src/App.js
-
 import React, { useState } from 'react';
 import {
   Home,
@@ -35,6 +33,7 @@ import GovernancaAnalytics from './components/GovernancaAnalytics';
 import AnalyticsContent from './components/AnalyticsContent';
 import KPIChart from './components/KPIChart';
 import FornecedoresAvaliados from './components/FornecedoresAvaliados';
+import UserManagement from './components/admin/UserManagement';  // Novo Componente
 
 // Importar estilos (se estiver usando Tailwind CSS ou outro CSS)
 import './index.css';
@@ -136,6 +135,8 @@ function App() {
             setDataSources={setDataSources}
           />
         );
+      case '/admin/user-management': // Nova rota
+        return <UserManagement />;
       case '/analytics/environment':
         return (
           <AnalyticsContent
