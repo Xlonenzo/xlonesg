@@ -1,5 +1,3 @@
-// src/data/menuItems.js
-
 import React from 'react';
 import {
   Home,
@@ -12,6 +10,7 @@ import {
   ClipboardList,
   Database,
   User,
+  Sliders,
 } from 'lucide-react';
 
 const menuItemsData = [
@@ -22,7 +21,7 @@ const menuItemsData = [
     path: '/admin',
     subItems: [
       { name: 'Fonte de Dados', icon: <Database size={20} />, path: '/admin/data-source' },
-      { name: 'Perfis e Usuários', icon: <User size={20} />, path: '/admin/user-management' }, // Adicionar aqui
+      { name: 'Perfis e Usuários', icon: <User size={20} />, path: '/admin/user-management' }, 
     ]
   },
   {
@@ -33,6 +32,7 @@ const menuItemsData = [
       { name: 'Meio Ambiente', icon: <Leaf size={20} />, path: '/analytics/environment' },
       { name: 'Governança', icon: <Briefcase size={20} />, path: '/analytics/governance' },
       { name: 'Social', icon: <Users size={20} />, path: '/analytics/social' },
+      { name: 'Comparação de KPI', icon: <Sliders size={20} />, path: '/analytics/comparacao-kpi' }, // Novo item para Comparação de KPI
     ],
   },
   { name: 'Gerenciamento de KPIs', icon: <Settings size={20} />, path: '/kpi-management' },

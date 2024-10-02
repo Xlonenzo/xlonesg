@@ -35,6 +35,7 @@ import KPIChart from './components/KPIChart';
 import FornecedoresAvaliados from './components/FornecedoresAvaliados';
 import UserManagement from './components/admin/UserManagement';
 import LoginPage from './components/LoginPage';  // Novo Componente
+import ComparacaoKPI from './components/ComparacaoKPI';  // Importar o componente de Comparação de KPI
 
 // Importar estilos (se estiver usando Tailwind CSS ou outro CSS)
 import './index.css';
@@ -161,6 +162,8 @@ function App() {
             selectedYear={selectedYear}
           />
         );
+      case '/analytics/comparacao-kpi': // Nova rota para Comparação de KPI
+        return <ComparacaoKPI />;
       case '/kpi-management':
         return <KPIManagement kpis={kpis} setKpis={setKpis} />; // Passar props
       case '/action-plan':
