@@ -22,6 +22,8 @@ const menuItemsData = [
     subItems: [
       { name: 'Fonte de Dados', icon: <Database size={20} />, path: '/admin/data-source' },
       { name: 'Perfis e Usuários', icon: <User size={20} />, path: '/admin/user-management' }, 
+      // Novo item para Personalização
+      { name: 'Personalização', icon: <Settings size={20} />, path: '/admin/customization' }
     ]
   },
   {
@@ -32,7 +34,7 @@ const menuItemsData = [
       { name: 'Meio Ambiente', icon: <Leaf size={20} />, path: '/analytics/environment' },
       { name: 'Governança', icon: <Briefcase size={20} />, path: '/analytics/governance' },
       { name: 'Social', icon: <Users size={20} />, path: '/analytics/social' },
-      { name: 'Comparação de KPI', icon: <Sliders size={20} />, path: '/analytics/comparacao-kpi' }, // Novo item para Comparação de KPI
+      { name: 'Comparação de KPI', icon: <Sliders size={20} />, path: '/analytics/comparacao-kpi' },
     ],
   },
   { name: 'Gerenciamento de KPIs', icon: <Settings size={20} />, path: '/kpi-management' },

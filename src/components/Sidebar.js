@@ -1,4 +1,3 @@
-// components/Sidebar.js
 import React from 'react';
 import { ChevronDown, ChevronRight, Menu } from 'lucide-react';
 
@@ -12,6 +11,8 @@ function Sidebar({
   setIsAdminOpen,
   isSidebarCollapsed,
   toggleSidebar,
+  sidebarColor,
+  logo // Recebe o logo dinamicamente
 }) {
   // Function to render each menu item
   const renderMenuItem = (item, isSubItem = false) => (
@@ -62,16 +63,29 @@ function Sidebar({
 
   return (
     <aside
-      className={`bg-gray-800 transition-all duration-300 ease-in-out ${
+      style={{ backgroundColor: sidebarColor }} // Aplica a cor dinamicamente no corpo da sidebar
+      className={`transition-all duration-300 ease-in-out ${
         isSidebarCollapsed ? 'w-16' : 'w-64'
       }`}
     >
-      <div className="flex items-center justify-between h-16 bg-gray-900 px-4">
-        {!isSidebarCollapsed && <span className="text-white font-bold text-lg">ESG Dashboard</span>}
+      {/* Topo da Sidebar */}
+      <div
+        style={{ backgroundColor: sidebarColor }} // Aplica a cor dinamicamente no topo da sidebar
+        className="flex items-center justify-between h-16 px-4"
+      >
+        {/* Exibir o logo apenas quando a sidebar não estiver colapsada */}
+        {!isSidebarCollapsed && (
+          <img
+            src={logo} // Caminho dinâmico da logo
+            alt="Logo"
+            className="h-10 w-auto" // Tamanho do logo
+          />
+        )}
         <button onClick={toggleSidebar} className="text-white focus:outline-none">
           <Menu size={24} />
         </button>
       </div>
+      {/* Conteúdo do menu */}
       <nav className="mt-5">
         <ul className="space-y-2 px-2">{menuItems.map((item) => renderMenuItem(item))}</ul>
       </nav>
