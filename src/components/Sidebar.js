@@ -12,19 +12,19 @@ function Sidebar({
   isSidebarCollapsed,
   toggleSidebar,
   sidebarColor,
-  logo // Recebe o logo dinamicamente
+  logo
 }) {
   // Function to render each menu item
   const renderMenuItem = (item, isSubItem = false) => (
     <li key={item.path}>
       <button
         onClick={() => {
-          setActiveMenuItem(item.path);
           if (item.name === 'Análises') {
             setIsAnalyticsOpen(!isAnalyticsOpen);
-          }
-          if (item.name === 'Painel de Administração') {
+          } else if (item.name === 'Painel de Administração') {
             setIsAdminOpen(!isAdminOpen);
+          } else {
+            setActiveMenuItem(item.path);
           }
         }}
         className={`flex items-center w-full px-4 py-2 text-sm font-medium rounded-md ${
@@ -63,29 +63,26 @@ function Sidebar({
 
   return (
     <aside
-      style={{ backgroundColor: sidebarColor }} // Aplica a cor dinamicamente no corpo da sidebar
+      style={{ backgroundColor: sidebarColor }}
       className={`transition-all duration-300 ease-in-out ${
         isSidebarCollapsed ? 'w-16' : 'w-64'
       }`}
     >
-      {/* Topo da Sidebar */}
-      <div
-        style={{ backgroundColor: sidebarColor }} // Aplica a cor dinamicamente no topo da sidebar
-        className="flex items-center justify-between h-16 px-4"
-      >
-        {/* Exibir o logo apenas quando a sidebar não estiver colapsada */}
+      {/* Logo e título à esquerda, botão de colapso à direita */}
+      <div className="flex items-center justify-between h-16 px-4">
+        {/* Exibe o logo e o título apenas quando a sidebar não está colapsada */}
         {!isSidebarCollapsed && (
-          <img
-            src={logo} // Caminho dinâmico da logo
-            alt="Logo"
-            className="h-10 w-auto" // Tamanho do logo
-          />
+          <div className="flex items-center">
+            <img src={logo} alt="Logo" className="h-10 w-auto" />
+            <span className="text-white font-bold text-lg ml-2">ESG Dashboard</span>
+          </div>
         )}
         <button onClick={toggleSidebar} className="text-white focus:outline-none">
           <Menu size={24} />
         </button>
       </div>
-      {/* Conteúdo do menu */}
+
+      {/* Menu de navegação */}
       <nav className="mt-5">
         <ul className="space-y-2 px-2">{menuItems.map((item) => renderMenuItem(item))}</ul>
       </nav>
