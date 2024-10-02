@@ -29,7 +29,7 @@ function ComparacaoKPI() {
 
     return [
       {
-        name: selectedKpi,
+        name: selectedKpi || 'Todos os KPIs',
         setor_value: setorKpi ? setorKpi.actual_value : 0,
         setor_meta: setorKpi ? setorKpi.target_value : 0,
         companhia_value: companhiaKpi ? companhiaKpi.actual_value : 0,
@@ -95,6 +95,7 @@ function ComparacaoKPI() {
           <BarChart
             data={getDataForChart()}
             layout="vertical"
+            margin={{ top: 20, right: 30, left: 40, bottom: 20 }}
           >
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis type="number" />
@@ -102,7 +103,7 @@ function ComparacaoKPI() {
             <Tooltip />
             <Legend />
             <Bar dataKey="setor_value" fill="#8884d8" name="Valor Atual Setor" />
-            <Bar dataKey="setor_meta" fill="#82ca9d" name="Meta Setor" />
+            <Bar dataKey="setor_meta" fill="#ADD8E6" name="Meta Setor" /> {/* Azul Bem Claro */}
             <Bar dataKey="companhia_value" fill="#ff7f50" name="Valor Atual Companhia" />
             <Bar dataKey="companhia_meta" fill="#ffbb28" name="Meta Companhia" />
           </BarChart>

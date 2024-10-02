@@ -1,11 +1,22 @@
+// Customization.js
 import React, { useState } from 'react';
 
-const Customization = ({ setSidebarColor, setLogo }) => {
+const Customization = ({ setSidebarColor, setLogo, setButtonColor, setFontColor }) => {
   const [newLogo, setNewLogo] = useState(null); // Estado para armazenar a nova logo temporária
 
   // Função para trocar a cor da sidebar
-  const handleColorChange = (event) => {
+  const handleSidebarColorChange = (event) => {
     setSidebarColor(event.target.value);
+  };
+
+  // Função para trocar a cor do botão
+  const handleButtonColorChange = (event) => {
+    setButtonColor(event.target.value);
+  };
+
+  // Função para trocar a cor da fonte
+  const handleFontColorChange = (event) => {
+    setFontColor(event.target.value);
   };
 
   // Função para trocar o logo
@@ -26,8 +37,27 @@ const Customization = ({ setSidebarColor, setLogo }) => {
       <label className="block mb-2">Cor da Sidebar:</label>
       <input
         type="color"
-        onChange={handleColorChange}
+        onChange={handleSidebarColorChange}
         className="block mb-4"
+        defaultValue="#727E7A"
+      />
+
+      {/* Alterar a cor do Botão */}
+      <label className="block mb-2">Cor do Botão:</label>
+      <input
+        type="color"
+        onChange={handleButtonColorChange}
+        className="block mb-4"
+        defaultValue="#4A5568" // Cor padrão: cinza escuro
+      />
+
+      {/* Alterar a cor da Fonte */}
+      <label className="block mb-2">Cor da Fonte:</label>
+      <input
+        type="color"
+        onChange={handleFontColorChange}
+        className="block mb-4"
+        defaultValue="#D1D5DB" // Cor padrão: cinza claro
       />
 
       {/* Upload do novo logo */}
