@@ -1,4 +1,3 @@
-// App.js
 import React, { useState } from 'react';
 import {
   Home,
@@ -51,7 +50,7 @@ function App() {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [isLoggedIn, setIsLoggedIn] = useState(true);  // Estado para login
+  const [isLoggedIn, setIsLoggedIn] = useState(false);  // Estado inicial de login agora é 'false'
   const [sidebarColor, setSidebarColor] = useState('#727E7A'); // Cor padrão do sidebar
   const [logo, setLogo] = useState('/logo.png'); // Logo padrão
   const [buttonColor, setButtonColor] = useState('#4A5568'); // Cor padrão do botão (cinza escuro)
