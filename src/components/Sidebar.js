@@ -1,4 +1,4 @@
-// components/Sidebar.js
+// Sidebar.js
 import React from 'react';
 import { ChevronDown, ChevronRight, Menu } from 'lucide-react';
 
@@ -12,25 +12,31 @@ function Sidebar({
   setIsAdminOpen,
   isSidebarCollapsed,
   toggleSidebar,
+  sidebarColor,
+  logo,
+  buttonColor,
+  fontColor
 }) {
-  // Function to render each menu item
+  // Função para renderizar cada item do menu
   const renderMenuItem = (item, isSubItem = false) => (
     <li key={item.path}>
       <button
         onClick={() => {
-          setActiveMenuItem(item.path);
           if (item.name === 'Análises') {
             setIsAnalyticsOpen(!isAnalyticsOpen);
-          }
-          if (item.name === 'Painel de Administração') {
+          } else if (item.name === 'Painel de Administração') {
             setIsAdminOpen(!isAdminOpen);
+          } else {
+            setActiveMenuItem(item.path);
           }
         }}
+        style={{
+          backgroundColor: activeMenuItem === item.path ? buttonColor : 'transparent',
+          color: activeMenuItem === item.path ? '#FFFFFF' : fontColor,
+        }}
         className={`flex items-center w-full px-4 py-2 text-sm font-medium rounded-md ${
-          activeMenuItem === item.path
-            ? 'bg-gray-900 text-white'
-            : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-        } ${isSubItem ? 'pl-8' : ''}`}
+          isSubItem ? 'pl-8' : ''
+        } ${activeMenuItem === item.path ? '' : 'hover:bg-gray-700'}`}
       >
         {item.icon}
         {!isSidebarCollapsed && (
@@ -49,6 +55,8 @@ function Sidebar({
           </>
         )}
       </button>
+
+      {/* Renderizar subitens se existirem */}
       {!isSidebarCollapsed &&
         item.subItems &&
         ((item.name === 'Análises' && isAnalyticsOpen) ||
@@ -62,18 +70,33 @@ function Sidebar({
 
   return (
     <aside
-      className={`bg-gray-800 transition-all duration-300 ease-in-out ${
+      style={{ backgroundColor: sidebarColor }}
+      className={`transition-all duration-300 ease-in-out ${
         isSidebarCollapsed ? 'w-16' : 'w-64'
-      }`}
+      } h-full`}
     >
-      <div className="flex items-center justify-between h-16 bg-gray-900 px-4">
-        {!isSidebarCollapsed && <span className="text-white font-bold text-lg">ESG Dashboard</span>}
+      {/* Cabeçalho da Sidebar: Logo e Título */}
+      <div className="flex items-center justify-between h-16 px-4">
+        {/* Condicionalmente renderizar logo e título somente se a sidebar não estiver colapsada */}
+        {!isSidebarCollapsed && (
+          <div className="flex items-center">
+            {/* Logo */}
+            <img src={logo} alt="Logo" className="h-10 w-auto" />
+            {/* Título */}
+            <span className="text-white font-bold text-lg ml-2">ESG Dashboard</span>
+          </div>
+        )}
+        {/* Botão para Colapsar/Expandir Sidebar */}
         <button onClick={toggleSidebar} className="text-white focus:outline-none">
           <Menu size={24} />
         </button>
       </div>
+
+      {/* Menu de Navegação */}
       <nav className="mt-5">
-        <ul className="space-y-2 px-2">{menuItems.map((item) => renderMenuItem(item))}</ul>
+        <ul className="space-y-2 px-2">
+          {menuItems.map((item) => renderMenuItem(item))}
+        </ul>
       </nav>
     </aside>
   );
