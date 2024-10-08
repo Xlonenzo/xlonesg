@@ -86,7 +86,7 @@ function App() {
         return <HomeContent kpis={kpis} selectedYear={selectedYear} />;
       case '/admin':
         return <AdminContent />;
-      case '/admin/customization':  // Nova rota para Personalização
+      case '/admin/customization':
         return (
           <Customization
             setSidebarColor={setSidebarColor}
@@ -104,7 +104,7 @@ function App() {
             setDataSources={setDataSources}
           />
         );
-      case '/admin/user-management': // Nova rota
+      case '/admin/user-management':
         return <UserManagement />;
       case '/analytics/environment':
         return (
@@ -124,10 +124,10 @@ function App() {
             selectedYear={selectedYear}
           />
         );
-      case '/analytics/comparacao-kpi': // Nova rota para Comparação de KPI
+      case '/analytics/comparacao-kpi':
         return <ComparacaoKPI />;
       case '/kpi-management':
-        return <KPIManagement kpis={kpis} setKpis={setKpis} />;
+        return <KPIManagement kpis={kpis} setKpis={setKpis} buttonColor={buttonColor} />;
       case '/action-plan':
         return (
           <ActionPlanManagement
@@ -162,7 +162,7 @@ function App() {
         <div className="flex h-full">
           {/* Sidebar */}
           <Sidebar
-            sidebarColor={sidebarColor} // Passa a cor do sidebar
+            sidebarColor={sidebarColor}
             menuItems={menuItems}
             activeMenuItem={activeMenuItem}
             setActiveMenuItem={setActiveMenuItem}
@@ -172,9 +172,9 @@ function App() {
             setIsAdminOpen={setIsAdminOpen}
             isSidebarCollapsed={isSidebarCollapsed}
             toggleSidebar={toggleSidebar}
-            logo={logo} // Passa o logo dinamicamente
-            buttonColor={buttonColor} // Passa a cor do botão
-            fontColor={fontColor} // Passa a cor da fonte
+            logo={logo}
+            buttonColor={buttonColor}
+            fontColor={fontColor}
           />
 
           {/* Conteúdo Principal */}
@@ -183,28 +183,30 @@ function App() {
               <h1 className="text-2xl font-bold" style={{ color: fontColor }}>
                 Dashboard ESG
               </h1>
-              <div className="flex items-center">
-                <label
-                  htmlFor="year-select"
-                  className="mr-2 text-sm font-medium"
-                  style={{ color: fontColor }}
-                >
-                  Ano:
-                </label>
-                <select
-                  id="year-select"
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(Number(e.target.value))}
-                  className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                  style={{ color: fontColor }}
-                >
-                  {years.map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {activeMenuItem !== '/kpi-management' && (
+                <div className="flex items-center">
+                  <label
+                    htmlFor="year-select"
+                    className="mr-2 text-sm font-medium"
+                    style={{ color: fontColor }}
+                  >
+                    Ano:
+                  </label>
+                  <select
+                    id="year-select"
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(Number(e.target.value))}
+                    className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                    style={{ color: fontColor }}
+                  >
+                    {years.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             {renderContent()}

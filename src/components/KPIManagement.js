@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { FaEdit, FaTrash } from 'react-icons/fa';
 
-function KPIManagement() {
-  const [kpis, setKpis] = useState([]);
+function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
   const [isAddingKPI, setIsAddingKPI] = useState(false);
   const [editingKPI, setEditingKPI] = useState(null);
   const [newKPI, setNewKPI] = useState({
@@ -20,6 +20,23 @@ function KPIManagement() {
     month: '',
     cnpj: '',
     kpicode: ''
+  });
+
+  const [filters, setFilters] = useState({
+    year: '',
+    status: '',
+    name: '',
+    category: '',
+    target_value: '',
+    actual_value: '',
+    month: '',
+    cnpj: '',
+    kpicode: ''
+  });
+
+  const [sortConfig, setSortConfig] = useState({
+    key: '',
+    direction: 'ascending'
   });
 
   const units = ['kg', 'ton', 'm³', 'kWh', '%', '€', '$', 'unidades'];
@@ -48,6 +65,9 @@ function KPIManagement() {
       'Transparência e divulgação'
     ]
   };
+
+  const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
+  const statuses = ['Ativo', 'Inativo', 'Em progresso'];
 
   useEffect(() => {
     fetchKPIs();
@@ -120,14 +140,60 @@ function KPIManagement() {
     }
   };
 
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSort = (key) => {
+    let direction = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortedKpis = (kpisToSort) => {
+    if (sortConfig.key) {
+      return [...kpisToSort].sort((a, b) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) {
+          return sortConfig.direction === 'ascending' ? -1 : 1;
+        }
+        if (a[sortConfig.key] > b[sortConfig.key]) {
+          return sortConfig.direction === 'ascending' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return kpisToSort;
+  };
+
+  const getFilteredKpis = () => {
+    return kpis.filter(kpi => {
+      return (
+        (filters.year === '' || kpi.year.toString() === filters.year) &&
+        (filters.status === '' || kpi.status === filters.status) &&
+        kpi.name.toLowerCase().includes(filters.name.toLowerCase()) &&
+        (filters.category === '' || kpi.category === filters.category) &&
+        (filters.target_value === '' || kpi.target_value.toString() === filters.target_value) &&
+        (filters.actual_value === '' || kpi.actual_value.toString() === filters.actual_value) &&
+        (filters.month === '' || kpi.month.toString() === filters.month) &&
+        (filters.cnpj === '' || kpi.cnpj.toLowerCase().includes(filters.cnpj.toLowerCase())) &&
+        (filters.kpicode === '' || kpi.kpicode.toLowerCase().includes(filters.kpicode.toLowerCase()))
+      );
+    });
+  };
+
+  const sortedKpis = getSortedKpis(getFilteredKpis());
+
   const renderKPIForm = (kpi, isNewKPI = false) => (
-    <div className="space-y-2">
+    <div className="grid grid-cols-2 gap-4">
       <input
         type="text"
         name="name"
         value={kpi.name}
         onChange={(e) => handleInputChange(e, isNewKPI)}
-        placeholder="Nome"
+        placeholder="Nome do KPI"
         className="w-full p-2 border rounded"
       />
       <select
@@ -136,9 +202,11 @@ function KPIManagement() {
         onChange={(e) => handleInputChange(e, isNewKPI)}
         className="w-full p-2 border rounded"
       >
-        <option value="">Selecione a Unidade</option>
-        {units.map(unit => (
-          <option key={unit} value={unit}>{unit}</option>
+        <option value="">Selecione uma unidade</option>
+        {units.map((unit) => (
+          <option key={unit} value={unit}>
+            {unit}
+          </option>
         ))}
       </select>
       <select
@@ -157,9 +225,11 @@ function KPIManagement() {
         onChange={(e) => handleInputChange(e, isNewKPI)}
         className="w-full p-2 border rounded"
       >
-        <option value="">Selecione a Subcategoria</option>
-        {subcategories[kpi.category]?.map(subcat => (
-          <option key={subcat} value={subcat}>{subcat}</option>
+        <option value="">Selecione uma subcategoria</option>
+        {subcategories[kpi.category]?.map((subcat) => (
+          <option key={subcat} value={subcat}>
+            {subcat}
+          </option>
         ))}
       </select>
       <textarea
@@ -191,9 +261,11 @@ function KPIManagement() {
         onChange={(e) => handleInputChange(e, isNewKPI)}
         className="w-full p-2 border rounded"
       >
-        <option value="">Selecione a Frequência</option>
-        {frequencies.map(freq => (
-          <option key={freq} value={freq}>{freq}</option>
+        <option value="">Selecione uma frequência</option>
+        {frequencies.map((freq) => (
+          <option key={freq} value={freq}>
+            {freq}
+          </option>
         ))}
       </select>
       <select
@@ -202,23 +274,21 @@ function KPIManagement() {
         onChange={(e) => handleInputChange(e, isNewKPI)}
         className="w-full p-2 border rounded"
       >
-        <option value="">Selecione o Método de Coleta</option>
-        {collectionMethods.map(method => (
-          <option key={method} value={method}>{method}</option>
+        <option value="">Selecione um método de coleta</option>
+        {collectionMethods.map((method) => (
+          <option key={method} value={method}>
+            {method}
+          </option>
         ))}
       </select>
-      <select
+      <input
+        type="text"
         name="status"
         value={kpi.status}
         onChange={(e) => handleInputChange(e, isNewKPI)}
+        placeholder="Status"
         className="w-full p-2 border rounded"
-      >
-        <option value="">Selecione o Status</option>
-        <option value="Em andamento">Em andamento</option>
-        <option value="Concluído">Concluído</option>
-        <option value="Não iniciado">Não iniciado</option>
-        <option value="Em risco">Em risco</option>
-      </select>
+      />
       <input
         type="number"
         name="year"
@@ -233,9 +303,11 @@ function KPIManagement() {
         onChange={(e) => handleInputChange(e, isNewKPI)}
         className="w-full p-2 border rounded"
       >
-        <option value="">Selecione o Mês</option>
+        <option value="">Selecione um mês</option>
         {[...Array(12)].map((_, i) => (
-          <option key={i+1} value={i+1}>{new Date(0, i).toLocaleString('default', { month: 'long' })}</option>
+          <option key={i + 1} value={i + 1}>
+            {new Date(0, i).toLocaleString('default', { month: 'long' })}
+          </option>
         ))}
       </select>
       <input
@@ -260,12 +332,46 @@ function KPIManagement() {
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Gerenciamento de KPIs</h2>
-      <button
-        onClick={() => setIsAddingKPI(true)}
-        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-      >
-        Adicionar Novo KPI
-      </button>
+      
+      <div className="flex justify-between items-center">
+        <button
+          onClick={() => setIsAddingKPI(true)}
+          className="text-white px-4 py-2 rounded hover:opacity-80"
+          style={{ backgroundColor: buttonColor }}
+        >
+          Adicionar Novo KPI
+        </button>
+        
+        <div className="flex space-x-4">
+          <select
+            name="year"
+            value={filters.year}
+            onChange={handleFilterChange}
+            className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+          >
+            <option value="">Todos os anos</option>
+            {years.map((year) => (
+              <option key={year} value={year.toString()}>
+                {year}
+              </option>
+            ))}
+          </select>
+          
+          <select
+            name="status"
+            value={filters.status}
+            onChange={handleFilterChange}
+            className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+          >
+            <option value="">Todos os status</option>
+            {statuses.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
       {isAddingKPI && (
         <div className="mt-4 p-4 bg-gray-100 rounded">
@@ -274,7 +380,8 @@ function KPIManagement() {
           <div className="mt-4 space-x-2">
             <button
               onClick={handleAddKPI}
-              className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+              className="text-white px-4 py-2 rounded hover:opacity-80"
+              style={{ backgroundColor: buttonColor }}
             >
               Adicionar
             </button>
@@ -288,64 +395,185 @@ function KPIManagement() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {kpis.map((kpi) => (
-          <div key={kpi.id} className="bg-white p-4 rounded shadow">
-            {editingKPI && editingKPI.id === kpi.id ? (
-              <div>
-                {renderKPIForm(editingKPI)}
-                <div className="mt-4 space-x-2">
-                  <button
-                    onClick={handleUpdateKPI}
-                    className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-                  >
-                    Salvar
-                  </button>
-                  <button
-                    onClick={() => setEditingKPI(null)}
-                    className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-                  >
-                    Cancelar
-                  </button>
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white border">
+          <thead>
+            <tr>
+              <th className="px-4 py-2 border">
+                <div className="flex items-center">
+                  <span onClick={() => handleSort('name')} className="cursor-pointer flex items-center">
+                    Nome
+                    {sortConfig.key === 'name' && (
+                      sortConfig.direction === 'ascending' ? <span> ▲</span> : <span> ▼</span>
+                    )}
+                  </span>
                 </div>
-              </div>
-            ) : (
-              <div>
-                <h3 className="text-lg font-bold">{kpi.name}</h3>
-                <p>Categoria: {kpi.category}</p>
-                <p>Subcategoria: {kpi.subcategory}</p>
-                <p>
-                  Valor Alvo: {kpi.target_value} {kpi.unit}
-                </p>
-                <p>
-                  Valor Atual: {kpi.actual_value} {kpi.unit}
-                </p>
-                <p>Frequência: {kpi.frequency}</p>
-                <p>Método de Coleta: {kpi.collection_method}</p>
-                <p>Status: {kpi.status}</p>
-                <p>Ano: {kpi.year}</p>
-                <p>Mês: {kpi.month}</p>
-                <p>CNPJ: {kpi.cnpj}</p>
-                <p>Código KPI: {kpi.kpicode}</p>
-                <div className="mt-2 space-x-2">
-                  <button
-                    onClick={() => setEditingKPI(kpi)}
-                    className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => handleDeleteKPI(kpi.id)}
-                    className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-                  >
-                    Excluir
-                  </button>
+                <input
+                  type="text"
+                  name="name"
+                  value={filters.name}
+                  onChange={handleFilterChange}
+                  placeholder="Filtrar por Nome"
+                  className="w-full mt-1 p-1 border rounded"
+                />
+              </th>
+              <th className="px-4 py-2 border">
+                <div className="flex items-center">
+                  <span onClick={() => handleSort('category')} className="cursor-pointer flex items-center">
+                    Categoria
+                    {sortConfig.key === 'category' && (
+                      sortConfig.direction === 'ascending' ? <span> ▲</span> : <span> ▼</span>
+                    )}
+                  </span>
                 </div>
-              </div>
+                <select
+                  name="category"
+                  value={filters.category}
+                  onChange={handleFilterChange}
+                  className="w-full mt-1 p-1 border rounded"
+                >
+                  <option value="">Todas</option>
+                  <option value="environment">Meio Ambiente</option>
+                  <option value="social">Social</option>
+                  <option value="governance">Governança</option>
+                </select>
+              </th>
+              <th className="px-4 py-2 border">
+                <div className="flex items-center">
+                  <span onClick={() => handleSort('target_value')} className="cursor-pointer flex items-center">
+                    Valor Alvo
+                    {sortConfig.key === 'target_value' && (
+                      sortConfig.direction === 'ascending' ? <span> ▲</span> : <span> ▼</span>
+                    )}
+                  </span>
+                </div>
+                <input
+                  type="number"
+                  name="target_value"
+                  value={filters.target_value}
+                  onChange={handleFilterChange}
+                  placeholder="Filtrar por Valor Alvo"
+                  className="w-full mt-1 p-1 border rounded"
+                />
+              </th>
+              <th className="px-4 py-2 border">
+                <div className="flex items-center">
+                  <span onClick={() => handleSort('actual_value')} className="cursor-pointer flex items-center">
+                    Valor Atual
+                    {sortConfig.key === 'actual_value' && (
+                      sortConfig.direction === 'ascending' ? <span> ▲</span> : <span> ▼</span>
+                    )}
+                  </span>
+                </div>
+                <input
+                  type="number"
+                  name="actual_value"
+                  value={filters.actual_value}
+                  onChange={handleFilterChange}
+                  placeholder="Filtrar por Valor Atual"
+                  className="w-full mt-1 p-1 border rounded"
+                />
+              </th>
+              <th className="px-4 py-2 border">
+                <div className="flex items-center">
+                  <span onClick={() => handleSort('cnpj')} className="cursor-pointer flex items-center">
+                    CNPJ
+                    {sortConfig.key === 'cnpj' && (
+                      sortConfig.direction === 'ascending' ? <span> ▲</span> : <span> ▼</span>
+                    )}
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  name="cnpj"
+                  value={filters.cnpj}
+                  onChange={handleFilterChange}
+                  placeholder="Filtrar por CNPJ"
+                  className="w-full mt-1 p-1 border rounded"
+                />
+              </th>
+              <th className="px-4 py-2 border">
+                <div className="flex items-center">
+                  <span onClick={() => handleSort('kpicode')} className="cursor-pointer flex items-center">
+                    Código KPI
+                    {sortConfig.key === 'kpicode' && (
+                      sortConfig.direction === 'ascending' ? <span> ▲</span> : <span> ▼</span>
+                    )}
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  name="kpicode"
+                  value={filters.kpicode}
+                  onChange={handleFilterChange}
+                  placeholder="Filtrar por Código KPI"
+                  className="w-full mt-1 p-1 border rounded"
+                />
+              </th>
+              <th className="px-4 py-2 border">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedKpis.map((kpi) => (
+              <tr key={kpi.id} className="hover:bg-gray-100">
+                <td className="px-4 py-2 border">{kpi.name}</td>
+                <td className="px-4 py-2 border capitalize">{kpi.category}</td>
+                <td className="px-4 py-2 border">{kpi.target_value} {kpi.unit}</td>
+                <td className="px-4 py-2 border">{kpi.actual_value} {kpi.unit}</td>
+                <td className="px-4 py-2 border">{kpi.cnpj}</td>
+                <td className="px-4 py-2 border">{kpi.kpicode}</td>
+                <td className="px-4 py-2 border">
+                  <div className="flex space-x-2 justify-center">
+                    <button
+                      onClick={() => setEditingKPI(kpi)}
+                      className="text-yellow-500 hover:text-yellow-700"
+                      title="Editar"
+                    >
+                      <FaEdit />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteKPI(kpi.id)}
+                      className="text-red-500 hover:text-red-700"
+                      title="Excluir"
+                    >
+                      <FaTrash />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {sortedKpis.length === 0 && (
+              <tr>
+                <td colSpan="7" className="text-center p-4">
+                  Nenhum KPI encontrado.
+                </td>
+              </tr>
             )}
-          </div>
-        ))}
+          </tbody>
+        </table>
       </div>
+
+      {editingKPI && (
+        <div className="mt-4 p-4 bg-gray-100 rounded">
+          <h3 className="text-lg font-bold mb-2">Editar KPI</h3>
+          {renderKPIForm(editingKPI)}
+          <div className="mt-4 space-x-2">
+            <button
+              onClick={handleUpdateKPI}
+              className="text-white px-4 py-2 rounded hover:opacity-80"
+              style={{ backgroundColor: buttonColor }}
+            >
+              Salvar
+            </button>
+            <button
+              onClick={() => setEditingKPI(null)}
+              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
