@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { FaEdit, FaTrash } from 'react-icons/fa';
 
@@ -19,8 +19,11 @@ function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
     year: new Date().getFullYear(),
     month: '',
     cnpj: '',
-    kpicode: ''
+    kpicode: '',
+    company_category: '',
+    isfavorite: false
   });
+
 
   const [filters, setFilters] = useState({
     year: '',
@@ -31,7 +34,9 @@ function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
     actual_value: '',
     month: '',
     cnpj: '',
-    kpicode: ''
+    kpicode: '',
+    company_category: '',
+    isfavorite: ''
   });
 
   const [sortConfig, setSortConfig] = useState({
@@ -69,18 +74,18 @@ function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
   const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
   const statuses = ['Ativo', 'Inativo', 'Em progresso'];
 
-  useEffect(() => {
-    fetchKPIs();
-  }, []);
-
-  const fetchKPIs = async () => {
+  const fetchKPIs = useCallback(async () => {
     try {
       const response = await axios.get('http://localhost:8000/api/kpis');
       setKpis(response.data);
     } catch (error) {
       console.error('Erro ao buscar KPIs:', error);
     }
-  };
+  }, [setKpis]);
+
+  useEffect(() => {
+    fetchKPIs();
+  }, [fetchKPIs]);
 
   const handleAddKPI = async () => {
     try {
@@ -101,7 +106,9 @@ function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
         year: new Date().getFullYear(),
         month: '',
         cnpj: '',
-        kpicode: ''
+        kpicode: '',
+        company_category: '',
+        isfavorite: false
       });
     } catch (error) {
       console.error('Erro ao adicionar KPI:', error);
@@ -131,12 +138,14 @@ function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
     }
   };
 
-  const handleInputChange = (e, isNewKPI = false) => {
-    const { name, value } = e.target;
+  const handleInputChange = (e, isNewKPI) => {
+    const { name, value, type, checked } = e.target;
+    const newValue = type === 'checkbox' ? checked : value;
+    
     if (isNewKPI) {
-      setNewKPI(prev => ({ ...prev, [name]: value }));
+      setNewKPI(prev => ({ ...prev, [name]: newValue }));
     } else {
-      setEditingKPI(prev => ({ ...prev, [name]: value }));
+      setEditingKPI(prev => ({ ...prev, [name]: newValue }));
     }
   };
 
@@ -179,7 +188,9 @@ function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
         (filters.actual_value === '' || kpi.actual_value.toString() === filters.actual_value) &&
         (filters.month === '' || kpi.month.toString() === filters.month) &&
         (filters.cnpj === '' || kpi.cnpj.toLowerCase().includes(filters.cnpj.toLowerCase())) &&
-        (filters.kpicode === '' || kpi.kpicode.toLowerCase().includes(filters.kpicode.toLowerCase()))
+        (filters.kpicode === '' || kpi.kpicode.toLowerCase().includes(filters.kpicode.toLowerCase())) &&
+        (filters.company_category === '' || kpi.company_category.toLowerCase().includes(filters.company_category.toLowerCase())) &&
+        (filters.isfavorite === '' || kpi.isfavorite.toString() === filters.isfavorite)
       );
     });
   };
@@ -326,6 +337,26 @@ function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
         placeholder="Código KPI"
         className="w-full p-2 border rounded"
       />
+      <input
+        type="text"
+        name="company_category"
+        value={kpi.company_category}
+        onChange={(e) => handleInputChange(e, isNewKPI)}
+        placeholder="Categoria da Empresa"
+        className="w-full p-2 border rounded"
+      />
+      
+      {/* Novo campo isfavorite */}
+      <div className="col-span-2 flex items-center">
+        <input
+          type="checkbox"
+          name="isfavorite"
+          checked={kpi.isfavorite}
+          onChange={(e) => handleInputChange(e, isNewKPI)}
+          className="mr-2"
+        />
+        <label htmlFor="isfavorite">Marcar como favorito</label>
+      </div>
     </div>
   );
 

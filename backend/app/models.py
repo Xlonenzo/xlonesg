@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Text
+from sqlalchemy import Column, Integer, String, Float, Text, Boolean
 from .database import Base
 
 class KPI(Base):
@@ -20,3 +20,5 @@ class KPI(Base):
     month = Column(Integer)  # Novo campo
     cnpj = Column(String)
     kpicode = Column(String, unique=True, index=True)
+    company_category = Column(String)  # Novo campo adicionado
+    isfavorite = Column(Boolean, default=False)  # Novo campo adicionado

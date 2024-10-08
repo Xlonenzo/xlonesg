@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import engine, get_db
 from fastapi.middleware.cors import CORSMiddleware
+from typing import List
 
 app = FastAPI()
 
@@ -26,7 +27,7 @@ def create_kpi(kpi: schemas.KPICreate, db: Session = Depends(get_db)):
     print("KPI criado:", db_kpi.__dict__)
     return db_kpi
 
-@app.get("/api/kpis", response_model=list[schemas.KPI])
+@app.get("/api/kpis", response_model=List[schemas.KPI])
 def read_kpis(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     kpis = db.query(models.KPI).offset(skip).limit(limit).all()
     return kpis
@@ -57,3 +58,25 @@ def delete_kpi(kpi_id: int, db: Session = Depends(get_db)):
     db.delete(kpi)
     db.commit()
     return kpi
+
+@app.get("/api/kpis/category/{category}", response_model=List[schemas.KPI])
+def read_kpis_by_category(category: str, db: Session = Depends(get_db)):
+    print(f"Buscando KPIs para a categoria: {category}")
+    kpis = db.query(models.KPI).filter(models.KPI.category == category).all()
+    print(f"KPIs encontrados: {len(kpis)}")
+    for kpi in kpis:
+        print(f"KPI: {kpi.name}, Categoria: {kpi.category}, Ano: {kpi.year}")
+    return kpis
+
+# Adicione esta rota para debug
+@app.get("/api/kpis/all", response_model=List[schemas.KPI])
+def read_all_kpis(db: Session = Depends(get_db)):
+    kpis = db.query(models.KPI).all()
+    print(f"Total de KPIs no banco: {len(kpis)}")
+    for kpi in kpis:
+        print(f"KPI: {kpi.name}, Categoria: {kpi.category}, Ano: {kpi.year}")
+    return kpis
+
+@app.get("/api/kpis/category", response_model=List[schemas.KPI])
+def read_all_kpis(db: Session = Depends(get_db)):
+    raise HTTPException(status_code=400, detail="Categoria não especificada")

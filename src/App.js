@@ -1,26 +1,27 @@
 // App.js
 import React, { useState } from 'react';
-import {
-  Home,
-  Settings,
-  BarChart2,
-  Leaf,
-  Users,
-  Briefcase,
-  ChevronDown,
-  ChevronRight,
-  Menu,
-  Book,
-  ClipboardList,
-  Database,
-} from 'lucide-react';
+
+// Remova as importações não utilizadas
+// import {
+//   Home,
+//   Settings,
+//   BarChart2,
+//   Leaf,
+//   Users,
+//   Briefcase,
+//   ChevronDown,
+//   ChevronRight,
+//   Menu,
+//   Book,
+//   ClipboardList,
+//   Database,
+// } from 'lucide-react';
 
 // Importar dados de arquivos separados
 import articlesData from './data/articles';
 import actionPlansData from './data/actionPlans';
 import dataSourcesData from './data/dataSources';
-import kpisData from './data/kpis'; // Importar os dados dos KPIs
-import yearsData from './data/years';
+import kpisData from './data/kpis';
 import menuItemsData from './data/menuItems';
 
 // Importar componentes
@@ -32,16 +33,14 @@ import ActionPlanManagement from './components/ActionPlanManagement';
 import DataSourceManagement from './components/DataSourceManagement';
 import GovernancaAnalytics from './components/GovernancaAnalytics';
 import AnalyticsContent from './components/AnalyticsContent';
-import KPIChart from './components/KPIChart';
-import FornecedoresAvaliados from './components/FornecedoresAvaliados';
 import UserManagement from './components/admin/UserManagement';
-import LoginPage from './components/LoginPage';  // Novo Componente
-import ComparacaoKPI from './components/ComparacaoKPI';  // Importar o componente de Comparação de KPI
-import Customization from './components/Customization'; // Importar o componente de Personalização
-import Sidebar from './components/Sidebar'; // Importar o componente Sidebar
-import Topbar from './components/Topbar'; // Importar o componente Topbar
+import LoginPage from './components/LoginPage';
+import ComparacaoKPI from './components/ComparacaoKPI';
+import Customization from './components/Customization';
+import Sidebar from './components/Sidebar';
+import Topbar from './components/Topbar';
 
-// Importar estilos (se estiver usando Tailwind CSS ou outro CSS)
+// Importar estilos
 import './index.css';
 
 function App() {
@@ -50,19 +49,17 @@ function App() {
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [isLoggedIn, setIsLoggedIn] = useState(true);  // Estado para login
-  const [sidebarColor, setSidebarColor] = useState('#727E7A'); // Cor padrão do sidebar
-  const [logo, setLogo] = useState('/logo.png'); // Logo padrão
-  const [buttonColor, setButtonColor] = useState('#4A5568'); // Cor padrão do botão (cinza escuro)
-  const [fontColor, setFontColor] = useState('#D1D5DB'); // Cor padrão da fonte (cinza claro)
+  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [sidebarColor, setSidebarColor] = useState('#727E7A');
+  const [logo, setLogo] = useState('/logo.png');
+  const [buttonColor, setButtonColor] = useState('#4A5568');
+  const [fontColor, setFontColor] = useState('#D1D5DB');
 
   // Inicializar estados com dados importados
   const [articles, setArticles] = useState(articlesData);
   const [actionPlans, setActionPlans] = useState(actionPlansData);
   const [dataSources, setDataSources] = useState(dataSourcesData);
-  const [kpis, setKpis] = useState(kpisData); // Estado dos KPIs
-  const years = yearsData;
+  const [kpis, setKpis] = useState(kpisData);
   const menuItems = menuItemsData;
 
   // Função para alternar a sidebar
@@ -72,18 +69,18 @@ function App() {
 
   // Funções de login/logout
   const handleLogin = () => {
-    setIsLoggedIn(true);  // Atualiza o estado quando o login for bem-sucedido
+    setIsLoggedIn(true);
   };
 
   const handleLogout = () => {
-    setIsLoggedIn(false); // Desconecta o usuário
+    setIsLoggedIn(false);
   };
 
   // Função para renderizar o conteúdo baseado no item de menu ativo
   const renderContent = () => {
     switch (activeMenuItem) {
       case '/':
-        return <HomeContent kpis={kpis} selectedYear={selectedYear} />;
+        return <HomeContent kpis={kpis} />;
       case '/admin':
         return <AdminContent />;
       case '/admin/customization':
@@ -107,23 +104,11 @@ function App() {
       case '/admin/user-management':
         return <UserManagement />;
       case '/analytics/environment':
-        return (
-          <AnalyticsContent
-            category="environment"
-            kpis={kpis}
-            selectedYear={selectedYear}
-          />
-        );
+        return <AnalyticsContent pageTitle="Meio Ambiente" />;
       case '/analytics/governance':
-        return <GovernancaAnalytics selectedYear={selectedYear} />;
+        return <GovernancaAnalytics />;
       case '/analytics/social':
-        return (
-          <AnalyticsContent
-            category="social"
-            kpis={kpis}
-            selectedYear={selectedYear}
-          />
-        );
+        return <AnalyticsContent pageTitle="Social" />;
       case '/analytics/comparacao-kpi':
         return <ComparacaoKPI />;
       case '/kpi-management':
@@ -149,9 +134,7 @@ function App() {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Estrutura Principal */}
       <div className="flex flex-col w-full">
-        {/* Topbar */}
         <Topbar
           onLogout={handleLogout}
           sidebarColor={sidebarColor}
@@ -160,7 +143,6 @@ function App() {
         />
 
         <div className="flex h-full">
-          {/* Sidebar */}
           <Sidebar
             sidebarColor={sidebarColor}
             menuItems={menuItems}
@@ -177,38 +159,10 @@ function App() {
             fontColor={fontColor}
           />
 
-          {/* Conteúdo Principal */}
           <main className="flex-1 overflow-y-auto p-8">
-            <div className="flex justify-between items-center mb-6">
-              <h1 className="text-2xl font-bold" style={{ color: fontColor }}>
-                Dashboard ESG
-              </h1>
-              {activeMenuItem !== '/kpi-management' && (
-                <div className="flex items-center">
-                  <label
-                    htmlFor="year-select"
-                    className="mr-2 text-sm font-medium"
-                    style={{ color: fontColor }}
-                  >
-                    Ano:
-                  </label>
-                  <select
-                    id="year-select"
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(Number(e.target.value))}
-                    className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                    style={{ color: fontColor }}
-                  >
-                    {years.map((year) => (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-
+            <h1 className="text-2xl font-bold mb-6" style={{ color: fontColor }}>
+              Dashboard ESG
+            </h1>
             {renderContent()}
           </main>
         </div>

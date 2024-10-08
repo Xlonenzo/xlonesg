@@ -15,6 +15,8 @@ class KPIBase(BaseModel):
     month: int  # Novo campo
     cnpj: str
     kpicode: str
+    company_category: str  # Novo campo adicionado
+    isfavorite: bool  # Novo campo adicionado
 
 class KPICreate(KPIBase):
     pass

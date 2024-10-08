@@ -1,39 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import kpisData from '../data/kpis';  // Certifique-se que o caminho está correto
 
 function ComparacaoKPI() {
-  const [selectedSetor, setSelectedSetor] = useState('');
-  const [selectedCompanhia, setSelectedCompanhia] = useState('');
+  const [kpis, setKpis] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedCNPJ, setSelectedCNPJ] = useState('');
   const [selectedKpi, setSelectedKpi] = useState('');
 
-  // Obter setores e companhias únicos dos dados
-  const setores = [...new Set(kpisData.map(kpi => kpi.setor))];
-  const companhias = [...new Set(kpisData.map(kpi => kpi.companhia))];
+  useEffect(() => {
+    fetchKPIs();
+  }, []);
+
+  const fetchKPIs = async () => {
+    try {
+      const response = await axios.get('http://localhost:8000/api/kpis');
+      setKpis(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar KPIs:', error);
+    }
+  };
+
+  // Obter categorias e CNPJs únicos dos dados
+  const categories = [...new Set(kpis.map(kpi => kpi.company_category))];
+  const cnpjs = [...new Set(kpis.map(kpi => kpi.cnpj))];
 
   // Filtrar KPIs com base nas seleções
-  const kpisSetor = kpisData.filter(kpi => kpi.setor === selectedSetor);
-  const kpisCompanhia = kpisData.filter(kpi => kpi.companhia === selectedCompanhia);
+  const kpisCategory = kpis.filter(kpi => kpi.company_category === selectedCategory);
+  const kpisCNPJ = kpis.filter(kpi => kpi.cnpj === selectedCNPJ);
 
-  // Função para obter os KPIs filtrados por setor ou companhia
+  // Função para obter os KPIs filtrados por categoria ou CNPJ
   const getKpisOptions = () => {
-    const kpisSetorNames = kpisSetor.map(kpi => kpi.name);
-    const kpisCompanhiaNames = kpisCompanhia.map(kpi => kpi.name);
-    return [...new Set([...kpisSetorNames, ...kpisCompanhiaNames])];
+    const kpisCategoryNames = kpisCategory.map(kpi => kpi.name);
+    const kpisCNPJNames = kpisCNPJ.map(kpi => kpi.name);
+    return [...new Set([...kpisCategoryNames, ...kpisCNPJNames])];
   };
 
   // Preparar os dados para o gráfico
   const getDataForChart = () => {
-    const setorKpi = kpisSetor.find(kpi => kpi.name === selectedKpi);
-    const companhiaKpi = kpisCompanhia.find(kpi => kpi.name === selectedKpi);
+    const categoryKpi = kpisCategory.find(kpi => kpi.name === selectedKpi);
+    const cnpjKpi = kpisCNPJ.find(kpi => kpi.name === selectedKpi);
 
     return [
       {
         name: selectedKpi || 'Todos os KPIs',
-        setor_value: setorKpi ? setorKpi.actual_value : 0,
-        setor_meta: setorKpi ? setorKpi.target_value : 0,
-        companhia_value: companhiaKpi ? companhiaKpi.actual_value : 0,
-        companhia_meta: companhiaKpi ? companhiaKpi.target_value : 0,
+        category_value: categoryKpi ? categoryKpi.actual_value : 0,
+        category_meta: categoryKpi ? categoryKpi.target_value : 0,
+        cnpj_value: cnpjKpi ? cnpjKpi.actual_value : 0,
+        cnpj_meta: cnpjKpi ? cnpjKpi.target_value : 0,
       },
     ];
   };
@@ -42,32 +56,32 @@ function ComparacaoKPI() {
     <div>
       <h2 className="text-xl font-bold mb-4">Comparação de KPI</h2>
 
-      {/* Seleção de setor e companhia */}
+      {/* Seleção de categoria e CNPJ */}
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div>
-          <label className="block text-gray-700">Selecione o Setor:</label>
+          <label className="block text-gray-700">Selecione a Categoria da Empresa:</label>
           <select
-            value={selectedSetor}
-            onChange={(e) => setSelectedSetor(e.target.value)}
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
             className="block w-full p-2 border border-gray-300 rounded"
           >
-            <option value="">Todos os Setores</option>
-            {setores.map((setor, index) => (
-              <option key={index} value={setor}>{setor}</option>
+            <option value="">Todas as Categorias</option>
+            {categories.map((category, index) => (
+              <option key={index} value={category}>{category}</option>
             ))}
           </select>
         </div>
 
         <div>
-          <label className="block text-gray-700">Selecione a Companhia:</label>
+          <label className="block text-gray-700">Selecione o CNPJ:</label>
           <select
-            value={selectedCompanhia}
-            onChange={(e) => setSelectedCompanhia(e.target.value)}
+            value={selectedCNPJ}
+            onChange={(e) => setSelectedCNPJ(e.target.value)}
             className="block w-full p-2 border border-gray-300 rounded"
           >
-            <option value="">Todas as Companhias</option>
-            {companhias.map((companhia, index) => (
-              <option key={index} value={companhia}>{companhia || 'Sem Companhia'}</option>
+            <option value="">Todos os CNPJs</option>
+            {cnpjs.map((cnpj, index) => (
+              <option key={index} value={cnpj}>{cnpj || 'Sem CNPJ'}</option>
             ))}
           </select>
         </div>
@@ -102,10 +116,10 @@ function ComparacaoKPI() {
             <YAxis dataKey="name" type="category" width={150} />
             <Tooltip />
             <Legend />
-            <Bar dataKey="setor_value" fill="#8884d8" name="Valor Atual Setor" />
-            <Bar dataKey="setor_meta" fill="#ADD8E6" name="Meta Setor" /> {/* Azul Bem Claro */}
-            <Bar dataKey="companhia_value" fill="#ff7f50" name="Valor Atual Companhia" />
-            <Bar dataKey="companhia_meta" fill="#ffbb28" name="Meta Companhia" />
+            <Bar dataKey="category_value" fill="#8884d8" name="Valor Atual Categoria" />
+            <Bar dataKey="category_meta" fill="#ADD8E6" name="Meta Categoria" />
+            <Bar dataKey="cnpj_value" fill="#ff7f50" name="Valor Atual CNPJ" />
+            <Bar dataKey="cnpj_meta" fill="#ffbb28" name="Meta CNPJ" />
           </BarChart>
         </ResponsiveContainer>
       </div>
