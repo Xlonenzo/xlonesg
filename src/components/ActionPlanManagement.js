@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import kpisData from '../data/kpis';
 
 function ActionPlanManagement() {
   const [actionPlans, setActionPlans] = useState([]);
@@ -19,20 +20,7 @@ function ActionPlanManagement() {
     risks: '',
     kpis: [],
   });
-
-  // Lista de KPIs disponíveis para serem selecionados
-  const availableKPIs = [
-    'Redução de custos (%)',
-    'Aumento de produtividade (%)',
-    'Satisfação do cliente (NPS)',
-    'Eficiência energética (kWh/m²)',
-    'Tempo de inatividade (horas)',
-    'Taxa de conversão (%)',
-    'Emissões de CO₂ (tCO₂e)',
-    'Taxa de crescimento (%)',
-    'Retorno sobre investimento (ROI)',
-    'Índice de qualidade (%)',
-  ];
+  const [selectedKPI, setSelectedKPI] = useState('');
 
   useEffect(() => {
     fetchActionPlans();
@@ -100,19 +88,27 @@ function ActionPlanManagement() {
     setIsAddingTask(false);
   };
 
-  const handleKpiChange = (e) => {
-    const value = Array.from(
-      e.target.selectedOptions,
-      (option) => option.value
-    );
-    setNewTask({ ...newTask, kpis: value });
+  const handleAddKPI = () => {
+    if (selectedKPI && !newTask.kpis.includes(selectedKPI)) {
+      setNewTask({
+        ...newTask,
+        kpis: [...newTask.kpis, selectedKPI]
+      });
+      setSelectedKPI('');
+    }
+  };
+
+  const handleRemoveKPI = (kpiToRemove) => {
+    setNewTask({
+      ...newTask,
+      kpis: newTask.kpis.filter(kpi => kpi !== kpiToRemove)
+    });
   };
 
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Gerenciamento de Planos de Ação</h2>
 
-      {/* Botão para adicionar novo plano de ação */}
       <button
         onClick={() => setIsAddingPlan(true)}
         className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
@@ -120,7 +116,6 @@ function ActionPlanManagement() {
         Adicionar Novo Plano de Ação
       </button>
 
-      {/* Formulário para adicionar novo plano de ação */}
       {isAddingPlan && (
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h3 className="text-xl font-bold mb-4">Adicionar Novo Plano de Ação</h3>
@@ -146,7 +141,6 @@ function ActionPlanManagement() {
               className="w-full p-2 border rounded"
             />
 
-            {/* Listagem das tarefas adicionadas */}
             <div>
               <h4 className="text-lg font-bold">Tarefas</h4>
               {newActionPlan.tasks.map((task, index) => (
@@ -156,10 +150,9 @@ function ActionPlanManagement() {
                   <p><strong>Recursos:</strong> {task.resources}</p>
                   <p><strong>Prazo:</strong> {task.deadline}</p>
                   <p><strong>Riscos:</strong> {task.risks}</p>
-                  <p><strong>KPIs:</strong> {task.kpis.join(', ')}</p> {/* Exibição dos KPIs selecionados */}
+                  <p><strong>KPIs:</strong> {task.kpis.join(', ')}</p>
                 </div>
               ))}
-              {/* Botão para adicionar nova tarefa */}
               <button
                 onClick={() => setIsAddingTask(true)}
                 className="mt-2 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
@@ -168,7 +161,6 @@ function ActionPlanManagement() {
               </button>
             </div>
 
-            {/* Formulário para adicionar nova tarefa */}
             {isAddingTask && (
               <div className="bg-gray-100 p-4 rounded">
                 <h4 className="text-lg font-bold mb-2">Adicionar Nova Tarefa</h4>
@@ -207,19 +199,41 @@ function ActionPlanManagement() {
                   className="w-full p-2 border rounded mb-2"
                 />
                 
-                {/* Seleção de KPIs */}
-                <select
-                  multiple
-                  value={newTask.kpis}
-                  onChange={handleKpiChange}
-                  className="w-full p-2 border rounded mb-2"
-                >
-                  {availableKPIs.map((kpi, index) => (
-                    <option key={index} value={kpi}>
-                      {kpi}
-                    </option>
+                <div className="mb-2">
+                  <select
+                    value={selectedKPI}
+                    onChange={(e) => setSelectedKPI(e.target.value)}
+                    className="w-full p-2 border rounded"
+                  >
+                    <option value="">Selecione um KPI</option>
+                    {kpisData.map((kpi) => (
+                      <option key={kpi.id} value={kpi.name}>
+                        {kpi.name} - {kpi.category} ({kpi.unit})
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleAddKPI}
+                    className="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                  >
+                    Adicionar KPI
+                  </button>
+                </div>
+
+                <div className="mb-2">
+                  <h5 className="font-bold">KPIs selecionados:</h5>
+                  {newTask.kpis.map((kpi, index) => (
+                    <div key={index} className="flex items-center justify-between bg-white p-2 rounded mb-1">
+                      <span>{kpi}</span>
+                      <button
+                        onClick={() => handleRemoveKPI(kpi)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        Remover
+                      </button>
+                    </div>
                   ))}
-                </select>
+                </div>
 
                 <div className="space-x-2">
                   <button
@@ -255,7 +269,6 @@ function ActionPlanManagement() {
         </div>
       )}
 
-      {/* Lista de planos de ação */}
       <div className="space-y-4">
         {actionPlans && actionPlans.length > 0 ? (
           actionPlans.map((plan) => (

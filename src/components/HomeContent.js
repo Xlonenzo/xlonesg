@@ -1,133 +1,120 @@
-import React from 'react'; 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine, Legend } from 'recharts';
-import KPI from './KPI';  // Certifique-se que o caminho está correto
-import kpisData from '../data/kpis'; // Certifique-se que o caminho para kpisData está correto
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-function HomeContent({ selectedYear }) {
-  // Filtrar KPIs para o ano selecionado
-  const kpis = kpisData.filter(kpi => kpi.year === selectedYear);
+function HomeContent() {
+  const [allKpis, setAllKpis] = useState([]);
+  const [favoriteKpis, setFavoriteKpis] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Função para definir a cor com base no desempenho
-  const getPerformanceColor = (kpi) => {
-    const performance = (kpi.actual_value / kpi.target_value) * 100;
-    if (kpi.inverse) {
-      return performance <= 100 ? '#22c55e' : '#ef4444';
+  useEffect(() => {
+    fetchKPIs();
+  }, []);
+
+  const fetchKPIs = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get('http://localhost:8000/api/kpis');
+      setAllKpis(response.data);
+      const favorites = response.data.filter(kpi => kpi.isfavorite);
+      setFavoriteKpis(favorites);
+      console.log('All KPIs fetched:', response.data);
+      console.log('Favorite KPIs:', favorites);
+    } catch (error) {
+      console.error('Erro ao buscar KPIs:', error);
+      setError('Falha ao carregar os KPIs. Por favor, tente novamente mais tarde.');
+    } finally {
+      setLoading(false);
     }
-    return performance >= 100 ? '#22c55e' : '#ef4444';
   };
 
-  // Verifica se o KPI tem bom desempenho
-  const isGoodPerformance = (kpi) => {
-    const performance = (kpi.actual_value / kpi.target_value) * 100;
-    return kpi.inverse ? performance <= 100 : performance >= 100;
-  };
+  function KPICard({ kpi }) {
+    const performancePercentage = (kpi.actual_value / kpi.target_value) * 100;
+    const isGood = kpi.inverse ? performancePercentage <= 100 : performancePercentage >= 100;
+    const statusColor = isGood ? 'bg-green-500' : 'bg-red-500';
 
-  // Separar os KPIs em duas categorias
-  const goodPerformanceKPIs = kpis.filter(isGoodPerformance);
-  const poorPerformanceKPIs = kpis.filter(kpi => !isGoodPerformance(kpi));
-
-  // Tooltip personalizada
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      const kpi = kpis.find(k => k.name === label);
-      return (
-        <div className="bg-white p-4 rounded shadow-md border border-gray-200">
-          <p className="font-bold">{label}</p>
-          <p>Valor Atual: {payload[0].value} {kpi.unit}</p>
-          <p>Meta: {kpi.target_value} {kpi.unit}</p>
-          <p>Categoria: {kpi.category}</p>
+    return (
+      <div className="bg-white shadow-md rounded-lg p-4 m-2">
+        <h3 className="text-lg font-semibold mb-2">{kpi.name}</h3>
+        <p className="text-sm text-gray-600 mb-2">{kpi.description}</p>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm font-medium">Atual: {kpi.actual_value} {kpi.unit}</span>
+          <span className="text-sm font-medium">Meta: {kpi.target_value} {kpi.unit}</span>
         </div>
-      );
-    }
-    return null;
-  };
+        <div className="w-full bg-gray-200 rounded-full h-2.5">
+          <div
+            className={`h-2.5 rounded-full ${statusColor}`}
+            style={{ width: `${Math.min(performancePercentage, 100)}%` }}
+          ></div>
+        </div>
+        <p className="text-sm mt-2">
+          {isGood ? 'Bom desempenho' : 'Precisa de atenção'}
+        </p>
+        <p className="text-xs text-gray-500 mt-2">Ano: {kpi.year}</p>
+      </div>
+    );
+  }
+
+  const goodPerformanceKPIs = allKpis.filter(kpi => {
+    const performancePercentage = (kpi.actual_value / kpi.target_value) * 100;
+    return kpi.inverse ? performancePercentage <= 100 : performancePercentage >= 100;
+  });
+
+  const needsAttentionKPIs = allKpis.filter(kpi => {
+    const performancePercentage = (kpi.actual_value / kpi.target_value) * 100;
+    return kpi.inverse ? performancePercentage > 100 : performancePercentage < 100;
+  });
+
+  const renderBarChart = (data, title, color) => (
+    <div className="mt-8">
+      <h3 className="text-xl font-bold mb-4">{title}</h3>
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="name" />
+          <YAxis />
+          <Tooltip />
+          <Legend />
+          <Bar dataKey="actual_value" fill={color} name="Valor Atual" />
+          <Bar dataKey="target_value" fill="#8884d8" name="Meta" />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+
+  if (loading) {
+    return <div>Carregando KPIs...</div>;
+  }
+
+  if (error) {
+    return <div className="text-red-500">{error}</div>;
+  }
 
   return (
     <div>
-      {/* Cabeçalho modificado com "Em conformidade com o CSRD" e "Powered by Snowflake" no lado direito */}
       <header className="flex items-center justify-between p-4 bg-gray-100">
-        <h2 className="text-xl font-bold">Visão Geral {selectedYear}</h2>
+        <h2 className="text-xl font-bold">Visão Geral dos KPIs</h2>
         <div className="flex flex-col items-end">
           <span className="text-sm text-gray-600">Em conformidade com o CSRD</span>
           <span className="text-sm text-gray-600">Powered by Snowflake</span>
         </div>
       </header>
 
-      {/* KPIs de Destaque */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        {kpis
-          .filter(kpi => kpi.is_favorite)  // Filtra apenas os KPIs com is_favorite: true
-          .map(kpi => (
-            <KPI key={kpi.id} kpi={kpi} />
-          ))
-        }
-      </div>
+      <h3 className="text-lg font-semibold mt-6 mb-4 px-4">KPIs Favoritos</h3>
+      {favoriteKpis.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 px-4">
+          {favoriteKpis.map(kpi => (
+            <KPICard key={kpi.id} kpi={kpi} />
+          ))}
+        </div>
+      ) : (
+        <p className="text-center mt-4">Nenhum KPI favorito encontrado.</p>
+      )}
 
-      {/* Gráfico de Bom Desempenho */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-        <h3 className="text-lg font-bold mb-4">KPIs com Bom Desempenho</h3>
-        <ResponsiveContainer width="100%" height={400}>
-          <BarChart
-            data={goodPerformanceKPIs}
-            layout="vertical"
-            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" domain={[0, 'dataMax']} />
-            <YAxis dataKey="name" type="category" width={150} />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend />
-            <Bar dataKey="actual_value" fill="#8884d8">
-              {goodPerformanceKPIs.map((kpi, index) => (
-                <Cell key={`cell-${index}`} fill={getPerformanceColor(kpi)} />
-              ))}
-            </Bar>
-            {goodPerformanceKPIs.map((kpi, index) => (
-              <ReferenceLine
-                key={`ref-${index}`}
-                x={kpi.target_value}
-                stroke="#888888"
-                strokeDasharray="3 3"
-                isFront={true}
-                label={{ value: 'Meta', position: 'insideTopRight', fill: '#888888', fontSize: 12 }}
-              />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Gráfico de KPIs que Precisam de Atenção */}
-      <div className="bg-white p-6 rounded-lg shadow-md mb-6">
-        <h3 className="text-lg font-bold mb-4">KPIs que Precisam de Atenção</h3>
-        <ResponsiveContainer width="100%" height={400}>
-          <BarChart
-            data={poorPerformanceKPIs}
-            layout="vertical"
-            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" domain={[0, 'dataMax']} />
-            <YAxis dataKey="name" type="category" width={150} />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend />
-            <Bar dataKey="actual_value" fill="#8884d8">
-              {poorPerformanceKPIs.map((kpi, index) => (
-                <Cell key={`cell-${index}`} fill={getPerformanceColor(kpi)} />
-              ))}
-            </Bar>
-            {poorPerformanceKPIs.map((kpi, index) => (
-              <ReferenceLine
-                key={`ref-${index}`}
-                x={kpi.target_value}
-                stroke="#888888"
-                strokeDasharray="3 3"
-                isFront={true}
-                label={{ value: 'Meta', position: 'insideTopRight', fill: '#888888', fontSize: 12 }}
-              />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      <h3 className="text-lg font-semibold mt-6 mb-4 px-4">Todos os KPIs</h3>
+      {renderBarChart(goodPerformanceKPIs, "KPIs com Bom Desempenho", "#22c55e")}
+      {renderBarChart(needsAttentionKPIs, "KPIs que Precisam de Atenção", "#ef4444")}
     </div>
   );
 }

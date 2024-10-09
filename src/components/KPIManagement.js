@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import axios from 'axios';
+import { FaEdit, FaTrash } from 'react-icons/fa';
 
-function KPIManagement({ kpis, setKpis }) {
+function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
   const [isAddingKPI, setIsAddingKPI] = useState(false);
   const [editingKPI, setEditingKPI] = useState(null);
   const [newKPI, setNewKPI] = useState({
     name: '',
     unit: '',
     category: 'environment',
+    subcategory: '',
     description: '',
     target_value: 0,
     actual_value: 0,
@@ -14,218 +17,404 @@ function KPIManagement({ kpis, setKpis }) {
     collection_method: '',
     status: '',
     year: new Date().getFullYear(),
+    month: '',
+    cnpj: '',
+    kpicode: '',
+    company_category: '',
+    isfavorite: false
   });
 
-  const handleAddKPI = () => {
-    const nextId = kpis.length > 0 ? Math.max(...kpis.map(kpi => kpi.id)) + 1 : 1;
-    setKpis(prevKPIs => [...prevKPIs, { ...newKPI, id: nextId }]);
-    setIsAddingKPI(false);
-    setNewKPI({
-      name: '',
-      unit: '',
-      category: 'environment',
-      description: '',
-      target_value: 0,
-      actual_value: 0,
-      frequency: '',
-      collection_method: '',
-      status: '',
-      year: new Date().getFullYear(),
+
+  const [filters, setFilters] = useState({
+    year: '',
+    status: '',
+    name: '',
+    category: '',
+    target_value: '',
+    actual_value: '',
+    month: '',
+    cnpj: '',
+    kpicode: '',
+    company_category: '',
+    isfavorite: ''
+  });
+
+  const [sortConfig, setSortConfig] = useState({
+    key: '',
+    direction: 'ascending'
+  });
+
+  const units = ['kg', 'ton', 'm³', 'kWh', '%', '€', '$', 'unidades'];
+  const frequencies = ['Diária', 'Semanal', 'Mensal', 'Trimestral', 'Semestral', 'Anual'];
+  const collectionMethods = ['Manual', 'Automático', 'Semi-automático', 'Estimativa', 'Cálculo'];
+  const subcategories = {
+    environment: [
+      'Mudanças climáticas',
+      'Poluição',
+      'Água e recursos marinhos',
+      'Uso de recursos e economia circular',
+      'Biodiversidade e ecossistemas'
+    ],
+    social: [
+      'Igualdade de oportunidades',
+      'Condições de trabalho',
+      'Respeito aos direitos humanos',
+      'Questões sociais e comunitárias',
+      'Saúde e segurança'
+    ],
+    governance: [
+      'Ética empresarial',
+      'Cultura corporativa',
+      'Gestão de riscos e controles internos',
+      'Composição e remuneração do conselho',
+      'Transparência e divulgação'
+    ]
+  };
+
+  const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
+  const statuses = ['Ativo', 'Inativo', 'Em progresso'];
+
+  const fetchKPIs = useCallback(async () => {
+    try {
+      const response = await axios.get('http://localhost:8000/api/kpis');
+      setKpis(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar KPIs:', error);
+    }
+  }, [setKpis]);
+
+  useEffect(() => {
+    fetchKPIs();
+  }, [fetchKPIs]);
+
+  const handleAddKPI = async () => {
+    try {
+      const response = await axios.post('http://localhost:8000/api/kpis', newKPI);
+      setKpis([...kpis, response.data]);
+      setIsAddingKPI(false);
+      setNewKPI({
+        name: '',
+        unit: '',
+        category: 'environment',
+        subcategory: '',
+        description: '',
+        target_value: 0,
+        actual_value: 0,
+        frequency: '',
+        collection_method: '',
+        status: '',
+        year: new Date().getFullYear(),
+        month: '',
+        cnpj: '',
+        kpicode: '',
+        company_category: '',
+        isfavorite: false
+      });
+    } catch (error) {
+      console.error('Erro ao adicionar KPI:', error);
+    }
+  };
+
+  const handleUpdateKPI = async () => {
+    if (editingKPI) {
+      try {
+        const response = await axios.put(`http://localhost:8000/api/kpis/${editingKPI.id}`, editingKPI);
+        setKpis(prevKPIs => prevKPIs.map(kpi => (kpi.id === editingKPI.id ? response.data : kpi)));
+        setEditingKPI(null);
+      } catch (error) {
+        console.error('Erro ao atualizar KPI:', error);
+      }
+    }
+  };
+
+  const handleDeleteKPI = async (id) => {
+    if (window.confirm('Tem certeza de que deseja excluir este KPI?')) {
+      try {
+        await axios.delete(`http://localhost:8000/api/kpis/${id}`);
+        setKpis(prevKPIs => prevKPIs.filter(kpi => kpi.id !== id));
+      } catch (error) {
+        console.error('Erro ao excluir KPI:', error);
+      }
+    }
+  };
+
+  const handleInputChange = (e, isNewKPI) => {
+    const { name, value, type, checked } = e.target;
+    const newValue = type === 'checkbox' ? checked : value;
+    
+    if (isNewKPI) {
+      setNewKPI(prev => ({ ...prev, [name]: newValue }));
+    } else {
+      setEditingKPI(prev => ({ ...prev, [name]: newValue }));
+    }
+  };
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSort = (key) => {
+    let direction = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortedKpis = (kpisToSort) => {
+    if (sortConfig.key) {
+      return [...kpisToSort].sort((a, b) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) {
+          return sortConfig.direction === 'ascending' ? -1 : 1;
+        }
+        if (a[sortConfig.key] > b[sortConfig.key]) {
+          return sortConfig.direction === 'ascending' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return kpisToSort;
+  };
+
+  const getFilteredKpis = () => {
+    return kpis.filter(kpi => {
+      return (
+        (filters.year === '' || kpi.year.toString() === filters.year) &&
+        (filters.status === '' || kpi.status === filters.status) &&
+        kpi.name.toLowerCase().includes(filters.name.toLowerCase()) &&
+        (filters.category === '' || kpi.category === filters.category) &&
+        (filters.target_value === '' || kpi.target_value.toString() === filters.target_value) &&
+        (filters.actual_value === '' || kpi.actual_value.toString() === filters.actual_value) &&
+        (filters.month === '' || kpi.month.toString() === filters.month) &&
+        (filters.cnpj === '' || kpi.cnpj.toLowerCase().includes(filters.cnpj.toLowerCase())) &&
+        (filters.kpicode === '' || kpi.kpicode.toLowerCase().includes(filters.kpicode.toLowerCase())) &&
+        (filters.company_category === '' || kpi.company_category.toLowerCase().includes(filters.company_category.toLowerCase())) &&
+        (filters.isfavorite === '' || kpi.isfavorite.toString() === filters.isfavorite)
+      );
     });
   };
 
-  const handleUpdateKPI = () => {
-    if (editingKPI) {
-      setKpis(prevKPIs => prevKPIs.map(kpi => (kpi.id === editingKPI.id ? editingKPI : kpi)));
-      setEditingKPI(null);
-    }
-  };
+  const sortedKpis = getSortedKpis(getFilteredKpis());
 
-  const handleDeleteKPI = (id) => {
-    if (window.confirm('Tem certeza de que deseja excluir este KPI?')) {
-      setKpis(prevKPIs => prevKPIs.filter(kpi => kpi.id !== id));
-    }
-  };
+  const renderKPIForm = (kpi, isNewKPI = false) => (
+    <div className="grid grid-cols-2 gap-4">
+      <input
+        type="text"
+        name="name"
+        value={kpi.name}
+        onChange={(e) => handleInputChange(e, isNewKPI)}
+        placeholder="Nome do KPI"
+        className="w-full p-2 border rounded"
+      />
+      <select
+        name="unit"
+        value={kpi.unit}
+        onChange={(e) => handleInputChange(e, isNewKPI)}
+        className="w-full p-2 border rounded"
+      >
+        <option value="">Selecione uma unidade</option>
+        {units.map((unit) => (
+          <option key={unit} value={unit}>
+            {unit}
+          </option>
+        ))}
+      </select>
+      <select
+        name="category"
+        value={kpi.category}
+        onChange={(e) => handleInputChange(e, isNewKPI)}
+        className="w-full p-2 border rounded"
+      >
+        <option value="environment">Meio Ambiente</option>
+        <option value="social">Social</option>
+        <option value="governance">Governança</option>
+      </select>
+      <select
+        name="subcategory"
+        value={kpi.subcategory}
+        onChange={(e) => handleInputChange(e, isNewKPI)}
+        className="w-full p-2 border rounded"
+      >
+        <option value="">Selecione uma subcategoria</option>
+        {subcategories[kpi.category]?.map((subcat) => (
+          <option key={subcat} value={subcat}>
+            {subcat}
+          </option>
+        ))}
+      </select>
+      <textarea
+        name="description"
+        value={kpi.description}
+        onChange={(e) => handleInputChange(e, isNewKPI)}
+        placeholder="Descrição"
+        className="w-full p-2 border rounded"
+      />
+      <input
+        type="number"
+        name="target_value"
+        value={kpi.target_value}
+        onChange={(e) => handleInputChange(e, isNewKPI)}
+        placeholder="Valor Alvo"
+        className="w-full p-2 border rounded"
+      />
+      <input
+        type="number"
+        name="actual_value"
+        value={kpi.actual_value}
+        onChange={(e) => handleInputChange(e, isNewKPI)}
+        placeholder="Valor Atual"
+        className="w-full p-2 border rounded"
+      />
+      <select
+        name="frequency"
+        value={kpi.frequency}
+        onChange={(e) => handleInputChange(e, isNewKPI)}
+        className="w-full p-2 border rounded"
+      >
+        <option value="">Selecione uma frequência</option>
+        {frequencies.map((freq) => (
+          <option key={freq} value={freq}>
+            {freq}
+          </option>
+        ))}
+      </select>
+      <select
+        name="collection_method"
+        value={kpi.collection_method}
+        onChange={(e) => handleInputChange(e, isNewKPI)}
+        className="w-full p-2 border rounded"
+      >
+        <option value="">Selecione um método de coleta</option>
+        {collectionMethods.map((method) => (
+          <option key={method} value={method}>
+            {method}
+          </option>
+        ))}
+      </select>
+      <input
+        type="text"
+        name="status"
+        value={kpi.status}
+        onChange={(e) => handleInputChange(e, isNewKPI)}
+        placeholder="Status"
+        className="w-full p-2 border rounded"
+      />
+      <input
+        type="number"
+        name="year"
+        value={kpi.year}
+        onChange={(e) => handleInputChange(e, isNewKPI)}
+        placeholder="Ano"
+        className="w-full p-2 border rounded"
+      />
+      <select
+        name="month"
+        value={kpi.month}
+        onChange={(e) => handleInputChange(e, isNewKPI)}
+        className="w-full p-2 border rounded"
+      >
+        <option value="">Selecione um mês</option>
+        {[...Array(12)].map((_, i) => (
+          <option key={i + 1} value={i + 1}>
+            {new Date(0, i).toLocaleString('default', { month: 'long' })}
+          </option>
+        ))}
+      </select>
+      <input
+        type="text"
+        name="cnpj"
+        value={kpi.cnpj}
+        onChange={(e) => handleInputChange(e, isNewKPI)}
+        placeholder="CNPJ"
+        className="w-full p-2 border rounded"
+      />
+      <input
+        type="text"
+        name="kpicode"
+        value={kpi.kpicode}
+        onChange={(e) => handleInputChange(e, isNewKPI)}
+        placeholder="Código KPI"
+        className="w-full p-2 border rounded"
+      />
+      <input
+        type="text"
+        name="company_category"
+        value={kpi.company_category}
+        onChange={(e) => handleInputChange(e, isNewKPI)}
+        placeholder="Categoria da Empresa"
+        className="w-full p-2 border rounded"
+      />
+      
+      {/* Novo campo isfavorite */}
+      <div className="col-span-2 flex items-center">
+        <input
+          type="checkbox"
+          name="isfavorite"
+          checked={kpi.isfavorite}
+          onChange={(e) => handleInputChange(e, isNewKPI)}
+          className="mr-2"
+        />
+        <label htmlFor="isfavorite">Marcar como favorito</label>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Gerenciamento de KPIs</h2>
-      <button
-        onClick={() => setIsAddingKPI(true)}
-        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-      >
-        Adicionar Novo KPI
-      </button>
+      
+      <div className="flex justify-between items-center">
+        <button
+          onClick={() => setIsAddingKPI(true)}
+          className="text-white px-4 py-2 rounded hover:opacity-80"
+          style={{ backgroundColor: buttonColor }}
+        >
+          Adicionar Novo KPI
+        </button>
+        
+        <div className="flex space-x-4">
+          <select
+            name="year"
+            value={filters.year}
+            onChange={handleFilterChange}
+            className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+          >
+            <option value="">Todos os anos</option>
+            {years.map((year) => (
+              <option key={year} value={year.toString()}>
+                {year}
+              </option>
+            ))}
+          </select>
+          
+          <select
+            name="status"
+            value={filters.status}
+            onChange={handleFilterChange}
+            className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+          >
+            <option value="">Todos os status</option>
+            {statuses.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {isAddingKPI && (
-        <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-xl font-bold mb-4">Adicionar Novo KPI</h3>
-          <div className="space-y-4">
-            <input
-              type="text"
-              placeholder="Nome do KPI"
-              value={newKPI.name}
-              onChange={(e) => setNewKPI({ ...newKPI, name: e.target.value })}
-              className="w-full p-2 border rounded"
-            />
-            
-            {/* Dropdown para Unidade de Medida */}
-            <select
-              value={newKPI.unit}
-              onChange={(e) => setNewKPI({ ...newKPI, unit: e.target.value })}
-              className="w-full p-2 border rounded"
-            >
-              <option value="">Selecione a Unidade de Medida</option>
-              <option value="kWh">kWh (quilowatt-hora)</option>
-              <option value="tCO₂e">tCO₂e (toneladas de CO₂ equivalente)</option>
-              <option value="m³">m³ (metros cúbicos)</option>
-              <option value="kg">kg (quilogramas)</option>
-              <option value="kWh/m²">kWh/m² (quilowatt-hora por metro quadrado)</option>
-              <option value="tCO₂e/unidade">tCO₂e/unidade de produção</option>
-              <option value="unidades/hora">unidades/hora</option>
-              <option value="USD">USD (dólares americanos)</option>
-              <option value="EUR">EUR (euros)</option>
-              <option value="BRL">BRL (reais brasileiros)</option>
-              <option value="horas/dia">horas/dia</option>
-              <option value="%">%</option>
-              <option value="km">km (quilômetros)</option>
-              <option value="m">m (metros)</option>
-              <option value="unidades/ano">unidades/ano</option>
-              <option value="litros/dia">litros/dia</option>
-              <option value="km/h">km/h (quilômetros por hora)</option>
-              <option value="m/s">m/s (metros por segundo)</option>
-              <option value="Pa">Pa (Pascal)</option>
-              <option value="bar">bar</option>
-              <option value="psi">psi (libras por polegada quadrada)</option>
-              <option value="°C">°C (graus Celsius)</option>
-              <option value="°F">°F (graus Fahrenheit)</option>
-              <option value="m²">m² (metros quadrados)</option>
-              <option value="ha">ha (hectares)</option>
-              <option value="g">g (gramas)</option>
-              <option value="t">t (toneladas)</option>
-              <option value="Hz">Hz (Hertz)</option>
-              <option value="ciclos/segundo">ciclos/segundo</option>
-              <option value="%/ano">%/ano (porcentagem ao ano)</option>
-              <option value="kg/m³">kg/m³ (quilogramas por metro cúbico)</option>
-              <option value="s">s (segundos)</option>
-              <option value="min">min (minutos)</option>
-              <option value="h">h (horas)</option>
-              <option value="dias">dias</option>
-              <option value="GB">GB (gigabytes)</option>
-              <option value="TB">TB (terabytes)</option>
-              <option value="MB">MB (megabytes)</option>
-              <option value="V">V (volts)</option>
-              <option value="A">A (ampère)</option>
-              <option value="W">W (watts)</option>
-              <option value="MW">MW (megawatts)</option>
-              <option value="bpm">bpm (batimentos por minuto)</option>
-              <option value="kg/m²">kg/m² (quilogramas por metro quadrado)</option>
-              <option value="N">N (newtons)</option>
-              <option value="dB">dB (decibéis)</option>
-              <option value="hab/km²">hab/km² (habitantes por quilômetro quadrado)</option>
-              <option value="ton/ha">ton/ha (toneladas por hectare)</option>
-              <option value="L/s">L/s (litros por segundo)</option>
-              <option value="m³/h">m³/h (metros cúbicos por hora)</option>
-              <option value="%/mês">%/mês</option>
-              <option value="mortes/1000 habitantes">mortes/1000 habitantes</option>
-              <option value="km/l">km/l (quilômetros por litro)</option>
-              <option value="mpg">mpg (milhas por galão)</option>
-            </select>
-
-            <select
-              value={newKPI.category}
-              onChange={(e) => setNewKPI({ ...newKPI, category: e.target.value })}
-              className="w-full p-2 border rounded"
-            >
-              <option value="environment">Meio Ambiente</option>
-              <option value="governance">Governança</option>
-              <option value="social">Social</option>
-            </select>
-            <input
-              type="number"
-              placeholder="Ano"
-              value={newKPI.year}
-              onChange={(e) => setNewKPI({ ...newKPI, year: parseInt(e.target.value) })}
-              className="w-full p-2 border rounded"
-            />
-            <textarea
-              placeholder="Descrição"
-              value={newKPI.description}
-              onChange={(e) => setNewKPI({ ...newKPI, description: e.target.value })}
-              className="w-full p-2 border rounded"
-            />
-            <input
-              type="number"
-              placeholder="Valor Alvo"
-              value={newKPI.target_value}
-              onChange={(e) => setNewKPI({ ...newKPI, target_value: parseFloat(e.target.value) })}
-              className="w-full p-2 border rounded"
-            />
-            <input
-              type="number"
-              placeholder="Valor Atual"
-              value={newKPI.actual_value}
-              onChange={(e) => setNewKPI({ ...newKPI, actual_value: parseFloat(e.target.value) })}
-              className="w-full p-2 border rounded"
-            />
-
-            {/* Dropdown para Frequência */}
-            <select
-              value={newKPI.frequency}
-              onChange={(e) => setNewKPI({ ...newKPI, frequency: e.target.value })}
-              className="w-full p-2 border rounded"
-            >
-              <option value="">Selecione a Frequência</option>
-              <option value="diário">Diário</option>
-              <option value="semanal">Semanal</option>
-              <option value="mensal">Mensal</option>
-              <option value="anual">Anual</option>
-            </select>
-
-            {/* Dropdown para Método de Coleta */}
-            <select
-              value={newKPI.collection_method}
-              onChange={(e) => setNewKPI({ ...newKPI, collection_method: e.target.value })}
-              className="w-full p-2 border rounded"
-            >
-              <option value="">Selecione o Método de Coleta</option>
-              <option value="Monitoramento Direto de Consumo de Energia">Monitoramento Direto de Consumo de Energia</option>
-              <option value="Inventário de Emissões de GEE (Protocolo GHG)">Inventário de Emissões de GEE (Protocolo GHG)</option>
-              <option value="Sistemas de Gestão de Recursos Humanos (HRMS)">Sistemas de Gestão de Recursos Humanos (HRMS)</option>
-              <option value="Relatórios de Saúde e Segurança no Trabalho">Relatórios de Saúde e Segurança no Trabalho</option>
-              <option value="Pesquisas de Satisfação de Empregados">Pesquisas de Satisfação de Empregados</option>
-              <option value="Auditorias e Verificações Ambientais">Auditorias e Verificações Ambientais</option>
-              <option value="Análise de Ciclo de Vida (ACV)">Análise de Ciclo de Vida (ACV)</option>
-              <option value="Relatórios de Cadeia de Suprimentos">Relatórios de Cadeia de Suprimentos</option>
-              <option value="Sistemas de Gestão de Água e Resíduos">Sistemas de Gestão de Água e Resíduos</option>
-              <option value="Relatórios Financeiros Integrados">Relatórios Financeiros Integrados</option>
-            </select>
-
-            {/* Dropdown para Status */}
-            <select
-              value={newKPI.status}
-              onChange={(e) => setNewKPI({ ...newKPI, status: e.target.value })}
-              className="w-full p-2 border rounded"
-            >
-              <option value="">Selecione o Status</option>
-              <option value="Monitoramento Contínuo">Monitoramento Contínuo</option>
-              <option value="Em andamento">Em andamento</option>
-              <option value="Concluído">Concluído</option>
-              <option value="Atrasado">Atrasado</option>
-              <option value="Pendente">Pendente</option>
-              <option value="Cancelado">Cancelado</option>
-              <option value="Em revisão">Em revisão</option>
-              <option value="Aguardando Aprovação">Aguardando Aprovação</option>
-              <option value="Suspenso">Suspenso</option>
-              <option value="Não iniciado">Não iniciado</option>
-              <option value="Em risco">Em risco</option>
-            </select>
-          </div>
+        <div className="mt-4 p-4 bg-gray-100 rounded">
+          <h3 className="text-lg font-bold mb-2">Adicionar Novo KPI</h3>
+          {renderKPIForm(newKPI, true)}
           <div className="mt-4 space-x-2">
             <button
               onClick={handleAddKPI}
-              className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+              className="text-white px-4 py-2 rounded hover:opacity-80"
+              style={{ backgroundColor: buttonColor }}
             >
-              Salvar
+              Adicionar
             </button>
             <button
               onClick={() => setIsAddingKPI(false)}
@@ -236,210 +425,186 @@ function KPIManagement({ kpis, setKpis }) {
           </div>
         </div>
       )}
-      <div className="space-y-4">
-        {kpis.map((kpi) => (
-          <div key={kpi.id} className="bg-white p-4 rounded-lg shadow-md">
-            {editingKPI && editingKPI.id === kpi.id ? (
-              <div className="space-y-2">
+
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white border">
+          <thead>
+            <tr>
+              <th className="px-4 py-2 border">
+                <div className="flex items-center">
+                  <span onClick={() => handleSort('name')} className="cursor-pointer flex items-center">
+                    Nome
+                    {sortConfig.key === 'name' && (
+                      sortConfig.direction === 'ascending' ? <span> ▲</span> : <span> ▼</span>
+                    )}
+                  </span>
+                </div>
                 <input
                   type="text"
-                  value={editingKPI.name}
-                  onChange={(e) => setEditingKPI({ ...editingKPI, name: e.target.value })}
-                  className="w-full p-2 border rounded"
+                  name="name"
+                  value={filters.name}
+                  onChange={handleFilterChange}
+                  placeholder="Filtrar por Nome"
+                  className="w-full mt-1 p-1 border rounded"
                 />
-                <input
-                  type="text"
-                  value={editingKPI.unit}
-                  onChange={(e) => setEditingKPI({ ...editingKPI, unit: e.target.value })}
-                  className="w-full p-2 border rounded"
-                />
-
-                {/* Dropdown para Unidade de Medida na Edição */}
+              </th>
+              <th className="px-4 py-2 border">
+                <div className="flex items-center">
+                  <span onClick={() => handleSort('category')} className="cursor-pointer flex items-center">
+                    Categoria
+                    {sortConfig.key === 'category' && (
+                      sortConfig.direction === 'ascending' ? <span> ▲</span> : <span> ▼</span>
+                    )}
+                  </span>
+                </div>
                 <select
-                  value={editingKPI.unit}
-                  onChange={(e) => setEditingKPI({ ...editingKPI, unit: e.target.value })}
-                  className="w-full p-2 border rounded"
+                  name="category"
+                  value={filters.category}
+                  onChange={handleFilterChange}
+                  className="w-full mt-1 p-1 border rounded"
                 >
-                  <option value="">Selecione a Unidade de Medida</option>
-                  <option value="kWh">kWh (quilowatt-hora)</option>
-                  <option value="tCO₂e">tCO₂e (toneladas de CO₂ equivalente)</option>
-                  <option value="m³">m³ (metros cúbicos)</option>
-                  <option value="kg">kg (quilogramas)</option>
-                  <option value="kWh/m²">kWh/m² (quilowatt-hora por metro quadrado)</option>
-                  <option value="tCO₂e/unidade">tCO₂e/unidade de produção</option>
-                  <option value="unidades/hora">unidades/hora</option>
-                  <option value="USD">USD (dólares americanos)</option>
-                  <option value="EUR">EUR (euros)</option>
-                  <option value="BRL">BRL (reais brasileiros)</option>
-                  <option value="horas/dia">horas/dia</option>
-                  <option value="%">%</option>
-                  <option value="km">km (quilômetros)</option>
-                  <option value="m">m (metros)</option>
-                  <option value="unidades/ano">unidades/ano</option>
-                  <option value="litros/dia">litros/dia</option>
-                  <option value="km/h">km/h (quilômetros por hora)</option>
-                  <option value="m/s">m/s (metros por segundo)</option>
-                  <option value="Pa">Pa (Pascal)</option>
-                  <option value="bar">bar</option>
-                  <option value="psi">psi (libras por polegada quadrada)</option>
-                  <option value="°C">°C (graus Celsius)</option>
-                  <option value="°F">°F (graus Fahrenheit)</option>
-                  <option value="m²">m² (metros quadrados)</option>
-                  <option value="ha">ha (hectares)</option>
-                  <option value="g">g (gramas)</option>
-                  <option value="t">t (toneladas)</option>
-                  <option value="Hz">Hz (Hertz)</option>
-                  <option value="ciclos/segundo">ciclos/segundo</option>
-                  <option value="%/ano">%/ano (porcentagem ao ano)</option>
-                  <option value="kg/m³">kg/m³ (quilogramas por metro cúbico)</option>
-                  <option value="s">s (segundos)</option>
-                  <option value="min">min (minutos)</option>
-                  <option value="h">h (horas)</option>
-                  <option value="dias">dias</option>
-                  <option value="GB">GB (gigabytes)</option>
-                  <option value="TB">TB (terabytes)</option>
-                  <option value="MB">MB (megabytes)</option>
-                  <option value="V">V (volts)</option>
-                  <option value="A">A (ampère)</option>
-                  <option value="W">W (watts)</option>
-                  <option value="MW">MW (megawatts)</option>
-                  <option value="bpm">bpm (batimentos por minuto)</option>
-                  <option value="kg/m²">kg/m² (quilogramas por metro quadrado)</option>
-                  <option value="N">N (newtons)</option>
-                  <option value="dB">dB (decibéis)</option>
-                  <option value="hab/km²">hab/km² (habitantes por quilômetro quadrado)</option>
-                  <option value="ton/ha">ton/ha (toneladas por hectare)</option>
-                  <option value="L/s">L/s (litros por segundo)</option>
-                  <option value="m³/h">m³/h (metros cúbicos por hora)</option>
-                  <option value="%/mês">%/mês</option>
-                  <option value="mortes/1000 habitantes">mortes/1000 habitantes</option>
-                  <option value="km/l">km/l (quilômetros por litro)</option>
-                  <option value="mpg">mpg (milhas por galão)</option>
-                </select>
-
-                <select
-                  value={editingKPI.category}
-                  onChange={(e) => setEditingKPI({ ...editingKPI, category: e.target.value })}
-                  className="w-full p-2 border rounded"
-                >
+                  <option value="">Todas</option>
                   <option value="environment">Meio Ambiente</option>
-                  <option value="governance">Governança</option>
                   <option value="social">Social</option>
+                  <option value="governance">Governança</option>
                 </select>
-                <textarea
-                  value={editingKPI.description}
-                  onChange={(e) => setEditingKPI({ ...editingKPI, description: e.target.value })}
-                  className="w-full p-2 border rounded"
-                />
+              </th>
+              <th className="px-4 py-2 border">
+                <div className="flex items-center">
+                  <span onClick={() => handleSort('target_value')} className="cursor-pointer flex items-center">
+                    Valor Alvo
+                    {sortConfig.key === 'target_value' && (
+                      sortConfig.direction === 'ascending' ? <span> ▲</span> : <span> ▼</span>
+                    )}
+                  </span>
+                </div>
                 <input
                   type="number"
-                  value={editingKPI.target_value}
-                  onChange={(e) => setEditingKPI({ ...editingKPI, target_value: parseFloat(e.target.value) })}
-                  className="w-full p-2 border rounded"
+                  name="target_value"
+                  value={filters.target_value}
+                  onChange={handleFilterChange}
+                  placeholder="Filtrar por Valor Alvo"
+                  className="w-full mt-1 p-1 border rounded"
                 />
+              </th>
+              <th className="px-4 py-2 border">
+                <div className="flex items-center">
+                  <span onClick={() => handleSort('actual_value')} className="cursor-pointer flex items-center">
+                    Valor Atual
+                    {sortConfig.key === 'actual_value' && (
+                      sortConfig.direction === 'ascending' ? <span> ▲</span> : <span> ▼</span>
+                    )}
+                  </span>
+                </div>
                 <input
                   type="number"
-                  value={editingKPI.actual_value}
-                  onChange={(e) => setEditingKPI({ ...editingKPI, actual_value: parseFloat(e.target.value) })}
-                  className="w-full p-2 border rounded"
+                  name="actual_value"
+                  value={filters.actual_value}
+                  onChange={handleFilterChange}
+                  placeholder="Filtrar por Valor Atual"
+                  className="w-full mt-1 p-1 border rounded"
                 />
-
-                {/* Dropdown para Frequência */}
-                <select
-                  value={editingKPI.frequency}
-                  onChange={(e) => setEditingKPI({ ...editingKPI, frequency: e.target.value })}
-                  className="w-full p-2 border rounded"
-                >
-                  <option value="">Selecione a Frequência</option>
-                  <option value="diário">Diário</option>
-                  <option value="semanal">Semanal</option>
-                  <option value="mensal">Mensal</option>
-                  <option value="anual">Anual</option>
-                </select>
-
-                {/* Dropdown para Método de Coleta */}
-                <select
-                  value={editingKPI.collection_method}
-                  onChange={(e) => setEditingKPI({ ...editingKPI, collection_method: e.target.value })}
-                  className="w-full p-2 border rounded"
-                >
-                  <option value="">Selecione o Método de Coleta</option>
-                  <option value="Monitoramento Direto de Consumo de Energia">Monitoramento Direto de Consumo de Energia</option>
-                  <option value="Inventário de Emissões de GEE (Protocolo GHG)">Inventário de Emissões de GEE (Protocolo GHG)</option>
-                  <option value="Sistemas de Gestão de Recursos Humanos (HRMS)">Sistemas de Gestão de Recursos Humanos (HRMS)</option>
-                  <option value="Relatórios de Saúde e Segurança no Trabalho">Relatórios de Saúde e Segurança no Trabalho</option>
-                  <option value="Pesquisas de Satisfação de Empregados">Pesquisas de Satisfação de Empregados</option>
-                  <option value="Auditorias e Verificações Ambientais">Auditorias e Verificações Ambientais</option>
-                  <option value="Análise de Ciclo de Vida (ACV)">Análise de Ciclo de Vida (ACV)</option>
-                  <option value="Relatórios de Cadeia de Suprimentos">Relatórios de Cadeia de Suprimentos</option>
-                  <option value="Sistemas de Gestão de Água e Resíduos">Sistemas de Gestão de Água e Resíduos</option>
-                  <option value="Relatórios Financeiros Integrados">Relatórios Financeiros Integrados</option>
-                </select>
-
-                {/* Dropdown para Status */}
-                <select
-                  value={editingKPI.status}
-                  onChange={(e) => setEditingKPI({ ...editingKPI, status: e.target.value })}
-                  className="w-full p-2 border rounded"
-                >
-                  <option value="">Selecione o Status</option>
-                  <option value="Monitoramento Contínuo">Monitoramento Contínuo</option>
-                  <option value="Em andamento">Em andamento</option>
-                  <option value="Concluído">Concluído</option>
-                  <option value="Atrasado">Atrasado</option>
-                  <option value="Pendente">Pendente</option>
-                  <option value="Cancelado">Cancelado</option>
-                  <option value="Em revisão">Em revisão</option>
-                  <option value="Aguardando Aprovação">Aguardando Aprovação</option>
-                  <option value="Suspenso">Suspenso</option>
-                  <option value="Não iniciado">Não iniciado</option>
-                  <option value="Em risco">Em risco</option>
-                </select>
-                <div className="space-x-2">
-                  <button
-                    onClick={handleUpdateKPI}
-                    className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-                  >
-                    Salvar
-                  </button>
-                  <button
-                    onClick={() => setEditingKPI(null)}
-                    className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-                  >
-                    Cancelar
-                  </button>
+              </th>
+              <th className="px-4 py-2 border">
+                <div className="flex items-center">
+                  <span onClick={() => handleSort('cnpj')} className="cursor-pointer flex items-center">
+                    CNPJ
+                    {sortConfig.key === 'cnpj' && (
+                      sortConfig.direction === 'ascending' ? <span> ▲</span> : <span> ▼</span>
+                    )}
+                  </span>
                 </div>
-              </div>
-            ) : (
-              <div>
-                <h3 className="text-lg font-bold">{kpi.name}</h3>
-                <p>Categoria: {kpi.category}</p>
-                <p>
-                  Valor Alvo: {kpi.target_value} {kpi.unit}
-                </p>
-                <p>
-                  Valor Atual: {kpi.actual_value} {kpi.unit}
-                </p>
-                <p>Ano: {kpi.year}</p>
-                <div className="mt-2 space-x-2">
-                  <button
-                    onClick={() => setEditingKPI(kpi)}
-                    className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => handleDeleteKPI(kpi.id)}
-                    className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-                  >
-                    Excluir
-                  </button>
+                <input
+                  type="text"
+                  name="cnpj"
+                  value={filters.cnpj}
+                  onChange={handleFilterChange}
+                  placeholder="Filtrar por CNPJ"
+                  className="w-full mt-1 p-1 border rounded"
+                />
+              </th>
+              <th className="px-4 py-2 border">
+                <div className="flex items-center">
+                  <span onClick={() => handleSort('kpicode')} className="cursor-pointer flex items-center">
+                    Código KPI
+                    {sortConfig.key === 'kpicode' && (
+                      sortConfig.direction === 'ascending' ? <span> ▲</span> : <span> ▼</span>
+                    )}
+                  </span>
                 </div>
-              </div>
+                <input
+                  type="text"
+                  name="kpicode"
+                  value={filters.kpicode}
+                  onChange={handleFilterChange}
+                  placeholder="Filtrar por Código KPI"
+                  className="w-full mt-1 p-1 border rounded"
+                />
+              </th>
+              <th className="px-4 py-2 border">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedKpis.map((kpi) => (
+              <tr key={kpi.id} className="hover:bg-gray-100">
+                <td className="px-4 py-2 border">{kpi.name}</td>
+                <td className="px-4 py-2 border capitalize">{kpi.category}</td>
+                <td className="px-4 py-2 border">{kpi.target_value} {kpi.unit}</td>
+                <td className="px-4 py-2 border">{kpi.actual_value} {kpi.unit}</td>
+                <td className="px-4 py-2 border">{kpi.cnpj}</td>
+                <td className="px-4 py-2 border">{kpi.kpicode}</td>
+                <td className="px-4 py-2 border">
+                  <div className="flex space-x-2 justify-center">
+                    <button
+                      onClick={() => setEditingKPI(kpi)}
+                      className="text-yellow-500 hover:text-yellow-700"
+                      title="Editar"
+                    >
+                      <FaEdit />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteKPI(kpi.id)}
+                      className="text-red-500 hover:text-red-700"
+                      title="Excluir"
+                    >
+                      <FaTrash />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {sortedKpis.length === 0 && (
+              <tr>
+                <td colSpan="7" className="text-center p-4">
+                  Nenhum KPI encontrado.
+                </td>
+              </tr>
             )}
-          </div>
-        ))}
+          </tbody>
+        </table>
       </div>
+
+      {editingKPI && (
+        <div className="mt-4 p-4 bg-gray-100 rounded">
+          <h3 className="text-lg font-bold mb-2">Editar KPI</h3>
+          {renderKPIForm(editingKPI)}
+          <div className="mt-4 space-x-2">
+            <button
+              onClick={handleUpdateKPI}
+              className="text-white px-4 py-2 rounded hover:opacity-80"
+              style={{ backgroundColor: buttonColor }}
+            >
+              Salvar
+            </button>
+            <button
+              onClick={() => setEditingKPI(null)}
+              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
