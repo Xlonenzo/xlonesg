@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import date
-from typing import Optional
+from typing import Optional, List
 
 class KPIBase(BaseModel):
     name: str
@@ -29,16 +29,31 @@ class KPI(KPIBase):
     class Config:
         from_attributes = True
 
+class TaskBase(BaseModel):
+    description: str
+    status: str
+
+class TaskCreate(TaskBase):
+    pass
+
+class Task(TaskBase):
+    id: int
+    action_plan_id: int
+
+    class Config:
+        from_attributes = True
+
 class ActionPlanBase(BaseModel):
     objective: str
-    start_date: Optional[date] = None
-    end_date: Optional[date] = None
+    start_date: date
+    end_date: date
 
 class ActionPlanCreate(ActionPlanBase):
     pass
 
 class ActionPlan(ActionPlanBase):
     id: int
+    tasks: List[Task] = []
 
     class Config:
         from_attributes = True

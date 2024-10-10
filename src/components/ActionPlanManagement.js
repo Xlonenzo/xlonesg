@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaEye, FaTasks } from 'react-icons/fa';
+import TaskManagement from './TaskManagement';
 
 function ActionPlanManagement() {
   const [actionPlans, setActionPlans] = useState([]);
@@ -11,6 +12,7 @@ function ActionPlanManagement() {
   });
   const [isAddingPlan, setIsAddingPlan] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
+  const [managingTasks, setManagingTasks] = useState(null);
 
   useEffect(() => {
     fetchActionPlans();
@@ -59,32 +61,6 @@ function ActionPlanManagement() {
     }
   };
 
-  const renderActionPlanForm = (plan, isNewPlan = false) => (
-    <div className="grid grid-cols-2 gap-4">
-      <textarea
-        name="objective"
-        value={plan.objective}
-        onChange={(e) => isNewPlan ? setNewActionPlan({...newActionPlan, objective: e.target.value}) : setEditingPlan({...editingPlan, objective: e.target.value})}
-        placeholder="Objetivo"
-        className="col-span-2 w-full p-2 border rounded"
-      />
-      <input
-        type="date"
-        name="start_date"
-        value={plan.start_date}
-        onChange={(e) => isNewPlan ? setNewActionPlan({...newActionPlan, start_date: e.target.value}) : setEditingPlan({...editingPlan, start_date: e.target.value})}
-        className="w-full p-2 border rounded"
-      />
-      <input
-        type="date"
-        name="end_date"
-        value={plan.end_date}
-        onChange={(e) => isNewPlan ? setNewActionPlan({...newActionPlan, end_date: e.target.value}) : setEditingPlan({...editingPlan, end_date: e.target.value})}
-        className="w-full p-2 border rounded"
-      />
-    </div>
-  );
-
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Gerenciamento de Planos de Ação</h2>
@@ -99,21 +75,31 @@ function ActionPlanManagement() {
       {isAddingPlan && (
         <div className="mt-4 p-4 bg-gray-100 rounded">
           <h3 className="text-lg font-bold mb-2">Adicionar Novo Plano de Ação</h3>
-          {renderActionPlanForm(newActionPlan, true)}
-          <div className="mt-4 space-x-2">
-            <button
-              onClick={handleAddActionPlan}
-              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-            >
-              Adicionar
-            </button>
-            <button
-              onClick={() => setIsAddingPlan(false)}
-              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-            >
-              Cancelar
-            </button>
-          </div>
+          <input
+            type="text"
+            value={newActionPlan.objective}
+            onChange={(e) => setNewActionPlan({...newActionPlan, objective: e.target.value})}
+            placeholder="Objetivo"
+            className="w-full p-2 border rounded mb-2"
+          />
+          <input
+            type="date"
+            value={newActionPlan.start_date}
+            onChange={(e) => setNewActionPlan({...newActionPlan, start_date: e.target.value})}
+            className="w-full p-2 border rounded mb-2"
+          />
+          <input
+            type="date"
+            value={newActionPlan.end_date}
+            onChange={(e) => setNewActionPlan({...newActionPlan, end_date: e.target.value})}
+            className="w-full p-2 border rounded mb-2"
+          />
+          <button
+            onClick={handleAddActionPlan}
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            Adicionar Plano de Ação
+          </button>
         </div>
       )}
 
@@ -149,17 +135,17 @@ function ActionPlanManagement() {
                     >
                       <FaTrash />
                     </button>
+                    <button
+                      onClick={() => setManagingTasks(plan.id)}
+                      className="text-green-500 hover:text-green-700"
+                      title="Gerenciar Tarefas"
+                    >
+                      <FaTasks />
+                    </button>
                   </div>
                 </td>
               </tr>
             ))}
-            {actionPlans.length === 0 && (
-              <tr>
-                <td colSpan="4" className="text-center p-4">
-                  Nenhum plano de ação encontrado.
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
       </div>
@@ -167,22 +153,39 @@ function ActionPlanManagement() {
       {editingPlan && (
         <div className="mt-4 p-4 bg-gray-100 rounded">
           <h3 className="text-lg font-bold mb-2">Editar Plano de Ação</h3>
-          {renderActionPlanForm(editingPlan)}
-          <div className="mt-4 space-x-2">
-            <button
-              onClick={handleUpdateActionPlan}
-              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-            >
-              Salvar
-            </button>
-            <button
-              onClick={() => setEditingPlan(null)}
-              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-            >
-              Cancelar
-            </button>
-          </div>
+          <input
+            type="text"
+            value={editingPlan.objective}
+            onChange={(e) => setEditingPlan({...editingPlan, objective: e.target.value})}
+            placeholder="Objetivo"
+            className="w-full p-2 border rounded mb-2"
+          />
+          <input
+            type="date"
+            value={editingPlan.start_date}
+            onChange={(e) => setEditingPlan({...editingPlan, start_date: e.target.value})}
+            className="w-full p-2 border rounded mb-2"
+          />
+          <input
+            type="date"
+            value={editingPlan.end_date}
+            onChange={(e) => setEditingPlan({...editingPlan, end_date: e.target.value})}
+            className="w-full p-2 border rounded mb-2"
+          />
+          <button
+            onClick={handleUpdateActionPlan}
+            className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
+          >
+            Atualizar Plano de Ação
+          </button>
         </div>
+      )}
+
+      {managingTasks && (
+        <TaskManagement
+          actionPlanId={managingTasks}
+          onClose={() => setManagingTasks(null)}
+        />
       )}
     </div>
   );

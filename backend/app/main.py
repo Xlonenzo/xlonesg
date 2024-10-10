@@ -7,15 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-# Configuração do CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Ajuste para a URL do seu frontend
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # Dependency
 def get_db():
     db = SessionLocal()
@@ -23,6 +14,49 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# Rotas para Planos de Ação
+@app.post("/api/action-plans", response_model=schemas.ActionPlan)
+def create_action_plan(action_plan: schemas.ActionPlanCreate, db: Session = Depends(get_db)):
+    db_action_plan = models.ActionPlan(**action_plan.dict())
+    db.add(db_action_plan)
+    db.commit()
+    db.refresh(db_action_plan)
+    return db_action_plan
+
+@app.get("/api/action-plans", response_model=List[schemas.ActionPlan])
+def read_action_plans(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return db.query(models.ActionPlan).offset(skip).limit(limit).all()
+
+# Nova rota para adicionar tarefa a um plano de ação
+@app.post("/api/action-plans/{action_plan_id}/tasks", response_model=schemas.Task)
+def add_task_to_action_plan(action_plan_id: int, task: schemas.TaskCreate, db: Session = Depends(get_db)):
+    # Verificar se o plano de ação existe
+    db_action_plan = db.query(models.ActionPlan).filter(models.ActionPlan.id == action_plan_id).first()
+    if db_action_plan is None:
+        raise HTTPException(status_code=404, detail="Action plan not found")
+    
+    # Criar a nova tarefa
+    db_task = models.Task(**task.dict(), action_plan_id=action_plan_id)
+    db.add(db_task)
+    db.commit()
+    db.refresh(db_task)
+    return db_task
+
+# Rota para obter todas as tarefas de um plano de ação
+@app.get("/api/action-plans/{action_plan_id}/tasks", response_model=List[schemas.Task])
+def read_tasks_for_action_plan(action_plan_id: int, db: Session = Depends(get_db)):
+    tasks = db.query(models.Task).filter(models.Task.action_plan_id == action_plan_id).all()
+    return tasks
+
+# Configuração CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Ajuste para a URL do seu frontend
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Rotas para KPIs
 
@@ -65,48 +99,6 @@ def delete_kpi(kpi_id: int, db: Session = Depends(get_db)):
     db.delete(db_kpi)
     db.commit()
     return db_kpi
-
-# Rotas para Action Plans
-
-@app.post("/api/action-plans", response_model=schemas.ActionPlan)
-def create_action_plan(action_plan: schemas.ActionPlanCreate, db: Session = Depends(get_db)):
-    db_action_plan = models.ActionPlan(**action_plan.dict())
-    db.add(db_action_plan)
-    db.commit()
-    db.refresh(db_action_plan)
-    return db_action_plan
-
-@app.get("/api/action-plans", response_model=List[schemas.ActionPlan])
-def read_action_plans(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    action_plans = db.query(models.ActionPlan).offset(skip).limit(limit).all()
-    return action_plans
-
-@app.get("/api/action-plans/{action_plan_id}", response_model=schemas.ActionPlan)
-def read_action_plan(action_plan_id: int, db: Session = Depends(get_db)):
-    db_action_plan = db.query(models.ActionPlan).filter(models.ActionPlan.id == action_plan_id).first()
-    if db_action_plan is None:
-        raise HTTPException(status_code=404, detail="Action plan not found")
-    return db_action_plan
-
-@app.put("/api/action-plans/{action_plan_id}", response_model=schemas.ActionPlan)
-def update_action_plan(action_plan_id: int, action_plan: schemas.ActionPlanCreate, db: Session = Depends(get_db)):
-    db_action_plan = db.query(models.ActionPlan).filter(models.ActionPlan.id == action_plan_id).first()
-    if db_action_plan is None:
-        raise HTTPException(status_code=404, detail="Action plan not found")
-    for key, value in action_plan.dict().items():
-        setattr(db_action_plan, key, value)
-    db.commit()
-    db.refresh(db_action_plan)
-    return db_action_plan
-
-@app.delete("/api/action-plans/{action_plan_id}", response_model=schemas.ActionPlan)
-def delete_action_plan(action_plan_id: int, db: Session = Depends(get_db)):
-    db_action_plan = db.query(models.ActionPlan).filter(models.ActionPlan.id == action_plan_id).first()
-    if db_action_plan is None:
-        raise HTTPException(status_code=404, detail="Action plan not found")
-    db.delete(db_action_plan)
-    db.commit()
-    return db_action_plan
 
 # Rota de teste
 @app.get("/test")

@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Float, Text, Boolean, Date
+from sqlalchemy import Column, Integer, String, Float, Text, Boolean, Date, ForeignKey
+from sqlalchemy.orm import relationship
 from .database import Base
 
 class KPI(Base):
@@ -28,6 +29,17 @@ class ActionPlan(Base):
     __table_args__ = {"schema": "xlonesg"}
 
     id = Column(Integer, primary_key=True, index=True)
-    objective = Column(String, nullable=False)
+    objective = Column(String, index=True)
     start_date = Column(Date)
     end_date = Column(Date)
+    tasks = relationship("Task", back_populates="action_plan")
+
+class Task(Base):
+    __tablename__ = "tasks"
+    __table_args__ = {"schema": "xlonesg"}
+
+    id = Column(Integer, primary_key=True, index=True)
+    description = Column(String, index=True)
+    status = Column(String)
+    action_plan_id = Column(Integer, ForeignKey("xlonesg.actionplans.id"))
+    action_plan = relationship("ActionPlan", back_populates="tasks")
