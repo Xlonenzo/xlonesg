@@ -26,3 +26,15 @@ class KPI(KPIBase):
 
     class Config:
         from_attributes = True
+
+class ActionPlanBase(BaseModel):
+    objective: str
+
+class ActionPlanCreate(ActionPlanBase):
+    pass
+
+class ActionPlan(ActionPlanBase):
+    id: int
+
+    class Config:
+        from_attributes = True

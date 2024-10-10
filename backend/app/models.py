@@ -3,7 +3,7 @@ from .database import Base
 
 class KPI(Base):
     __tablename__ = "kpis"
-    __table_args__ = {"schema": "xlonesg"}  # Especifica o schema
+    __table_args__ = {"schema": "xlonesg"}
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
@@ -15,10 +15,17 @@ class KPI(Base):
     actual_value = Column(Float)
     frequency = Column(String)
     collection_method = Column(String)
-    status = Column(String)  # Adicionado o campo status
+    status = Column(String)
     year = Column(Integer)
-    month = Column(Integer)  # Novo campo
+    month = Column(Integer)
     cnpj = Column(String)
     kpicode = Column(String, unique=True, index=True)
-    company_category = Column(String)  # Novo campo adicionado
-    isfavorite = Column(Boolean, default=False)  # Novo campo adicionado
+    company_category = Column(String)
+    isfavorite = Column(Boolean, default=False)
+
+class ActionPlan(Base):
+    __tablename__ = "actionplans"
+    __table_args__ = {"schema": "xlonesg"}
+
+    id = Column(Integer, primary_key=True, index=True)
+    objective = Column(String, nullable=False)
