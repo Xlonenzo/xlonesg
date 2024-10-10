@@ -1,4 +1,6 @@
 from pydantic import BaseModel
+from datetime import date
+from typing import Optional
 
 class KPIBase(BaseModel):
     name: str
@@ -29,6 +31,8 @@ class KPI(KPIBase):
 
 class ActionPlanBase(BaseModel):
     objective: str
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
 
 class ActionPlanCreate(ActionPlanBase):
     pass

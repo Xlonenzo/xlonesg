@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Text, Boolean
+from sqlalchemy import Column, Integer, String, Float, Text, Boolean, Date
 from .database import Base
 
 class KPI(Base):
@@ -29,3 +29,5 @@ class ActionPlan(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     objective = Column(String, nullable=False)
+    start_date = Column(Date)
+    end_date = Column(Date)
