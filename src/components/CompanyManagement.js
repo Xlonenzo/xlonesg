@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
+import { FaEdit, FaTrash } from 'react-icons/fa';
 
 function CompanyManagement() {
   const [companies, setCompanies] = useState([]);
