@@ -45,3 +45,15 @@ class Task(Base):
     status = Column(String)
     action_plan_id = Column(Integer, ForeignKey("xlonesg.actionplans.id"))
     action_plan = relationship("ActionPlan", back_populates="tasks")
+
+class Company(Base):
+    __tablename__ = "companies"
+    __table_args__ = {"schema": "xlonesg"}
+
+    id = Column(Integer, primary_key=True, index=True)
+    cnpj = Column(String(14), unique=True, nullable=False)
+    name = Column(String(255), nullable=False)
+    parent_id = Column(Integer, ForeignKey('xlonesg.companies.id'))
+
+    parent = relationship("Company", remote_side=[id], back_populates="children")
+    children = relationship("Company", back_populates="parent")

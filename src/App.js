@@ -39,6 +39,7 @@ import ComparacaoKPI from './components/ComparacaoKPI';
 import Customization from './components/Customization';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
+import CompanyManagement from './components/CompanyManagement'; // Adicione esta linha
 
 // Importar estilos
 import './index.css';
@@ -122,6 +123,8 @@ function App() {
             setKpis={setKpis}
           />
         );
+      case '/admin/company-management':
+        return <CompanyManagement />;
       default:
         return <div>Selecione uma opção do menu</div>;
     }

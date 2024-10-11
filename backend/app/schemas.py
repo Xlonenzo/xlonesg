@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, constr
 from datetime import date
 from typing import Optional, List
 
@@ -59,3 +59,24 @@ class ActionPlan(ActionPlanBase):
 
     class Config:
         from_attributes = True
+
+class CompanyBase(BaseModel):
+    cnpj: str
+    name: str
+
+class CompanyCreate(CompanyBase):
+    cnpj: str  # Mudamos de constr para str
+    name: str
+    parent_cnpj: Optional[str] = None  # Mudamos de parent_id para parent_cnpj
+
+class Company(CompanyBase):
+    id: int
+    parent_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+class CompanyWithChildren(Company):
+    children: List['CompanyWithChildren'] = []
+
+CompanyWithChildren.update_forward_refs()

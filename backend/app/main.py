@@ -1,10 +1,12 @@
 from fastapi import FastAPI, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import SQLAlchemyError
 from . import models, schemas
 from .database import SessionLocal, engine
 from typing import List
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
+import re
 
 app = FastAPI()
 
@@ -15,6 +17,16 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def validate_cnpj(cnpj: str) -> str:
+    # Remove caracteres não numéricos
+    cnpj = re.sub(r'\D', '', cnpj)
+    
+    # Verifica se tem 14 dígitos
+    if len(cnpj) != 14:
+        raise ValueError("CNPJ deve conter 14 dígitos")
+    
+    return cnpj
 
 # Rotas para Planos de Ação
 @app.post("/api/action-plans", response_model=schemas.ActionPlan)
@@ -159,6 +171,87 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
     db.delete(db_task)
     db.commit()
     return db_task
+
+@app.post("/api/companies/hierarchy", response_model=schemas.Company)
+def add_company_to_hierarchy(company: schemas.CompanyCreate, db: Session = Depends(get_db)):
+    print(f"Dados recebidos: {company.dict()}")  # Log dos dados recebidos
+    
+    try:
+        validated_cnpj = validate_cnpj(company.cnpj)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    
+    # Verifica se a empresa já existe
+    existing_company = db.query(models.Company).filter(models.Company.cnpj == validated_cnpj).first()
+    if existing_company:
+        raise HTTPException(status_code=400, detail="Empresa com este CNPJ já existe")
+    
+    parent_id = None
+    if company.parent_cnpj:
+        parent = db.query(models.Company).filter(models.Company.cnpj == validate_cnpj(company.parent_cnpj)).first()
+        if parent:
+            parent_id = parent.id
+        else:
+            raise HTTPException(status_code=404, detail="Empresa pai não encontrada")
+    
+    new_company = models.Company(
+        cnpj=validated_cnpj,
+        name=company.name,
+        parent_id=parent_id
+    )
+    db.add(new_company)
+    try:
+        db.commit()
+        db.refresh(new_company)
+    except SQLAlchemyError as e:
+        db.rollback()
+        print(f"Erro ao inserir empresa: {str(e)}")
+        raise HTTPException(status_code=400, detail="Erro ao inserir empresa")
+    return new_company
+
+@app.get("/api/companies", response_model=List[schemas.Company])
+def read_companies(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    companies = db.query(models.Company).offset(skip).limit(limit).all()
+    return companies
+
+@app.get("/api/companies/{company_id}", response_model=schemas.CompanyWithChildren)
+def read_company(company_id: int, db: Session = Depends(get_db)):
+    db_company = db.query(models.Company).filter(models.Company.id == company_id).first()
+    if db_company is None:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+    return db_company
+
+@app.put("/api/companies/{company_id}", response_model=schemas.Company)
+def update_company(company_id: int, company: schemas.CompanyCreate, db: Session = Depends(get_db)):
+    db_company = db.query(models.Company).filter(models.Company.id == company_id).first()
+    if db_company is None:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+    
+    # Atualizar campos
+    db_company.cnpj = company.cnpj
+    db_company.name = company.name
+    
+    # Atualizar parent_id se necessário
+    if company.parent_cnpj:
+        parent_company = db.query(models.Company).filter(models.Company.cnpj == company.parent_cnpj).first()
+        if not parent_company:
+            raise HTTPException(status_code=404, detail="Empresa pai não encontrada")
+        db_company.parent_id = parent_company.id
+    else:
+        db_company.parent_id = None
+    
+    db.commit()
+    db.refresh(db_company)
+    return db_company
+
+@app.delete("/api/companies/{company_id}", response_model=schemas.Company)
+def delete_company(company_id: int, db: Session = Depends(get_db)):
+    db_company = db.query(models.Company).filter(models.Company.id == company_id).first()
+    if db_company is None:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+    db.delete(db_company)
+    db.commit()
+    return db_company
 
 if __name__ == "__main__":
     print("Iniciando a aplicação...")
