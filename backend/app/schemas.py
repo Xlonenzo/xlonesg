@@ -63,14 +63,24 @@ class ActionPlan(ActionPlanBase):
 class CompanyBase(BaseModel):
     cnpj: str
     name: str
-
-class CompanyCreate(BaseModel):
-    cnpj: str
-    name: str
     razao_social: Optional[str] = None
     endereco: Optional[str] = None
+    trade_name: Optional[str] = None
+    registration_date: Optional[date] = None
+    size: Optional[str] = None
+    sector: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    zip_code: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    website: Optional[str] = None
+    is_active: Optional[bool] = True
 
-class Company(CompanyCreate):
+class CompanyCreate(CompanyBase):
+    pass
+
+class Company(CompanyBase):
     id: int
 
     class Config:

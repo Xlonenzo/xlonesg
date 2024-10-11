@@ -189,7 +189,18 @@ def add_company_to_hierarchy(company: schemas.CompanyCreate, db: Session = Depen
         cnpj=validated_cnpj,
         name=company.name,
         razao_social=company.razao_social,
-        endereco=company.endereco
+        endereco=company.endereco,
+        trade_name=company.trade_name,
+        registration_date=company.registration_date,
+        size=company.size,
+        sector=company.sector,
+        city=company.city,
+        state=company.state,
+        zip_code=company.zip_code,
+        phone=company.phone,
+        email=company.email,
+        website=company.website,
+        is_active=company.is_active
     )
     db.add(new_company)
     try:
@@ -219,14 +230,17 @@ def update_company(company_id: int, company: schemas.CompanyCreate, db: Session 
     if db_company is None:
         raise HTTPException(status_code=404, detail="Empresa não encontrada")
     
-    # Atualizar campos
-    db_company.cnpj = company.cnpj
-    db_company.name = company.name
-    db_company.razao_social = company.razao_social
-    db_company.endereco = company.endereco
+    # Atualizar todos os campos
+    for key, value in company.dict().items():
+        setattr(db_company, key, value)
     
-    db.commit()
-    db.refresh(db_company)
+    try:
+        db.commit()
+        db.refresh(db_company)
+    except SQLAlchemyError as e:
+        db.rollback()
+        print(f"Erro ao atualizar empresa: {str(e)}")
+        raise HTTPException(status_code=400, detail="Erro ao atualizar empresa")
     return db_company
 
 @app.delete("/api/companies/{company_id}", response_model=schemas.Company)
@@ -240,10 +254,44 @@ def delete_company(company_id: int, db: Session = Depends(get_db)):
 
 @app.post("/api/companies", response_model=schemas.Company)
 def create_company(company: schemas.CompanyCreate, db: Session = Depends(get_db)):
-    db_company = crud.get_company_by_cnpj(db, cnpj=company.cnpj)
-    if db_company:
-        raise HTTPException(status_code=400, detail="CNPJ já registrado")
-    return crud.create_company(db=db, company=company)
+    print(f"Dados recebidos no backend: {company.dict()}")  # Log dos dados recebidos
+    
+    try:
+        validated_cnpj = validate_cnpj(company.cnpj)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    
+    # Verifica se a empresa já existe
+    existing_company = db.query(models.Company).filter(models.Company.cnpj == validated_cnpj).first()
+    if existing_company:
+        raise HTTPException(status_code=400, detail="Empresa com este CNPJ já existe")
+    
+    new_company = models.Company(
+        cnpj=validated_cnpj,
+        name=company.name,
+        razao_social=company.razao_social,
+        endereco=company.endereco,
+        trade_name=company.trade_name,
+        registration_date=company.registration_date,
+        size=company.size,
+        sector=company.sector,
+        city=company.city,
+        state=company.state,
+        zip_code=company.zip_code,
+        phone=company.phone,
+        email=company.email,
+        website=company.website,
+        is_active=company.is_active
+    )
+    db.add(new_company)
+    try:
+        db.commit()
+        db.refresh(new_company)
+    except SQLAlchemyError as e:
+        db.rollback()
+        print(f"Erro ao inserir empresa: {str(e)}")
+        raise HTTPException(status_code=400, detail="Erro ao inserir empresa")
+    return new_company
 
 if __name__ == "__main__":
     print("Iniciando a aplicação...")
