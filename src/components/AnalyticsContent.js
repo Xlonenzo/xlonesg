@@ -39,7 +39,9 @@ function AnalyticsContent({ pageTitle }) {
       try {
         const category = categoryMap[pageTitle];
         console.log(`Buscando KPIs para a categoria: ${category}`);
-        const response = await axios.get(`http://localhost:8000/api/kpis/category/${category}`);
+        const response = await axios.get(`http://localhost:8000/api/kpis`, {
+          params: { category: category }
+        });
         console.log('Resposta da API:', response.data);
         setKpis(response.data);
         setFilteredKpis(response.data);

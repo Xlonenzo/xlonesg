@@ -1,9 +1,10 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from . import models, schemas
 from .database import SessionLocal, engine
 from typing import List
 from fastapi.middleware.cors import CORSMiddleware
+from typing import Optional
 
 app = FastAPI()
 
@@ -69,8 +70,18 @@ def create_kpi(kpi: schemas.KPICreate, db: Session = Depends(get_db)):
     return db_kpi
 
 @app.get("/api/kpis", response_model=List[schemas.KPI])
-def read_kpis(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    kpis = db.query(models.KPI).offset(skip).limit(limit).all()
+def read_kpis(
+    skip: int = 0, 
+    limit: int = 100, 
+    category: Optional[str] = Query(None, description="Filter KPIs by category"),
+    db: Session = Depends(get_db)
+):
+    print(f"Recebida solicitação para KPIs. Category: {category}, Skip: {skip}, Limit: {limit}")
+    query = db.query(models.KPI)
+    if category:
+        query = query.filter(models.KPI.category == category)
+    kpis = query.offset(skip).limit(limit).all()
+    print(f"Retornando {len(kpis)} KPIs")
     return kpis
 
 @app.get("/api/kpis/{kpi_id}", response_model=schemas.KPI)

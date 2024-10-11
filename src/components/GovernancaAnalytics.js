@@ -33,7 +33,9 @@ function GovernancaAnalytics() {
       setLoading(true);
       try {
         console.log('Buscando KPIs para a categoria: governance');
-        const response = await axios.get('http://localhost:8000/api/kpis/category/governance');
+        const response = await axios.get('http://localhost:8000/api/kpis', {
+          params: { category: 'governance' }
+        });
         console.log('Resposta da API:', response.data);
         setKpis(response.data);
         setFilteredKpis(response.data);

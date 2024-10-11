@@ -74,12 +74,17 @@ function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
   const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
   const statuses = ['Ativo', 'Inativo', 'Em progresso'];
 
-  const fetchKPIs = useCallback(async () => {
+  const fetchKPIs = useCallback(async (category) => {
+    const url = `http://localhost:8000/api/kpis${category ? `?category=${category}` : ''}`;
+    console.log('Fetching KPIs from:', url);
     try {
-      const response = await axios.get('http://localhost:8000/api/kpis');
+      const response = await axios.get(url);
+      console.log('Response:', response.data);
       setKpis(response.data);
     } catch (error) {
-      console.error('Erro ao buscar KPIs:', error);
+      console.error('Erro ao buscar KPIs:', error.response?.data || error.message);
+      console.error('Status do erro:', error.response?.status);
+      console.error('URL da requisição:', url);
     }
   }, [setKpis]);
 
