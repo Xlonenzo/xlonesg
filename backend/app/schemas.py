@@ -69,16 +69,9 @@ class CompanyCreate(BaseModel):
     name: str
     razao_social: Optional[str] = None
     endereco: Optional[str] = None
-    parent_cnpj: Optional[str] = None
 
 class Company(CompanyCreate):
     id: int
-    parent_id: Optional[int] = None
 
     class Config:
         from_attributes = True
-
-class CompanyWithChildren(Company):
-    children: List['CompanyWithChildren'] = []
-
-CompanyWithChildren.update_forward_refs()

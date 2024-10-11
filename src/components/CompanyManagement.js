@@ -8,8 +8,7 @@ function CompanyManagement() {
     cnpj: '', 
     name: '', 
     razao_social: '', 
-    endereco: '', 
-    parent_id: '' 
+    endereco: ''
   });
   const [editingCompany, setEditingCompany] = useState(null);
 
@@ -32,7 +31,7 @@ function CompanyManagement() {
       const response = await axios.post('http://localhost:8000/api/companies/hierarchy', newCompany);
       console.log('Resposta da API:', response.data);
       setCompanies([...companies, response.data]);
-      setNewCompany({ cnpj: '', name: '', razao_social: '', endereco: '', parent_id: '' });
+      setNewCompany({ cnpj: '', name: '', razao_social: '', endereco: '' });
     } catch (error) {
       console.error('Erro completo:', error);
       if (error.response && error.response.data) {
@@ -92,25 +91,6 @@ function CompanyManagement() {
           placeholder="Nome da Empresa"
           className="w-full p-2 border rounded mb-2"
         />
-        <select
-          value={editingCompany ? editingCompany.parent_id : newCompany.parent_id}
-          onChange={(e) => {
-            const value = e.target.value;
-            if (editingCompany) {
-              setEditingCompany({...editingCompany, parent_id: value});
-            } else {
-              setNewCompany({...newCompany, parent_id: value});
-            }
-          }}
-          className="w-full p-2 border rounded mb-2"
-        >
-          <option value="">Selecione a Empresa Pai (opcional)</option>
-          {companies.map((company) => (
-            <option key={company.id} value={company.id}>
-              {company.name} - {company.cnpj}
-            </option>
-          ))}
-        </select>
         <input
           type="text"
           value={newCompany.razao_social}
@@ -147,7 +127,6 @@ function CompanyManagement() {
             <tr>
               <th className="px-4 py-2 border">CNPJ</th>
               <th className="px-4 py-2 border">Nome</th>
-              <th className="px-4 py-2 border">Empresa Pai</th>
               <th className="px-4 py-2 border">Ações</th>
             </tr>
           </thead>
@@ -156,11 +135,6 @@ function CompanyManagement() {
               <tr key={company.id} className="hover:bg-gray-100">
                 <td className="px-4 py-2 border">{company.cnpj}</td>
                 <td className="px-4 py-2 border">{company.name}</td>
-                <td className="px-4 py-2 border">
-                  {company.parent_id 
-                    ? companies.find(c => c.id === company.parent_id)?.name 
-                    : 'N/A'}
-                </td>
                 <td className="px-4 py-2 border">
                   <div className="flex space-x-2 justify-center">
                     <button

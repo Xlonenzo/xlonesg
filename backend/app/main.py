@@ -1,14 +1,22 @@
 from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from . import models, schemas
 from .database import SessionLocal, engine
-from typing import List
-from fastapi.middleware.cors import CORSMiddleware
-from typing import Optional
+from typing import List, Optional
 import re
 
 app = FastAPI()
+
+# Configuração CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Adicione a origem do seu frontend aqui
+    allow_credentials=True,
+    allow_methods=["*"],  # Permite todos os métodos
+    allow_headers=["*"],  # Permite todos os cabeçalhos
+)
 
 # Dependency
 def get_db():
@@ -61,15 +69,6 @@ def add_task_to_action_plan(action_plan_id: int, task: schemas.TaskCreate, db: S
 def read_tasks_for_action_plan(action_plan_id: int, db: Session = Depends(get_db)):
     tasks = db.query(models.Task).filter(models.Task.action_plan_id == action_plan_id).all()
     return tasks
-
-# Configuração CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Ajuste para a URL do seu frontend
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Rotas para KPIs
 
@@ -186,20 +185,11 @@ def add_company_to_hierarchy(company: schemas.CompanyCreate, db: Session = Depen
     if existing_company:
         raise HTTPException(status_code=400, detail="Empresa com este CNPJ já existe")
     
-    parent_id = None
-    if company.parent_cnpj:
-        parent = db.query(models.Company).filter(models.Company.cnpj == validate_cnpj(company.parent_cnpj)).first()
-        if parent:
-            parent_id = parent.id
-        else:
-            raise HTTPException(status_code=404, detail="Empresa pai não encontrada")
-    
     new_company = models.Company(
         cnpj=validated_cnpj,
         name=company.name,
         razao_social=company.razao_social,
-        endereco=company.endereco,
-        parent_id=parent_id
+        endereco=company.endereco
     )
     db.add(new_company)
     try:
@@ -216,9 +206,9 @@ def read_companies(skip: int = 0, limit: int = 100, db: Session = Depends(get_db
     companies = db.query(models.Company).offset(skip).limit(limit).all()
     return companies
 
-@app.get("/api/companies/{company_id}", response_model=schemas.CompanyWithChildren)
+@app.get("/api/companies/{company_id}", response_model=schemas.Company)
 def read_company(company_id: int, db: Session = Depends(get_db)):
-    db_company = db.query(models.Company).filter(models.Company.id == company_id).first()
+    db_company = crud.get_company(db, company_id=company_id)
     if db_company is None:
         raise HTTPException(status_code=404, detail="Empresa não encontrada")
     return db_company
@@ -232,15 +222,8 @@ def update_company(company_id: int, company: schemas.CompanyCreate, db: Session 
     # Atualizar campos
     db_company.cnpj = company.cnpj
     db_company.name = company.name
-    
-    # Atualizar parent_id se necessário
-    if company.parent_cnpj:
-        parent_company = db.query(models.Company).filter(models.Company.cnpj == company.parent_cnpj).first()
-        if not parent_company:
-            raise HTTPException(status_code=404, detail="Empresa pai não encontrada")
-        db_company.parent_id = parent_company.id
-    else:
-        db_company.parent_id = None
+    db_company.razao_social = company.razao_social
+    db_company.endereco = company.endereco
     
     db.commit()
     db.refresh(db_company)
@@ -254,6 +237,13 @@ def delete_company(company_id: int, db: Session = Depends(get_db)):
     db.delete(db_company)
     db.commit()
     return db_company
+
+@app.post("/api/companies", response_model=schemas.Company)
+def create_company(company: schemas.CompanyCreate, db: Session = Depends(get_db)):
+    db_company = crud.get_company_by_cnpj(db, cnpj=company.cnpj)
+    if db_company:
+        raise HTTPException(status_code=400, detail="CNPJ já registrado")
+    return crud.create_company(db=db, company=company)
 
 if __name__ == "__main__":
     print("Iniciando a aplicação...")

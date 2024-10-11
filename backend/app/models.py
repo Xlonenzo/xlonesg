@@ -55,7 +55,3 @@ class Company(Base):
     name = Column(String(255), nullable=False)
     razao_social = Column(String(255))
     endereco = Column(Text)
-    parent_id = Column(Integer, ForeignKey('xlonesg.companies.id'))
-
-    parent = relationship("Company", remote_side=[id], back_populates="children")
-    children = relationship("Company", back_populates="parent")
