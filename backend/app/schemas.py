@@ -47,6 +47,7 @@ class ActionPlanBase(BaseModel):
     objective: str
     start_date: date
     end_date: date
+    kpi_id: Optional[int] = None  # Adicionado este campo
 
 class ActionPlanCreate(ActionPlanBase):
     pass
@@ -54,6 +55,7 @@ class ActionPlanCreate(ActionPlanBase):
 class ActionPlan(ActionPlanBase):
     id: int
     tasks: List[Task] = []
+    kpi: Optional[KPI] = None  # Adicionado este campo para retornar o KPI associado
 
     class Config:
         from_attributes = True

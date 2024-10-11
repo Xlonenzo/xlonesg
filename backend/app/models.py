@@ -32,7 +32,9 @@ class ActionPlan(Base):
     objective = Column(String, index=True)
     start_date = Column(Date)
     end_date = Column(Date)
+    kpi_id = Column(Integer, ForeignKey("xlonesg.kpis.id"))  # Adicionado este campo
     tasks = relationship("Task", back_populates="action_plan")
+    kpi = relationship("KPI")  # Adicionado esta relação
 
 class Task(Base):
     __tablename__ = "tasks"

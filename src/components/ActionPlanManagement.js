@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaEye, FaTasks } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaTasks } from 'react-icons/fa';
 import TaskManagement from './TaskManagement';
 
 function ActionPlanManagement() {
@@ -9,13 +9,16 @@ function ActionPlanManagement() {
     objective: '',
     start_date: '',
     end_date: '',
+    kpi_id: null,
   });
   const [isAddingPlan, setIsAddingPlan] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
   const [managingTasks, setManagingTasks] = useState(null);
+  const [kpis, setKpis] = useState([]);
 
   useEffect(() => {
     fetchActionPlans();
+    fetchKPIs();
   }, []);
 
   const fetchActionPlans = async () => {
@@ -27,6 +30,15 @@ function ActionPlanManagement() {
     }
   };
 
+  const fetchKPIs = async () => {
+    try {
+      const response = await axios.get('http://localhost:8000/api/kpis');
+      setKpis(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar KPIs:', error);
+    }
+  };
+
   const handleAddActionPlan = async () => {
     try {
       const response = await axios.post('http://localhost:8000/api/action-plans', newActionPlan);
@@ -35,6 +47,7 @@ function ActionPlanManagement() {
         objective: '',
         start_date: '',
         end_date: '',
+        kpi_id: null,
       });
       setIsAddingPlan(false);
     } catch (error) {
@@ -96,6 +109,16 @@ function ActionPlanManagement() {
             onChange={(e) => setNewActionPlan({...newActionPlan, end_date: e.target.value})}
             className="w-full p-2 border rounded mb-2"
           />
+          <select
+            value={newActionPlan.kpi_id || ''}
+            onChange={(e) => setNewActionPlan({...newActionPlan, kpi_id: e.target.value ? parseInt(e.target.value) : null})}
+            className="w-full p-2 border rounded mb-2"
+          >
+            <option value="">Selecione um KPI</option>
+            {kpis.map(kpi => (
+              <option key={kpi.id} value={kpi.id}>{kpi.name}</option>
+            ))}
+          </select>
           <button
             onClick={handleAddActionPlan}
             className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
@@ -174,6 +197,16 @@ function ActionPlanManagement() {
             onChange={(e) => setEditingPlan({...editingPlan, end_date: e.target.value})}
             className="w-full p-2 border rounded mb-2"
           />
+          <select
+            value={editingPlan.kpi_id || ''}
+            onChange={(e) => setEditingPlan({...editingPlan, kpi_id: e.target.value ? parseInt(e.target.value) : null})}
+            className="w-full p-2 border rounded mb-2"
+          >
+            <option value="">Selecione um KPI</option>
+            {kpis.map(kpi => (
+              <option key={kpi.id} value={kpi.id}>{kpi.name}</option>
+            ))}
+          </select>
           <button
             onClick={handleUpdateActionPlan}
             className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
