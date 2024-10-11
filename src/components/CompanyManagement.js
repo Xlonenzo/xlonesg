@@ -9,7 +9,7 @@ function CompanyManagement() {
     name: '', 
     razao_social: '', 
     endereco: '', 
-    parent_cnpj: '' 
+    parent_id: '' 
   });
   const [editingCompany, setEditingCompany] = useState(null);
 
@@ -30,8 +30,9 @@ function CompanyManagement() {
     console.log('Dados sendo enviados:', newCompany);
     try {
       const response = await axios.post('http://localhost:8000/api/companies/hierarchy', newCompany);
+      console.log('Resposta da API:', response.data);
       setCompanies([...companies, response.data]);
-      setNewCompany({ cnpj: '', name: '', parent_cnpj: '' });
+      setNewCompany({ cnpj: '', name: '', razao_social: '', endereco: '', parent_id: '' });
     } catch (error) {
       console.error('Erro completo:', error);
       if (error.response && error.response.data) {
@@ -91,15 +92,25 @@ function CompanyManagement() {
           placeholder="Nome da Empresa"
           className="w-full p-2 border rounded mb-2"
         />
-        <input
-          type="text"
-          value={editingCompany ? editingCompany.parent_cnpj : newCompany.parent_cnpj}
-          onChange={(e) => editingCompany
-            ? setEditingCompany({...editingCompany, parent_cnpj: e.target.value})
-            : setNewCompany({...newCompany, parent_cnpj: e.target.value})}
-          placeholder="CNPJ da Empresa Pai (opcional)"
+        <select
+          value={editingCompany ? editingCompany.parent_id : newCompany.parent_id}
+          onChange={(e) => {
+            const value = e.target.value;
+            if (editingCompany) {
+              setEditingCompany({...editingCompany, parent_id: value});
+            } else {
+              setNewCompany({...newCompany, parent_id: value});
+            }
+          }}
           className="w-full p-2 border rounded mb-2"
-        />
+        >
+          <option value="">Selecione a Empresa Pai (opcional)</option>
+          {companies.map((company) => (
+            <option key={company.id} value={company.id}>
+              {company.name} - {company.cnpj}
+            </option>
+          ))}
+        </select>
         <input
           type="text"
           value={newCompany.razao_social}
