@@ -53,11 +53,13 @@ function ActionPlanManagement() {
   };
 
   const handleDeleteActionPlan = async (id) => {
-    try {
-      await axios.delete(`http://localhost:8000/api/action-plans/${id}`);
-      setActionPlans(actionPlans.filter((plan) => plan.id !== id));
-    } catch (error) {
-      console.error('Erro ao deletar plano de ação:', error);
+    if (window.confirm('Tem certeza que deseja excluir este plano de ação?')) {
+      try {
+        await axios.delete(`http://localhost:8000/api/action-plans/${id}`);
+        setActionPlans(actionPlans.filter((plan) => plan.id !== id));
+      } catch (error) {
+        console.error('Erro ao deletar plano de ação:', error);
+      }
     }
   };
 

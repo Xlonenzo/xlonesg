@@ -116,6 +116,50 @@ def delete_kpi(kpi_id: int, db: Session = Depends(get_db)):
 def test_route():
     return {"message": "Test route working"}
 
+# Atualizar um plano de ação
+@app.put("/api/action-plans/{action_plan_id}", response_model=schemas.ActionPlan)
+def update_action_plan(action_plan_id: int, action_plan: schemas.ActionPlanCreate, db: Session = Depends(get_db)):
+    db_action_plan = db.query(models.ActionPlan).filter(models.ActionPlan.id == action_plan_id).first()
+    if db_action_plan is None:
+        raise HTTPException(status_code=404, detail="Action plan not found")
+    for key, value in action_plan.dict().items():
+        setattr(db_action_plan, key, value)
+    db.commit()
+    db.refresh(db_action_plan)
+    return db_action_plan
+
+# Remover um plano de ação
+@app.delete("/api/action-plans/{action_plan_id}", response_model=schemas.ActionPlan)
+def delete_action_plan(action_plan_id: int, db: Session = Depends(get_db)):
+    db_action_plan = db.query(models.ActionPlan).filter(models.ActionPlan.id == action_plan_id).first()
+    if db_action_plan is None:
+        raise HTTPException(status_code=404, detail="Action plan not found")
+    db.delete(db_action_plan)
+    db.commit()
+    return db_action_plan
+
+# Atualizar uma tarefa
+@app.put("/api/tasks/{task_id}", response_model=schemas.Task)
+def update_task(task_id: int, task: schemas.TaskCreate, db: Session = Depends(get_db)):
+    db_task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if db_task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    for key, value in task.dict().items():
+        setattr(db_task, key, value)
+    db.commit()
+    db.refresh(db_task)
+    return db_task
+
+# Remover uma tarefa
+@app.delete("/api/tasks/{task_id}", response_model=schemas.Task)
+def delete_task(task_id: int, db: Session = Depends(get_db)):
+    db_task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if db_task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    db.delete(db_task)
+    db.commit()
+    return db_task
+
 if __name__ == "__main__":
     print("Iniciando a aplicação...")
     models.Base.metadata.create_all(bind=engine)
