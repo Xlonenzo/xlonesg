@@ -4,7 +4,13 @@ import { FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
 
 function CompanyManagement() {
   const [companies, setCompanies] = useState([]);
-  const [newCompany, setNewCompany] = useState({ cnpj: '', name: '', parent_cnpj: '' });
+  const [newCompany, setNewCompany] = useState({ 
+    cnpj: '', 
+    name: '', 
+    razao_social: '', 
+    endereco: '', 
+    parent_cnpj: '' 
+  });
   const [editingCompany, setEditingCompany] = useState(null);
 
   useEffect(() => {
@@ -23,10 +29,7 @@ function CompanyManagement() {
   const handleAddCompany = async () => {
     console.log('Dados sendo enviados:', newCompany);
     try {
-      const response = await axios.post('http://localhost:8000/api/companies/hierarchy', {
-        ...newCompany,
-        cnpj: newCompany.cnpj.toString()  // Garante que o CNPJ é enviado como string
-      });
+      const response = await axios.post('http://localhost:8000/api/companies/hierarchy', newCompany);
       setCompanies([...companies, response.data]);
       setNewCompany({ cnpj: '', name: '', parent_cnpj: '' });
     } catch (error) {
@@ -95,6 +98,20 @@ function CompanyManagement() {
             ? setEditingCompany({...editingCompany, parent_cnpj: e.target.value})
             : setNewCompany({...newCompany, parent_cnpj: e.target.value})}
           placeholder="CNPJ da Empresa Pai (opcional)"
+          className="w-full p-2 border rounded mb-2"
+        />
+        <input
+          type="text"
+          value={newCompany.razao_social}
+          onChange={(e) => setNewCompany({...newCompany, razao_social: e.target.value})}
+          placeholder="Razão Social"
+          className="w-full p-2 border rounded mb-2"
+        />
+        <input
+          type="text"
+          value={newCompany.endereco}
+          onChange={(e) => setNewCompany({...newCompany, endereco: e.target.value})}
+          placeholder="Endereço"
           className="w-full p-2 border rounded mb-2"
         />
         <button

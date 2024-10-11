@@ -174,7 +174,7 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
 
 @app.post("/api/companies/hierarchy", response_model=schemas.Company)
 def add_company_to_hierarchy(company: schemas.CompanyCreate, db: Session = Depends(get_db)):
-    print(f"Dados recebidos: {company.dict()}")  # Log dos dados recebidos
+    print(f"Dados recebidos no backend: {company.dict()}")  # Log dos dados recebidos
     
     try:
         validated_cnpj = validate_cnpj(company.cnpj)
@@ -197,6 +197,8 @@ def add_company_to_hierarchy(company: schemas.CompanyCreate, db: Session = Depen
     new_company = models.Company(
         cnpj=validated_cnpj,
         name=company.name,
+        razao_social=company.razao_social,
+        endereco=company.endereco,
         parent_id=parent_id
     )
     db.add(new_company)

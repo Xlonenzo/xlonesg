@@ -64,12 +64,14 @@ class CompanyBase(BaseModel):
     cnpj: str
     name: str
 
-class CompanyCreate(CompanyBase):
-    cnpj: str  # Mudamos de constr para str
+class CompanyCreate(BaseModel):
+    cnpj: str
     name: str
-    parent_cnpj: Optional[str] = None  # Mudamos de parent_id para parent_cnpj
+    razao_social: Optional[str] = None
+    endereco: Optional[str] = None
+    parent_cnpj: Optional[str] = None
 
-class Company(CompanyBase):
+class Company(CompanyCreate):
     id: int
     parent_id: Optional[int] = None
 
