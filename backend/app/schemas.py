@@ -19,6 +19,7 @@ class KPIBase(BaseModel):
     kpicode: str
     company_category: str  # Novo campo adicionado
     isfavorite: bool  # Novo campo adicionado
+    compliance: Optional[List[str]] = []  # Novo campo
 
 class KPICreate(KPIBase):
     pass

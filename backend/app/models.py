@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Text, Boolean, Date, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Text, Boolean, Date, ForeignKey, ARRAY
 from sqlalchemy.orm import relationship
 from .database import Base
 
@@ -23,6 +23,7 @@ class KPI(Base):
     kpicode = Column(String, unique=True, index=True)
     company_category = Column(String)
     isfavorite = Column(Boolean, default=False)
+    compliance = Column(ARRAY(String))  # Novo campo
 
 class ActionPlan(Base):
     __tablename__ = "actionplans"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { FaEdit, FaTrash } from 'react-icons/fa';
 
@@ -7,18 +7,18 @@ function TaskManagement({ actionPlanId, onClose }) {
   const [newTask, setNewTask] = useState({ description: '', status: 'Pendente' });
   const [editingTask, setEditingTask] = useState(null);
 
-  useEffect(() => {
-    fetchTasks();
-  }, [actionPlanId]);
-
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     try {
       const response = await axios.get(`http://localhost:8000/api/action-plans/${actionPlanId}/tasks`);
       setTasks(response.data);
     } catch (error) {
       console.error('Erro ao buscar tarefas:', error);
     }
-  };
+  }, [actionPlanId]); // Adicione quaisquer dependências necessárias aqui
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
 
   const handleAddTask = async () => {
     try {
