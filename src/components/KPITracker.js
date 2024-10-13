@@ -12,7 +12,8 @@ function KPITracker({ sidebarColor, buttonColor }) {
     actual_value: 0,
     target_value: 0,
     year: new Date().getFullYear(),
-    month: new Date().getMonth() + 1
+    month: new Date().getMonth() + 1,
+    status: 'Ativo'
   });
   const [isAddingKPIEntry, setIsAddingKPIEntry] = useState(false);
   const [editingKPIEntry, setEditingKPIEntry] = useState(null);
@@ -73,7 +74,8 @@ function KPITracker({ sidebarColor, buttonColor }) {
         actual_value: 0,
         target_value: 0,
         year: new Date().getFullYear(),
-        month: new Date().getMonth() + 1
+        month: new Date().getMonth() + 1,
+        status: 'Ativo'
       });
     } catch (error) {
       console.error('Erro ao adicionar entrada de KPI:', error);
@@ -153,6 +155,43 @@ function KPITracker({ sidebarColor, buttonColor }) {
           className="w-full p-2 border rounded"
         />
       </div>
+      <div>
+        <label className="block mb-2">Ano</label>
+        <input
+          type="number"
+          name="year"
+          value={entry.year}
+          onChange={handleInputChange}
+          className="w-full p-2 border rounded"
+          min={2000}
+          max={2100}
+        />
+      </div>
+      <div>
+        <label className="block mb-2">Mês</label>
+        <input
+          type="number"
+          name="month"
+          value={entry.month}
+          onChange={handleInputChange}
+          className="w-full p-2 border rounded"
+          min={1}
+          max={12}
+        />
+      </div>
+      <div>
+        <label className="block mb-2">Status</label>
+        <select
+          name="status"
+          value={entry.status}
+          onChange={handleInputChange}
+          className="w-full p-2 border rounded"
+        >
+          <option value="Ativo">Ativo</option>
+          <option value="Inativo">Inativo</option>
+          <option value="Em Progresso">Em Progresso</option>
+        </select>
+      </div>
     </div>
   );
 
@@ -203,7 +242,9 @@ function KPITracker({ sidebarColor, buttonColor }) {
               <th className="px-4 py-2 border">Empresa</th>
               <th className="px-4 py-2 border">Valor Atual</th>
               <th className="px-4 py-2 border">Valor Esperado</th>
-              <th className="px-4 py-2 border">Unidade</th>
+              <th className="px-4 py-2 border">Ano</th>
+              <th className="px-4 py-2 border">Mês</th>
+              <th className="px-4 py-2 border">Status</th>
               <th className="px-4 py-2 border">Ações</th>
             </tr>
           </thead>
@@ -217,7 +258,9 @@ function KPITracker({ sidebarColor, buttonColor }) {
                   <td className="px-4 py-2 border">{company ? company.name : 'N/A'}</td>
                   <td className="px-4 py-2 border">{entry.actual_value}</td>
                   <td className="px-4 py-2 border">{entry.target_value}</td>
-                  <td className="px-4 py-2 border">{template ? template.unit : 'N/A'}</td>
+                  <td className="px-4 py-2 border">{entry.year}</td>
+                  <td className="px-4 py-2 border">{entry.month}</td>
+                  <td className="px-4 py-2 border">{entry.status}</td>
                   <td className="px-4 py-2 border">
                     <button
                       onClick={() => setEditingKPIEntry(entry)}

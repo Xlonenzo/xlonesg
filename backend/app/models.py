@@ -80,9 +80,6 @@ class KPITemplate(Base):
     description = Column(Text)
     frequency = Column(String)
     collection_method = Column(String)
-    status = Column(String)
-    year = Column(Integer)
-    month = Column(Integer)
     kpicode = Column(String, unique=True, index=True)
     company_category = Column(String)
     isfavorite = Column(Boolean, default=False)
@@ -99,6 +96,7 @@ class KPIEntry(Base):
     target_value = Column(Float)
     year = Column(Integer)
     month = Column(Integer)
+    status = Column(String)
 
     template = relationship("KPITemplate")
     company = relationship("Company")

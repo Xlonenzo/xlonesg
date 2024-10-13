@@ -14,9 +14,6 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
     description: '',
     frequency: '',
     collection_method: '',
-    status: '',
-    year: new Date().getFullYear(),
-    month: '',
     kpicode: '',
     company_category: '',
     isfavorite: false,
@@ -49,9 +46,6 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
       'Transparência e divulgação'
     ]
   };
-
-  const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
-  const statuses = ['Ativo', 'Inativo', 'Em progresso'];
 
   const complianceOptions = [
     { label: "CSRD", value: "csrd" },
@@ -100,9 +94,6 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
         description: '',
         frequency: '',
         collection_method: '',
-        status: '',
-        year: new Date().getFullYear(),
-        month: '',
         kpicode: '',
         company_category: '',
         isfavorite: false,
@@ -226,45 +217,6 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
             <option key={method} value={method}>{method}</option>
           ))}
         </select>
-      </div>
-      <div>
-        <label className="block mb-2">Status</label>
-        <select
-          name="status"
-          value={kpi.status}
-          onChange={handleInputChange}
-          className="w-full p-2 border rounded"
-        >
-          <option value="">Selecione um status</option>
-          {statuses.map(status => (
-            <option key={status} value={status}>{status}</option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label className="block mb-2">Ano</label>
-        <select
-          name="year"
-          value={kpi.year}
-          onChange={handleInputChange}
-          className="w-full p-2 border rounded"
-        >
-          {years.map(year => (
-            <option key={year} value={year}>{year}</option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label className="block mb-2">Mês</label>
-        <input
-          type="number"
-          name="month"
-          value={kpi.month}
-          onChange={handleInputChange}
-          min="1"
-          max="12"
-          className="w-full p-2 border rounded"
-        />
       </div>
       <div>
         <label className="block mb-2">Código KPI</label>

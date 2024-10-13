@@ -95,9 +95,6 @@ class KPITemplateBase(BaseModel):
     description: str
     frequency: str
     collection_method: str
-    status: str
-    year: int
-    month: int
     kpicode: str
     company_category: str
     isfavorite: bool
@@ -119,14 +116,10 @@ class KPIEntryBase(BaseModel):
     target_value: float
     year: int
     month: int
+    status: str
 
-class KPIEntryCreate(BaseModel):
-    template_id: int
-    cnpj: str
-    actual_value: float
-    target_value: float
-    year: int
-    month: int
+class KPIEntryCreate(KPIEntryBase):
+    pass
 
 class KPIEntry(KPIEntryBase):
     id: int
