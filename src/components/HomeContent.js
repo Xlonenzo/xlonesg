@@ -15,7 +15,7 @@ function HomeContent() {
   const fetchKPIs = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:8000/api/kpis');
+      const response = await axios.get('http://localhost:8000/api/kpi-entries-with-templates');
       setAllKpis(response.data);
       const favorites = response.data.filter(kpi => kpi.isfavorite);
       setFavoriteKpis(favorites);
@@ -31,12 +31,12 @@ function HomeContent() {
 
   function KPICard({ kpi }) {
     const performancePercentage = (kpi.actual_value / kpi.target_value) * 100;
-    const isGood = kpi.inverse ? performancePercentage <= 100 : performancePercentage >= 100;
+    const isGood = performancePercentage >= 100; // Assumindo que maior é melhor para todos os KPIs
     const statusColor = isGood ? 'bg-green-500' : 'bg-red-500';
 
     return (
       <div className="bg-white shadow-md rounded-lg p-4 m-2">
-        <h3 className="text-lg font-semibold mb-2">{kpi.name}</h3>
+        <h3 className="text-lg font-semibold mb-2">{kpi.template_name}</h3>
         <p className="text-sm text-gray-600 mb-2">{kpi.description}</p>
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm font-medium">Atual: {kpi.actual_value} {kpi.unit}</span>
@@ -51,19 +51,19 @@ function HomeContent() {
         <p className="text-sm mt-2">
           {isGood ? 'Bom desempenho' : 'Precisa de atenção'}
         </p>
-        <p className="text-xs text-gray-500 mt-2">Ano: {kpi.year}</p>
+        <p className="text-xs text-gray-500 mt-2">Ano: {kpi.year}, Mês: {kpi.month}</p>
       </div>
     );
   }
 
   const goodPerformanceKPIs = allKpis.filter(kpi => {
     const performancePercentage = (kpi.actual_value / kpi.target_value) * 100;
-    return kpi.inverse ? performancePercentage <= 100 : performancePercentage >= 100;
+    return performancePercentage >= 100;
   });
 
   const needsAttentionKPIs = allKpis.filter(kpi => {
     const performancePercentage = (kpi.actual_value / kpi.target_value) * 100;
-    return kpi.inverse ? performancePercentage > 100 : performancePercentage < 100;
+    return performancePercentage < 100;
   });
 
   const renderBarChart = (data, title, color) => (
@@ -72,7 +72,7 @@ function HomeContent() {
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="name" />
+          <XAxis dataKey="template_name" />
           <YAxis />
           <Tooltip />
           <Legend />
@@ -105,7 +105,7 @@ function HomeContent() {
       {favoriteKpis.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 px-4">
           {favoriteKpis.map(kpi => (
-            <KPICard key={kpi.id} kpi={kpi} />
+            <KPICard key={kpi.entry_id} kpi={kpi} />
           ))}
         </div>
       ) : (
