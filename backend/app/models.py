@@ -82,7 +82,6 @@ class KPITemplate(Base):
     collection_method = Column(String)
     kpicode = Column(String, unique=True, index=True)
     company_category = Column(String)
-    isfavorite = Column(Boolean, default=False)
     compliance = Column(ARRAY(String))
 
 class KPIEntry(Base):
@@ -97,6 +96,7 @@ class KPIEntry(Base):
     year = Column(Integer)
     month = Column(Integer)
     status = Column(String)
+    isfavorite = Column(Boolean, default=False)
 
     template = relationship("KPITemplate")
     company = relationship("Company")
@@ -112,6 +112,7 @@ class KPIEntryWithTemplate(Base):
     month = Column(Integer)
     status = Column(String)
     cnpj = Column(String)
+    isfavorite = Column(Boolean)  # Adicionado o campo isfavorite
     template_id = Column(Integer)
     template_name = Column(String)
     unit = Column(String)
@@ -122,5 +123,4 @@ class KPIEntryWithTemplate(Base):
     collection_method = Column(String)
     kpicode = Column(String)
     company_category = Column(String)
-    isfavorite = Column(Boolean)
     compliance = Column(ARRAY(String))

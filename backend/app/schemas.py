@@ -97,7 +97,6 @@ class KPITemplateBase(BaseModel):
     collection_method: str
     kpicode: str
     company_category: str
-    isfavorite: bool
     compliance: Optional[List[str]] = []
 
 class KPITemplateCreate(KPITemplateBase):
@@ -117,6 +116,7 @@ class KPIEntryBase(BaseModel):
     year: int
     month: int
     status: str
+    isfavorite: bool = False
 
 class KPIEntryCreate(KPIEntryBase):
     pass
@@ -135,6 +135,7 @@ class KPIEntryWithTemplateBase(BaseModel):
     month: int
     status: str
     cnpj: str
+    isfavorite: bool  # Adicionado o campo isfavorite
     template_id: int
     template_name: str
     unit: str
@@ -145,7 +146,6 @@ class KPIEntryWithTemplateBase(BaseModel):
     collection_method: str
     kpicode: str
     company_category: str
-    isfavorite: bool
     compliance: Optional[List[str]] = []
 
 class KPIEntryWithTemplate(KPIEntryWithTemplateBase):

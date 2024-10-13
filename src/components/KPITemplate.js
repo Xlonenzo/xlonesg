@@ -16,7 +16,6 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
     collection_method: '',
     kpicode: '',
     company_category: '',
-    isfavorite: false,
     compliance: [],
   });
 
@@ -96,7 +95,6 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
         collection_method: '',
         kpicode: '',
         company_category: '',
-        isfavorite: false,
         compliance: [],
       });
     } catch (error) {
@@ -246,18 +244,6 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
           onChange={handleComplianceChange}
           labelledBy="Selecione"
         />
-      </div>
-      <div className="col-span-2">
-        <label className="flex items-center">
-          <input
-            type="checkbox"
-            name="isfavorite"
-            checked={kpi.isfavorite}
-            onChange={(e) => handleInputChange({ target: { name: 'isfavorite', value: e.target.checked } })}
-            className="mr-2"
-          />
-          É favorito
-        </label>
       </div>
     </div>
   );
