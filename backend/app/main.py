@@ -293,6 +293,46 @@ def create_company(company: schemas.CompanyCreate, db: Session = Depends(get_db)
         raise HTTPException(status_code=400, detail="Erro ao inserir empresa")
     return new_company
 
+@app.post("/api/kpi-templates", response_model=schemas.KPITemplate)
+def create_kpi_template(kpi_template: schemas.KPITemplateCreate, db: Session = Depends(get_db)):
+    db_kpi_template = models.KPITemplate(**kpi_template.dict())
+    db.add(db_kpi_template)
+    db.commit()
+    db.refresh(db_kpi_template)
+    return db_kpi_template
+
+@app.get("/api/kpi-templates", response_model=List[schemas.KPITemplate])
+def read_kpi_templates(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    kpi_templates = db.query(models.KPITemplate).offset(skip).limit(limit).all()
+    return kpi_templates
+
+@app.get("/api/kpi-templates/{kpi_template_id}", response_model=schemas.KPITemplate)
+def read_kpi_template(kpi_template_id: int, db: Session = Depends(get_db)):
+    db_kpi_template = db.query(models.KPITemplate).filter(models.KPITemplate.id == kpi_template_id).first()
+    if db_kpi_template is None:
+        raise HTTPException(status_code=404, detail="KPI Template not found")
+    return db_kpi_template
+
+@app.put("/api/kpi-templates/{kpi_template_id}", response_model=schemas.KPITemplate)
+def update_kpi_template(kpi_template_id: int, kpi_template: schemas.KPITemplateCreate, db: Session = Depends(get_db)):
+    db_kpi_template = db.query(models.KPITemplate).filter(models.KPITemplate.id == kpi_template_id).first()
+    if db_kpi_template is None:
+        raise HTTPException(status_code=404, detail="KPI Template not found")
+    for key, value in kpi_template.dict().items():
+        setattr(db_kpi_template, key, value)
+    db.commit()
+    db.refresh(db_kpi_template)
+    return db_kpi_template
+
+@app.delete("/api/kpi-templates/{kpi_template_id}", response_model=schemas.KPITemplate)
+def delete_kpi_template(kpi_template_id: int, db: Session = Depends(get_db)):
+    db_kpi_template = db.query(models.KPITemplate).filter(models.KPITemplate.id == kpi_template_id).first()
+    if db_kpi_template is None:
+        raise HTTPException(status_code=404, detail="KPI Template not found")
+    db.delete(db_kpi_template)
+    db.commit()
+    return db_kpi_template
+
 if __name__ == "__main__":
     print("Iniciando a aplicação...")
     models.Base.metadata.create_all(bind=engine)

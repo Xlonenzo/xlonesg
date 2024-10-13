@@ -67,3 +67,23 @@ class Company(Base):
     email = Column(String(100))
     website = Column(String(100))
     is_active = Column(Boolean, default=True)
+
+class KPITemplate(Base):
+    __tablename__ = "kpi_templates"
+    __table_args__ = {"schema": "xlonesg"}
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    unit = Column(String)
+    category = Column(String)
+    subcategory = Column(String)
+    description = Column(Text)
+    frequency = Column(String)
+    collection_method = Column(String)
+    status = Column(String)
+    year = Column(Integer)
+    month = Column(Integer)
+    kpicode = Column(String, unique=True, index=True)
+    company_category = Column(String)
+    isfavorite = Column(Boolean, default=False)
+    compliance = Column(ARRAY(String))

@@ -40,6 +40,7 @@ import Customization from './components/Customization';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import CompanyManagement from './components/CompanyManagement'; // Adicione esta linha
+import KPITemplate from './components/KPITemplate';
 
 // Importar estilos
 import './index.css';
@@ -62,6 +63,9 @@ function App() {
   const [dataSources, setDataSources] = useState(dataSourcesData);
   const [kpis, setKpis] = useState(kpisData);
   const menuItems = menuItemsData;
+
+  // Adicione este novo estado para os templates de KPI
+  const [kpiTemplates, setKpiTemplates] = useState([]);
 
   // Função para alternar a sidebar
   const toggleSidebar = () => {
@@ -114,6 +118,8 @@ function App() {
         return <ComparacaoKPI />;
       case '/kpi-management':
         return <KPIManagement kpis={kpis} setKpis={setKpis} buttonColor={buttonColor} />;
+      case '/kpi-templates':
+        return <KPITemplate kpis={kpiTemplates} setKpis={setKpiTemplates} sidebarColor={sidebarColor} buttonColor={buttonColor} />;
       case '/action-plan':
         return (
           <ActionPlanManagement

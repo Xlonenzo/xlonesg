@@ -82,6 +82,12 @@ function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
     { label: "Social Bond Principles", value: "social_bond_principles" },
   ];
 
+  const complianceFullNames = {
+    'csrd': 'CSRD',
+    'idiversa': 'IDiversa',
+    'social_bond_principles': 'Social Bond Principles'
+  };
+
   const fetchKPIs = useCallback(async (category) => {
     const url = `http://localhost:8000/api/kpis${category ? `?category=${category}` : ''}`;
     console.log('Fetching KPIs from:', url);
@@ -226,6 +232,13 @@ function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
     } else {
       setEditingKPI(prev => ({ ...prev, compliance: complianceValues }));
     }
+  };
+
+  const formatCompliance = (compliance) => {
+    if (Array.isArray(compliance)) {
+      return compliance.map(item => complianceFullNames[item] || item);
+    }
+    return [];
   };
 
   const renderKPIForm = (kpi, isNewKPI = false) => (
@@ -598,9 +611,17 @@ function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
                 <td className="px-4 py-2 border">{kpi.cnpj}</td>
                 <td className="px-4 py-2 border">{kpi.kpicode}</td>
                 <td className="px-4 py-2 border">
-                  {Array.isArray(kpi.compliance) && kpi.compliance.length > 0
-                    ? kpi.compliance.join(", ")
-                    : "N/A"}
+                  {formatCompliance(kpi.compliance).length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {formatCompliance(kpi.compliance).map((item, index) => (
+                        <span key={index} className="bg-blue-100 px-2 py-1 rounded text-sm text-blue-800">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    "N/A"
+                  )}
                 </td>
                 <td className="px-4 py-2 border">
                   <div className="flex space-x-2 justify-center">

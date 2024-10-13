@@ -86,3 +86,28 @@ class Company(CompanyBase):
 
     class Config:
         from_attributes = True
+
+class KPITemplateBase(BaseModel):
+    name: str
+    unit: str
+    category: str
+    subcategory: str
+    description: str
+    frequency: str
+    collection_method: str
+    status: str
+    year: int
+    month: int
+    kpicode: str
+    company_category: str
+    isfavorite: bool
+    compliance: Optional[List[str]] = []
+
+class KPITemplateCreate(KPITemplateBase):
+    pass
+
+class KPITemplate(KPITemplateBase):
+    id: int
+
+    class Config:
+        from_attributes = True
