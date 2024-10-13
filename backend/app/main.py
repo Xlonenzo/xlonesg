@@ -6,6 +6,7 @@ from . import models, schemas
 from .database import SessionLocal, engine
 from typing import List, Optional
 import re
+from sqlalchemy.orm import joinedload
 
 app = FastAPI()
 
@@ -335,39 +336,74 @@ def delete_kpi_template(kpi_template_id: int, db: Session = Depends(get_db)):
 
 @app.post("/api/kpi-entries", response_model=schemas.KPIEntry)
 def create_kpi_entry(kpi_entry: schemas.KPIEntryCreate, db: Session = Depends(get_db)):
-    db_kpi_entry = models.KPIEntry(**kpi_entry.dict())
-    # ... resto do código ...
+    try:
+        db_kpi_entry = models.KPIEntry(**kpi_entry.dict())
+        db.add(db_kpi_entry)
+        db.commit()
+        db.refresh(db_kpi_entry)
+        return db_kpi_entry
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Erro ao criar entrada de KPI: {str(e)}")
 
 @app.put("/api/kpi-entries/{kpi_entry_id}", response_model=schemas.KPIEntry)
 def update_kpi_entry(kpi_entry_id: int, kpi_entry: schemas.KPIEntryCreate, db: Session = Depends(get_db)):
-    db_kpi_entry = db.query(models.KPIEntry).filter(models.KPIEntry.id == kpi_entry_id).first()
-    if db_kpi_entry is None:
-        raise HTTPException(status_code=404, detail="KPI Entry not found")
-    for key, value in kpi_entry.dict().items():
-        setattr(db_kpi_entry, key, value)
-    db.commit()
-    db.refresh(db_kpi_entry)
-    return db_kpi_entry
+    try:
+        db_kpi_entry = db.query(models.KPIEntry).filter(models.KPIEntry.id == kpi_entry_id).first()
+        if db_kpi_entry is None:
+            raise HTTPException(status_code=404, detail="KPI Entry not found")
+        for key, value in kpi_entry.dict().items():
+            setattr(db_kpi_entry, key, value)
+        db.commit()
+        db.refresh(db_kpi_entry)
+        return db_kpi_entry
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Erro ao atualizar entrada de KPI: {str(e)}")
 
-@app.get("/api/kpi-entries", response_model=List[schemas.KPIEntry])
+@app.delete("/api/kpi-entries/{kpi_entry_id}", response_model=schemas.KPIEntry)
+def delete_kpi_entry(kpi_entry_id: int, db: Session = Depends(get_db)):
+    try:
+        db_kpi_entry = db.query(models.KPIEntry).filter(models.KPIEntry.id == kpi_entry_id).first()
+        if db_kpi_entry is None:
+            raise HTTPException(status_code=404, detail="KPI Entry not found")
+        db.delete(db_kpi_entry)
+        db.commit()
+        return db_kpi_entry
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Erro ao excluir entrada de KPI: {str(e)}")
+
+@app.get("/api/kpi-entries", response_model=List[schemas.KPIEntryWithTemplate])
 def read_kpi_entries(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    kpi_entries = db.query(models.KPIEntry).offset(skip).limit(limit).all()
-    return kpi_entries
+    kpi_entries = db.query(models.KPIEntry).options(joinedload(models.KPIEntry.template)).offset(skip).limit(limit).all()
+    return [schemas.KPIEntryWithTemplate(
+        entry_id=entry.id,
+        template_id=entry.template_id,
+        template_name=entry.template.name if entry.template else None,
+        cnpj=entry.cnpj,
+        actual_value=entry.actual_value,
+        target_value=entry.target_value,
+        year=entry.year,
+        month=entry.month,
+        status=entry.status,
+        isfavorite=entry.isfavorite,
+        unit=entry.template.unit if entry.template else None,
+        category=entry.template.category if entry.template else None,
+        subcategory=entry.template.subcategory if entry.template else None,
+        description=entry.template.description if entry.template else None,
+        frequency=entry.template.frequency if entry.template else None,
+        collection_method=entry.template.collection_method if entry.template else None,
+        kpicode=entry.template.kpicode if entry.template else None,
+        company_category=entry.template.company_category if entry.template else None,
+        compliance=entry.template.compliance if entry.template else None
+    ) for entry in kpi_entries]
 
 @app.get("/api/kpi-entries/{kpi_entry_id}", response_model=schemas.KPIEntry)
 def read_kpi_entry(kpi_entry_id: int, db: Session = Depends(get_db)):
     db_kpi_entry = db.query(models.KPIEntry).filter(models.KPIEntry.id == kpi_entry_id).first()
     if db_kpi_entry is None:
         raise HTTPException(status_code=404, detail="KPI Entry not found")
-    return db_kpi_entry
-
-@app.delete("/api/kpi-entries/{kpi_entry_id}", response_model=schemas.KPIEntry)
-def delete_kpi_entry(kpi_entry_id: int, db: Session = Depends(get_db)):
-    db_kpi_entry = db.query(models.KPIEntry).filter(models.KPIEntry.id == kpi_entry_id).first()
-    if db_kpi_entry is None:
-        raise HTTPException(status_code=404, detail="KPI Entry not found")
-    db.delete(db_kpi_entry)
-    db.commit()
     return db_kpi_entry
 
 @app.get("/api/kpi-entries-with-templates", response_model=List[schemas.KPIEntryWithTemplate])

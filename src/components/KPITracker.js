@@ -27,10 +27,11 @@ function KPITracker({ sidebarColor, buttonColor }) {
 
   const fetchKPIEntries = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/kpi-entries-with-templates');
+      const response = await axios.get('http://localhost:8000/api/kpi-entries');
       setKpiEntries(response.data);
     } catch (error) {
       console.error('Erro ao buscar entradas de KPI:', error);
+      alert('Erro ao carregar as entradas de KPI. Por favor, tente novamente.');
     }
   };
 
@@ -65,10 +66,13 @@ function KPITracker({ sidebarColor, buttonColor }) {
     try {
       if (editingEntry) {
         await axios.put(`http://localhost:8000/api/kpi-entries/${editingEntry.entry_id}`, newEntry);
+        alert('KPI atualizado com sucesso!');
       } else {
         await axios.post('http://localhost:8000/api/kpi-entries', newEntry);
+        alert('Novo KPI adicionado com sucesso!');
       }
       fetchKPIEntries();
+      setIsFormOpen(false);
       setEditingEntry(null);
       setNewEntry({
         template_id: '',
@@ -80,9 +84,9 @@ function KPITracker({ sidebarColor, buttonColor }) {
         status: '',
         isfavorite: false
       });
-      setIsFormOpen(false);
     } catch (error) {
       console.error('Erro ao salvar entrada de KPI:', error);
+      alert('Erro ao salvar entrada de KPI. Por favor, tente novamente.');
     }
   };
 
@@ -106,8 +110,10 @@ function KPITracker({ sidebarColor, buttonColor }) {
       try {
         await axios.delete(`http://localhost:8000/api/kpi-entries/${entryId}`);
         fetchKPIEntries();
+        alert('Entrada de KPI excluída com sucesso!');
       } catch (error) {
         console.error('Erro ao excluir entrada de KPI:', error);
+        alert('Erro ao excluir entrada de KPI. Por favor, tente novamente.');
       }
     }
   };
@@ -116,9 +122,10 @@ function KPITracker({ sidebarColor, buttonColor }) {
     try {
       const updatedEntry = { ...entry, isfavorite: !entry.isfavorite };
       await axios.put(`http://localhost:8000/api/kpi-entries/${entry.entry_id}`, updatedEntry);
-      setKpiEntries(kpiEntries.map(e => e.entry_id === entry.entry_id ? updatedEntry : e));
+      fetchKPIEntries();
     } catch (error) {
       console.error('Erro ao atualizar favorito:', error);
+      alert('Erro ao atualizar favorito. Por favor, tente novamente.');
     }
   };
 

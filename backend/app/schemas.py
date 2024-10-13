@@ -127,17 +127,17 @@ class KPIEntry(KPIEntryBase):
     class Config:
         from_attributes = True
 
-class KPIEntryWithTemplateBase(BaseModel):
+class KPIEntryWithTemplate(BaseModel):
     entry_id: int
+    template_id: int
+    template_name: str
+    cnpj: str
     actual_value: float
     target_value: float
     year: int
     month: int
     status: str
-    cnpj: str
-    isfavorite: bool  # Adicionado o campo isfavorite
-    template_id: int
-    template_name: str
+    isfavorite: bool
     unit: str
     category: str
     subcategory: str
@@ -148,6 +148,5 @@ class KPIEntryWithTemplateBase(BaseModel):
     company_category: str
     compliance: Optional[List[str]] = []
 
-class KPIEntryWithTemplate(KPIEntryWithTemplateBase):
     class Config:
         from_attributes = True
