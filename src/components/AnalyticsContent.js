@@ -1,20 +1,7 @@
 // src/components/AnalyticsContent.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-
-function KPICard({ kpi }) {
-  return (
-    <div className="bg-white shadow-md rounded-lg p-4 m-2">
-      <h3 className="text-lg font-bold mb-1">{kpi.name}</h3>
-      <p className="text-sm text-gray-600 mb-2">{kpi.description}</p>
-      <p className="text-xs text-gray-600 mb-1">Ano: {kpi.year}</p>
-      <p className="text-xs text-gray-600 mb-1">Mês: {kpi.month}</p>
-      <p className="text-xs text-gray-600 mb-1">Unidade: {kpi.unit}</p>
-      <p className="text-sm text-green-600 font-bold">Atual: {kpi.actual_value}</p>
-      <p className="text-sm text-blue-600 font-bold">Alvo: {kpi.target_value}</p>
-    </div>
-  );
-}
+import KPICard from './KPICard';
 
 function AnalyticsContent({ pageTitle }) {
   const [kpis, setKpis] = useState([]);
@@ -39,7 +26,7 @@ function AnalyticsContent({ pageTitle }) {
       try {
         const category = categoryMap[pageTitle];
         console.log(`Buscando KPIs para a categoria: ${category}`);
-        const response = await axios.get(`http://localhost:8000/api/kpis`, {
+        const response = await axios.get(`http://localhost:8000/api/kpi-entries-with-templates`, {
           params: { category: category }
         });
         console.log('Resposta da API:', response.data);
@@ -104,7 +91,7 @@ function AnalyticsContent({ pageTitle }) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filteredKpis.map(kpi => (
-            <KPICard key={kpi.id} kpi={kpi} />
+            <KPICard key={kpi.entry_id} kpi={kpi} />
           ))}
         </div>
       )}

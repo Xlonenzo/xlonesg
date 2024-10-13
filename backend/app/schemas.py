@@ -126,3 +126,28 @@ class KPIEntry(KPIEntryBase):
 
     class Config:
         from_attributes = True
+
+class KPIEntryWithTemplateBase(BaseModel):
+    entry_id: int
+    actual_value: float
+    target_value: float
+    year: int
+    month: int
+    status: str
+    cnpj: str
+    template_id: int
+    template_name: str
+    unit: str
+    category: str
+    subcategory: str
+    description: str
+    frequency: str
+    collection_method: str
+    kpicode: str
+    company_category: str
+    isfavorite: bool
+    compliance: Optional[List[str]] = []
+
+class KPIEntryWithTemplate(KPIEntryWithTemplateBase):
+    class Config:
+        from_attributes = True

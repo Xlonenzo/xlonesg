@@ -383,6 +383,19 @@ def delete_kpi_entry(kpi_entry_id: int, db: Session = Depends(get_db)):
     db.commit()
     return db_kpi_entry
 
+@app.get("/api/kpi-entries-with-templates", response_model=List[schemas.KPIEntryWithTemplate])
+def read_kpi_entries_with_templates(
+    category: Optional[str] = Query(None),
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.KPIEntryWithTemplate)
+    if category:
+        query = query.filter(models.KPIEntryWithTemplate.category == category)
+    entries = query.offset(skip).limit(limit).all()
+    return entries
+
 if __name__ == "__main__":
     print("Iniciando a aplicação...")
     models.Base.metadata.create_all(bind=engine)

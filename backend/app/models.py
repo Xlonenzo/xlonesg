@@ -100,3 +100,27 @@ class KPIEntry(Base):
 
     template = relationship("KPITemplate")
     company = relationship("Company")
+
+class KPIEntryWithTemplate(Base):
+    __tablename__ = 'kpi_entries_with_templates'
+    __table_args__ = {"schema": "xlonesg"}
+
+    entry_id = Column(Integer, primary_key=True)
+    actual_value = Column(Float)
+    target_value = Column(Float)
+    year = Column(Integer)
+    month = Column(Integer)
+    status = Column(String)
+    cnpj = Column(String)
+    template_id = Column(Integer)
+    template_name = Column(String)
+    unit = Column(String)
+    category = Column(String)
+    subcategory = Column(String)
+    description = Column(Text)
+    frequency = Column(String)
+    collection_method = Column(String)
+    kpicode = Column(String)
+    company_category = Column(String)
+    isfavorite = Column(Boolean)
+    compliance = Column(ARRAY(String))
