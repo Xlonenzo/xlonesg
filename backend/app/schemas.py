@@ -111,3 +111,25 @@ class KPITemplate(KPITemplateBase):
 
     class Config:
         from_attributes = True
+
+class KPIEntryBase(BaseModel):
+    template_id: int
+    cnpj: str
+    actual_value: float
+    target_value: float
+    year: int
+    month: int
+
+class KPIEntryCreate(BaseModel):
+    template_id: int
+    cnpj: str
+    actual_value: float
+    target_value: float
+    year: int
+    month: int
+
+class KPIEntry(KPIEntryBase):
+    id: int
+
+    class Config:
+        from_attributes = True

@@ -13,6 +13,7 @@ import {
   Sliders,
   Building,
   FileText, // Novo ícone para KPIs
+  Activity,
 } from 'lucide-react';
 
 const menuItemsData = [
@@ -41,6 +42,7 @@ const menuItemsData = [
   },
   { name: 'Gerenciamento de KPIs', icon: <Settings size={20} />, path: '/kpi-management' },
   { name: 'KPIs', icon: <FileText size={20} />, path: '/kpi-templates' }, // Novo item de menu
+  { name: 'Rastreador de KPIs', icon: <Activity size={20} />, path: '/kpi-tracker' }, // Novo item
   { name: 'Biblioteca de Informações', icon: <Book size={20} />, path: '/info-library' },
   { name: 'Plano de Ação', icon: <ClipboardList size={20} />, path: '/action-plan' },
 ];

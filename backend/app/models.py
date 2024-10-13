@@ -87,3 +87,18 @@ class KPITemplate(Base):
     company_category = Column(String)
     isfavorite = Column(Boolean, default=False)
     compliance = Column(ARRAY(String))
+
+class KPIEntry(Base):
+    __tablename__ = "kpi_entries"
+    __table_args__ = {"schema": "xlonesg"}
+
+    id = Column(Integer, primary_key=True, index=True)
+    template_id = Column(Integer, ForeignKey('xlonesg.kpi_templates.id'))
+    cnpj = Column(String(14), ForeignKey('xlonesg.companies.cnpj'))
+    actual_value = Column(Float)
+    target_value = Column(Float)
+    year = Column(Integer)
+    month = Column(Integer)
+
+    template = relationship("KPITemplate")
+    company = relationship("Company")

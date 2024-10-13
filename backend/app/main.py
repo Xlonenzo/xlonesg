@@ -333,6 +333,56 @@ def delete_kpi_template(kpi_template_id: int, db: Session = Depends(get_db)):
     db.commit()
     return db_kpi_template
 
+@app.post("/api/kpi-entries", response_model=schemas.KPIEntry)
+def create_kpi_entry(kpi_entry: schemas.KPIEntryCreate, db: Session = Depends(get_db)):
+    # Validação adicional
+    if not db.query(models.KPITemplate).filter(models.KPITemplate.id == kpi_entry.template_id).first():
+        raise HTTPException(status_code=400, detail="Template de KPI não encontrado")
+    if not db.query(models.Company).filter(models.Company.cnpj == kpi_entry.cnpj).first():
+        raise HTTPException(status_code=400, detail="Empresa não encontrada")
+    
+    db_kpi_entry = models.KPIEntry(**kpi_entry.dict())
+    db.add(db_kpi_entry)
+    try:
+        db.commit()
+        db.refresh(db_kpi_entry)
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    return db_kpi_entry
+
+@app.get("/api/kpi-entries", response_model=List[schemas.KPIEntry])
+def read_kpi_entries(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    kpi_entries = db.query(models.KPIEntry).offset(skip).limit(limit).all()
+    return kpi_entries
+
+@app.get("/api/kpi-entries/{kpi_entry_id}", response_model=schemas.KPIEntry)
+def read_kpi_entry(kpi_entry_id: int, db: Session = Depends(get_db)):
+    db_kpi_entry = db.query(models.KPIEntry).filter(models.KPIEntry.id == kpi_entry_id).first()
+    if db_kpi_entry is None:
+        raise HTTPException(status_code=404, detail="KPI Entry not found")
+    return db_kpi_entry
+
+@app.put("/api/kpi-entries/{kpi_entry_id}", response_model=schemas.KPIEntry)
+def update_kpi_entry(kpi_entry_id: int, kpi_entry: schemas.KPIEntryCreate, db: Session = Depends(get_db)):
+    db_kpi_entry = db.query(models.KPIEntry).filter(models.KPIEntry.id == kpi_entry_id).first()
+    if db_kpi_entry is None:
+        raise HTTPException(status_code=404, detail="KPI Entry not found")
+    for key, value in kpi_entry.dict().items():
+        setattr(db_kpi_entry, key, value)
+    db.commit()
+    db.refresh(db_kpi_entry)
+    return db_kpi_entry
+
+@app.delete("/api/kpi-entries/{kpi_entry_id}", response_model=schemas.KPIEntry)
+def delete_kpi_entry(kpi_entry_id: int, db: Session = Depends(get_db)):
+    db_kpi_entry = db.query(models.KPIEntry).filter(models.KPIEntry.id == kpi_entry_id).first()
+    if db_kpi_entry is None:
+        raise HTTPException(status_code=404, detail="KPI Entry not found")
+    db.delete(db_kpi_entry)
+    db.commit()
+    return db_kpi_entry
+
 if __name__ == "__main__":
     print("Iniciando a aplicação...")
     models.Base.metadata.create_all(bind=engine)

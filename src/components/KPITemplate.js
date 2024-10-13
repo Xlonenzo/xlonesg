@@ -355,8 +355,8 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
             <tr>
               <th className="px-4 py-2 border">Nome</th>
               <th className="px-4 py-2 border">Categoria</th>
-              <th className="px-4 py-2 border">Valor Alvo</th>
-              <th className="px-4 py-2 border">Valor Atual</th>
+              <th className="px-4 py-2 border">Unidade</th>
+              <th className="px-4 py-2 border">Frequência</th>
               <th className="px-4 py-2 border">Código KPI</th>
               <th className="px-4 py-2 border">Compliance</th>
               <th className="px-4 py-2 border">Ações</th>
@@ -367,8 +367,8 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
               <tr key={kpi.id} className="hover:bg-gray-100">
                 <td className="px-4 py-2 border">{kpi.name}</td>
                 <td className="px-4 py-2 border capitalize">{kpi.category}</td>
-                <td className="px-4 py-2 border">{kpi.target_value} {kpi.unit}</td>
-                <td className="px-4 py-2 border">{kpi.actual_value} {kpi.unit}</td>
+                <td className="px-4 py-2 border">{kpi.unit}</td>
+                <td className="px-4 py-2 border">{kpi.frequency}</td>
                 <td className="px-4 py-2 border">{kpi.kpicode}</td>
                 <td className="px-4 py-2 border">
                   {kpi.compliance && kpi.compliance.map(item => complianceFullNames[item] || item).join(', ')}

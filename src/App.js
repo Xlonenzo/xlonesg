@@ -41,6 +41,7 @@ import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import CompanyManagement from './components/CompanyManagement'; // Adicione esta linha
 import KPITemplate from './components/KPITemplate';
+import KPITracker from './components/KPITracker';
 
 // Importar estilos
 import './index.css';
@@ -66,6 +67,9 @@ function App() {
 
   // Adicione este novo estado para os templates de KPI
   const [kpiTemplates, setKpiTemplates] = useState([]);
+
+  // Adicione este novo estado para as entradas de KPI
+  const [kpiEntries, setKpiEntries] = useState([]);
 
   // Função para alternar a sidebar
   const toggleSidebar = () => {
@@ -131,6 +135,8 @@ function App() {
         );
       case '/admin/company-management':
         return <CompanyManagement />;
+      case '/kpi-tracker':
+        return <KPITracker kpiEntries={kpiEntries} setKpiEntries={setKpiEntries} sidebarColor={sidebarColor} buttonColor={buttonColor} />;
       default:
         return <div>Selecione uma opção do menu</div>;
     }
