@@ -10,6 +10,9 @@ function AnalyticsContent({ pageTitle }) {
   const [error, setError] = useState(null);
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedUnit, setSelectedUnit] = useState('');
 
   const categoryMap = useMemo(() => ({
     'Meio Ambiente': 'environment',
@@ -19,6 +22,9 @@ function AnalyticsContent({ pageTitle }) {
 
   const years = useMemo(() => [...new Set(kpis.map(kpi => kpi.year))].sort((a, b) => b - a), [kpis]);
   const months = useMemo(() => [...new Set(kpis.map(kpi => kpi.month))].sort((a, b) => a - b), [kpis]);
+  const statuses = useMemo(() => [...new Set(kpis.map(kpi => kpi.status))], [kpis]);
+  const states = useMemo(() => [...new Set(kpis.map(kpi => kpi.state))], [kpis]);
+  const units = useMemo(() => [...new Set(kpis.map(kpi => kpi.unit))], [kpis]);
 
   useEffect(() => {
     const fetchKPIs = async () => {
@@ -54,8 +60,17 @@ function AnalyticsContent({ pageTitle }) {
     if (selectedMonth) {
       filtered = filtered.filter(kpi => kpi.month === parseInt(selectedMonth));
     }
+    if (selectedStatus) {
+      filtered = filtered.filter(kpi => kpi.status === selectedStatus);
+    }
+    if (selectedState) {
+      filtered = filtered.filter(kpi => kpi.state === selectedState);
+    }
+    if (selectedUnit) {
+      filtered = filtered.filter(kpi => kpi.unit === selectedUnit);
+    }
     setFilteredKpis(filtered);
-  }, [kpis, selectedYear, selectedMonth]);
+  }, [kpis, selectedYear, selectedMonth, selectedStatus, selectedState, selectedUnit]);
 
   if (loading) return <div>Carregando...</div>;
   if (error) return <div>Erro: {error}</div>;
@@ -63,11 +78,11 @@ function AnalyticsContent({ pageTitle }) {
   return (
     <div>
       <h2 className="text-2xl font-bold mb-4">Análise de {pageTitle}</h2>
-      <div className="mb-4">
+      <div className="mb-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
         <select 
           value={selectedYear} 
           onChange={(e) => setSelectedYear(e.target.value)}
-          className="mr-2 p-2 border rounded"
+          className="p-2 border rounded"
         >
           <option value="">Todos os anos</option>
           {years.map(year => (
@@ -82,6 +97,36 @@ function AnalyticsContent({ pageTitle }) {
           <option value="">Todos os meses</option>
           {months.map(month => (
             <option key={month} value={month}>{month}</option>
+          ))}
+        </select>
+        <select 
+          value={selectedStatus} 
+          onChange={(e) => setSelectedStatus(e.target.value)}
+          className="p-2 border rounded"
+        >
+          <option value="">Todos os status</option>
+          {statuses.map(status => (
+            <option key={status} value={status}>{status}</option>
+          ))}
+        </select>
+        <select 
+          value={selectedState} 
+          onChange={(e) => setSelectedState(e.target.value)}
+          className="p-2 border rounded"
+        >
+          <option value="">Todos os estados</option>
+          {states.map(state => (
+            <option key={state} value={state}>{state}</option>
+          ))}
+        </select>
+        <select 
+          value={selectedUnit} 
+          onChange={(e) => setSelectedUnit(e.target.value)}
+          className="p-2 border rounded"
+        >
+          <option value="">Todas as unidades</option>
+          {units.map(unit => (
+            <option key={unit} value={unit}>{unit}</option>
           ))}
         </select>
       </div>
