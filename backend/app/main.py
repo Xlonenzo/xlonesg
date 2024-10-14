@@ -408,16 +408,35 @@ def read_kpi_entry(kpi_entry_id: int, db: Session = Depends(get_db)):
 
 @app.get("/api/kpi-entries-with-templates", response_model=List[schemas.KPIEntryWithTemplate])
 def read_kpi_entries_with_templates(
+    skip: int = 0, 
+    limit: int = 100, 
     category: Optional[str] = Query(None),
-    skip: int = 0,
-    limit: int = 100,
+    year: Optional[int] = Query(None),
+    month: Optional[int] = Query(None),
     db: Session = Depends(get_db)
 ):
     query = db.query(models.KPIEntryWithTemplate)
+    
     if category:
         query = query.filter(models.KPIEntryWithTemplate.category == category)
+    if year:
+        query = query.filter(models.KPIEntryWithTemplate.year == year)
+    if month:
+        query = query.filter(models.KPIEntryWithTemplate.month == month)
+    
     entries = query.offset(skip).limit(limit).all()
-    return entries
+    
+    # Adicione um log para verificar se o estado está presente nos dados
+    for entry in entries:
+        print(f"Entry ID: {entry.entry_id}, State: {entry.state}")
+    
+    # Converta os resultados para dicionários e defina state como None se for NULL
+    entries_dict = [
+        {**entry.__dict__, 'state': entry.state if entry.state is not None else None}
+        for entry in entries
+    ]
+    
+    return entries_dict
 
 if __name__ == "__main__":
     print("Iniciando a aplicação...")

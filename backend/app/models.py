@@ -128,4 +128,4 @@ class KPIEntryWithTemplate(Base):
     compliance = Column(ARRAY(String))
     genero = Column(String)  # Novo campo
     raca = Column(String)  # Novo campo
-    state = Column(String)  # Adicione esta linha se não estiver presente
+    state = Column(String, nullable=True)  # Permite que o campo seja nulo
