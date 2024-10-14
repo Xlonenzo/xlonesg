@@ -27,30 +27,43 @@ function KPITemplate({ sidebarColor, buttonColor }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const units = ['kg', 'ton', 'm³', 'kWh', '%', '€', '$', 'unidades'];
-  const frequencies = ['Diária', 'Semanal', 'Mensal', 'Trimestral', 'Semestral', 'Anual'];
-  const collectionMethods = ['Manual', 'Automático', 'Semi-automático', 'Estimativa', 'Cálculo'];
+  const units = [
+    'kg', 'ton', 'm³', 'kWh', '%', '€', '$', 'unidades', 'tCO2e', 'MWh', 
+    'hectares', 'kgCO2e/€', 'kWh/m²', 'kgCO2e/unidade', 'pontos', 'horas', 
+    'taxa', 'unidade'
+  ];
+  const frequencies = ['Diária', 'Semanal', 'Mensal', 'Trimestral', 'Semestral', 'Anual', 'Quadrimestral'];
+  const collectionMethods = ['Manual', 'Automático', 'Semi-automático', 'Estimativa', 'Cálculo', 'Medição', 'Soma', 'Contagem', 'Média'];
   const subcategories = {
     environment: [
       'Mudanças climáticas',
-      'Poluição',
+      'Energia',
       'Água e recursos marinhos',
       'Uso de recursos e economia circular',
-      'Biodiversidade e ecossistemas'
+      'Poluição',
+      'Biodiversidade e ecossistemas',
+      'Conformidade ambiental'
     ],
     social: [
-      'Igualdade de oportunidades',
-      'Condições de trabalho',
-      'Respeito aos direitos humanos',
-      'Questões sociais e comunitárias',
-      'Saúde e segurança'
+      'DEI (Diversidade, Equidade e Inclusão)',
+      'Práticas Trabalhistas',
+      'Saúde e Segurança',
+      'Desenvolvimento de Capital Humano',
+      'Relações com Clientes',
+      'Impacto de Produtos e Serviços',
+      'Direitos Humanos',
+      'Desenvolvimento Comunitário'
     ],
     governance: [
-      'Ética empresarial',
-      'Cultura corporativa',
-      'Gestão de riscos e controles internos',
-      'Composição e remuneração do conselho',
-      'Transparência e divulgação'
+      'Estrutura de Governança',
+      'Diversidade e Inclusão',
+      'Remuneração',
+      'Ética e Integridade',
+      'Transparência',
+      'Gestão de Cadeia de Suprimentos',
+      'Segurança de Dados',
+      'Engajamento',
+      'Gestão de Riscos'
     ]
   };
 
@@ -68,7 +81,7 @@ function KPITemplate({ sidebarColor, buttonColor }) {
 
   // Adicione estas duas novas constantes
   const genderOptions = ['Masculino', 'Feminino', 'Outros', 'Não aplicável'];
-  const raceOptions = ['Branco', 'Preto', 'Amarela', 'Indígena', 'Outros', 'Não aplicável'];
+  const raceOptions = ['Branco', 'Preto', 'Pardo', 'Amarela', 'Indígena', 'Outros', 'Não aplicável'];
 
   const [filters, setFilters] = useState({
     name: '',
