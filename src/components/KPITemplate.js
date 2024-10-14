@@ -18,10 +18,12 @@ function KPITemplate({ sidebarColor, buttonColor }) {
     kpicode: '',
     company_category: '',
     compliance: [],
+    genero: '',
+    raca: '',
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [kpisPerPage] = useState(12);  // Número de KPIs por página
+  const [kpisPerPage] = useState(12);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -64,6 +66,10 @@ function KPITemplate({ sidebarColor, buttonColor }) {
     'social_bond_principles': 'Social Bond Principles'
   };
 
+  // Adicione estas duas novas constantes
+  const genderOptions = ['Masculino', 'Feminino', 'Outros', 'Não aplicável'];
+  const raceOptions = ['Branco', 'Preto', 'Amarela', 'Indígena', 'Outros', 'Não aplicável'];
+
   const fetchKPIs = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -99,11 +105,20 @@ function KPITemplate({ sidebarColor, buttonColor }) {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setNewKPI(prev => ({ ...prev, [name]: value }));
+    if (editingKPI) {
+      setEditingKPI(prev => ({ ...prev, [name]: value }));
+    } else {
+      setNewKPI(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleComplianceChange = (selected) => {
-    setNewKPI(prev => ({ ...prev, compliance: selected.map(item => item.value) }));
+    const complianceValues = selected.map(item => item.value);
+    if (editingKPI) {
+      setEditingKPI(prev => ({ ...prev, compliance: complianceValues }));
+    } else {
+      setNewKPI(prev => ({ ...prev, compliance: complianceValues }));
+    }
   };
 
   const handleAddKPI = async () => {
@@ -122,6 +137,8 @@ function KPITemplate({ sidebarColor, buttonColor }) {
         kpicode: '',
         company_category: '',
         compliance: [],
+        genero: '',
+        raca: '',
       });
     } catch (error) {
       console.error('Erro ao adicionar KPI Template:', error);
@@ -262,6 +279,34 @@ function KPITemplate({ sidebarColor, buttonColor }) {
           className="w-full p-2 border rounded"
         />
       </div>
+      <div>
+        <label className="block mb-2">Gênero</label>
+        <select
+          name="genero"
+          value={kpi.genero}
+          onChange={handleInputChange}
+          className="w-full p-2 border rounded"
+        >
+          <option value="">Selecione um gênero</option>
+          {genderOptions.map(gender => (
+            <option key={gender} value={gender}>{gender}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="block mb-2">Raça</label>
+        <select
+          name="raca"
+          value={kpi.raca}
+          onChange={handleInputChange}
+          className="w-full p-2 border rounded"
+        >
+          <option value="">Selecione uma raça</option>
+          {raceOptions.map(race => (
+            <option key={race} value={race}>{race}</option>
+          ))}
+        </select>
+      </div>
       <div className="col-span-2">
         <label className="block mb-2">Compliance</label>
         <MultiSelect
@@ -303,7 +348,7 @@ function KPITemplate({ sidebarColor, buttonColor }) {
       
       {!isLoading && !error && (
         <>
-          {isAddingKPI && (
+          {(isAddingKPI || editingKPI) && (
             <div className="mt-4 p-4 bg-gray-100 rounded">
               <h3 className="text-lg font-bold mb-2">
                 {isAddingKPI ? 'Adicionar Novo Template de KPI' : 'Editar Template de KPI'}
@@ -340,6 +385,8 @@ function KPITemplate({ sidebarColor, buttonColor }) {
                   <th className="px-4 py-2 border">Frequência</th>
                   <th className="px-4 py-2 border">Código KPI</th>
                   <th className="px-4 py-2 border">Compliance</th>
+                  <th className="px-4 py-2 border">Gênero</th>
+                  <th className="px-4 py-2 border">Raça</th>
                   <th className="px-4 py-2 border">Ações</th>
                 </tr>
               </thead>
@@ -352,6 +399,8 @@ function KPITemplate({ sidebarColor, buttonColor }) {
                     <td className="px-4 py-2 border">{kpi.frequency}</td>
                     <td className="px-4 py-2 border">{kpi.kpicode}</td>
                     <td className="px-4 py-2 border">{kpi.compliance && kpi.compliance.map(item => complianceFullNames[item] || item).join(', ')}</td>
+                    <td className="px-4 py-2 border">{kpi.genero}</td>
+                    <td className="px-4 py-2 border">{kpi.raca}</td>
                     <td className="px-4 py-2 border">
                       <button
                         onClick={() => setEditingKPI(kpi)}
