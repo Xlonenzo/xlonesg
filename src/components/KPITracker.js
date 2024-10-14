@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaStar, FaPlus, FaSearch } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaStar, FaPlus, FaSearch, FaFilter } from 'react-icons/fa';
 
 function KPITracker({ sidebarColor, buttonColor }) {
   const [kpiEntries, setKpiEntries] = useState([]);
@@ -21,6 +21,15 @@ function KPITracker({ sidebarColor, buttonColor }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [entriesPerPage] = useState(12);
+  const [filters, setFilters] = useState({
+    template_name: '',
+    cnpj: '',
+    actual_value: '',
+    target_value: '',
+    year: '',
+    month: '',
+    status: '',
+  });
 
   useEffect(() => {
     fetchKPIEntries();
@@ -133,17 +142,42 @@ function KPITracker({ sidebarColor, buttonColor }) {
     }
   };
 
-  // Filtragem de entradas baseada no termo de pesquisa
-  const filteredEntries = kpiEntries.filter(entry => 
-    entry.template_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    entry.cnpj.includes(searchTerm) ||
-    entry.status.toLowerCase().includes(searchTerm.toLowerCase())
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const filteredAndSearchedEntries = kpiEntries.filter(entry => {
+    const matchesSearch = entry.template_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          entry.cnpj.includes(searchTerm) ||
+                          entry.status.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesFilters = Object.keys(filters).every(key => {
+      if (!filters[key]) return true;
+      return entry[key].toString().toLowerCase().includes(filters[key].toLowerCase());
+    });
+
+    return matchesSearch && matchesFilters;
+  });
+
+  const renderColumnFilter = (columnName) => (
+    <div className="flex items-center">
+      <input
+        type="text"
+        name={columnName}
+        value={filters[columnName]}
+        onChange={handleFilterChange}
+        className="w-full p-1 text-sm border rounded"
+        placeholder={`Filtrar ${columnName}`}
+      />
+      <FaFilter className="ml-1 text-gray-500" />
+    </div>
   );
 
-  // Lógica de paginação
+  // Atualizar a lógica de paginação
   const indexOfLastEntry = currentPage * entriesPerPage;
   const indexOfFirstEntry = indexOfLastEntry - entriesPerPage;
-  const currentEntries = filteredEntries.slice(indexOfFirstEntry, indexOfLastEntry);
+  const currentEntries = filteredAndSearchedEntries.slice(indexOfFirstEntry, indexOfLastEntry);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
@@ -315,13 +349,13 @@ function KPITracker({ sidebarColor, buttonColor }) {
         <table className="min-w-full bg-white border">
           <thead>
             <tr>
-              <th className="px-4 py-2 border">KPI</th>
-              <th className="px-4 py-2 border">Empresa</th>
-              <th className="px-4 py-2 border">Valor Atual</th>
-              <th className="px-4 py-2 border">Valor Alvo</th>
-              <th className="px-4 py-2 border">Ano</th>
-              <th className="px-4 py-2 border">Mês</th>
-              <th className="px-4 py-2 border">Status</th>
+              <th className="px-4 py-2 border">{renderColumnFilter('template_name')}</th>
+              <th className="px-4 py-2 border">{renderColumnFilter('cnpj')}</th>
+              <th className="px-4 py-2 border">{renderColumnFilter('actual_value')}</th>
+              <th className="px-4 py-2 border">{renderColumnFilter('target_value')}</th>
+              <th className="px-4 py-2 border">{renderColumnFilter('year')}</th>
+              <th className="px-4 py-2 border">{renderColumnFilter('month')}</th>
+              <th className="px-4 py-2 border">{renderColumnFilter('status')}</th>
               <th className="px-4 py-2 border">Favorito</th>
               <th className="px-4 py-2 border">Ações</th>
             </tr>
@@ -368,7 +402,7 @@ function KPITracker({ sidebarColor, buttonColor }) {
 
       {/* Paginação */}
       <div className="flex justify-center mt-4">
-        {Array.from({ length: Math.ceil(filteredEntries.length / entriesPerPage) }, (_, i) => (
+        {Array.from({ length: Math.ceil(filteredAndSearchedEntries.length / entriesPerPage) }, (_, i) => (
           <button
             key={i}
             onClick={() => paginate(i + 1)}

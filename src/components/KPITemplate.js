@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaSearch } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaSearch, FaFilter } from 'react-icons/fa';
 import { MultiSelect } from "react-multi-select-component";
 
 function KPITemplate({ sidebarColor, buttonColor }) {
@@ -70,6 +70,52 @@ function KPITemplate({ sidebarColor, buttonColor }) {
   const genderOptions = ['Masculino', 'Feminino', 'Outros', 'Não aplicável'];
   const raceOptions = ['Branco', 'Preto', 'Amarela', 'Indígena', 'Outros', 'Não aplicável'];
 
+  const [filters, setFilters] = useState({
+    name: '',
+    category: '',
+    unit: '',
+    frequency: '',
+    kpicode: '',
+    compliance: '',
+    genero: '',
+    raca: '',
+  });
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const filteredAndSearchedKPIs = kpis.filter(kpi => {
+    const matchesSearch = kpi.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          kpi.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          kpi.kpicode.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesFilters = Object.keys(filters).every(key => {
+      if (!filters[key]) return true;
+      if (key === 'compliance') {
+        return kpi[key] && kpi[key].some(item => item.toLowerCase().includes(filters[key].toLowerCase()));
+      }
+      return kpi[key].toString().toLowerCase().includes(filters[key].toLowerCase());
+    });
+
+    return matchesSearch && matchesFilters;
+  });
+
+  const renderColumnFilter = (columnName) => (
+    <div className="flex items-center">
+      <input
+        type="text"
+        name={columnName}
+        value={filters[columnName]}
+        onChange={handleFilterChange}
+        className="w-full p-1 text-sm border rounded"
+        placeholder={`Filtrar ${columnName}`}
+      />
+      <FaFilter className="ml-1 text-gray-500" />
+    </div>
+  );
+
   const fetchKPIs = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -89,18 +135,12 @@ function KPITemplate({ sidebarColor, buttonColor }) {
     fetchKPIs();
   }, [fetchKPIs]);
 
-  // Filtragem de KPIs baseada no termo de pesquisa
-  const filteredKPIs = kpis.filter(kpi => 
-    kpi.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    kpi.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    kpi.kpicode.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // Lógica de paginação
+  // Calcular currentKPIs baseado nos KPIs filtrados e pesquisados
   const indexOfLastKPI = currentPage * kpisPerPage;
   const indexOfFirstKPI = indexOfLastKPI - kpisPerPage;
-  const currentKPIs = filteredKPIs.slice(indexOfFirstKPI, indexOfLastKPI);
+  const currentKPIs = filteredAndSearchedKPIs.slice(indexOfFirstKPI, indexOfLastKPI);
 
+  // Atualizar a função de paginação
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   const handleInputChange = (e) => {
@@ -379,14 +419,14 @@ function KPITemplate({ sidebarColor, buttonColor }) {
             <table className="min-w-full bg-white border">
               <thead>
                 <tr>
-                  <th className="px-4 py-2 border">Nome</th>
-                  <th className="px-4 py-2 border">Categoria</th>
-                  <th className="px-4 py-2 border">Unidade</th>
-                  <th className="px-4 py-2 border">Frequência</th>
-                  <th className="px-4 py-2 border">Código KPI</th>
-                  <th className="px-4 py-2 border">Compliance</th>
-                  <th className="px-4 py-2 border">Gênero</th>
-                  <th className="px-4 py-2 border">Raça</th>
+                  <th className="px-4 py-2 border">{renderColumnFilter('name')}</th>
+                  <th className="px-4 py-2 border">{renderColumnFilter('category')}</th>
+                  <th className="px-4 py-2 border">{renderColumnFilter('unit')}</th>
+                  <th className="px-4 py-2 border">{renderColumnFilter('frequency')}</th>
+                  <th className="px-4 py-2 border">{renderColumnFilter('kpicode')}</th>
+                  <th className="px-4 py-2 border">{renderColumnFilter('compliance')}</th>
+                  <th className="px-4 py-2 border">{renderColumnFilter('genero')}</th>
+                  <th className="px-4 py-2 border">{renderColumnFilter('raca')}</th>
                   <th className="px-4 py-2 border">Ações</th>
                 </tr>
               </thead>
@@ -423,7 +463,7 @@ function KPITemplate({ sidebarColor, buttonColor }) {
 
           {/* Paginação */}
           <div className="flex justify-center mt-4">
-            {Array.from({ length: Math.ceil(filteredKPIs.length / kpisPerPage) }, (_, i) => (
+            {Array.from({ length: Math.ceil(filteredAndSearchedKPIs.length / kpisPerPage) }, (_, i) => (
               <button
                 key={i}
                 onClick={() => paginate(i + 1)}
