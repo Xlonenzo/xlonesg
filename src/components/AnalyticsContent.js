@@ -20,6 +20,7 @@ function AnalyticsContent({ pageTitle }) {
     'Governança': 'governance'
   }), []);
 
+  // Definindo as opções de filtro usando useMemo
   const years = useMemo(() => [...new Set(kpis.map(kpi => kpi.year))].sort((a, b) => b - a), [kpis]);
   const months = useMemo(() => [...new Set(kpis.map(kpi => kpi.month))].sort((a, b) => a - b), [kpis]);
   const statuses = useMemo(() => [...new Set(kpis.map(kpi => kpi.status))], [kpis]);
@@ -35,7 +36,7 @@ function AnalyticsContent({ pageTitle }) {
         const response = await axios.get(`http://localhost:8000/api/kpi-entries-with-templates`, {
           params: { category: category }
         });
-        console.log('Resposta da API:', response.data);
+        console.log('Número de KPIs recebidos:', response.data.length);
         setKpis(response.data);
         setFilteredKpis(response.data);
         setError(null);

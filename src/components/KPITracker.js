@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaStar, FaPlus } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaStar, FaPlus, FaSearch } from 'react-icons/fa';
 
 function KPITracker({ sidebarColor, buttonColor }) {
   const [kpiEntries, setKpiEntries] = useState([]);
@@ -18,6 +18,9 @@ function KPITracker({ sidebarColor, buttonColor }) {
     status: '',
     isfavorite: false
   });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [entriesPerPage] = useState(12);
 
   useEffect(() => {
     fetchKPIEntries();
@@ -27,7 +30,8 @@ function KPITracker({ sidebarColor, buttonColor }) {
 
   const fetchKPIEntries = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/kpi-entries');
+      const response = await axios.get('http://localhost:8000/api/kpi-entries?limit=1000000');  // Aumente o limite
+      console.log('Número de KPIs recebidos:', response.data.length);  // Log para debug
       setKpiEntries(response.data);
     } catch (error) {
       console.error('Erro ao buscar entradas de KPI:', error);
@@ -129,17 +133,43 @@ function KPITracker({ sidebarColor, buttonColor }) {
     }
   };
 
+  // Filtragem de entradas baseada no termo de pesquisa
+  const filteredEntries = kpiEntries.filter(entry => 
+    entry.template_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    entry.cnpj.includes(searchTerm) ||
+    entry.status.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Lógica de paginação
+  const indexOfLastEntry = currentPage * entriesPerPage;
+  const indexOfFirstEntry = indexOfLastEntry - entriesPerPage;
+  const currentEntries = filteredEntries.slice(indexOfFirstEntry, indexOfLastEntry);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold mb-4">KPI Tracker</h2>
       
-      <button 
-        onClick={() => setIsFormOpen(!isFormOpen)} 
-        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 flex items-center"
-        style={{ backgroundColor: buttonColor }}
-      >
-        <FaPlus className="mr-2" /> {isFormOpen ? 'Fechar Formulário' : 'Adicionar Nova Entrada'}
-      </button>
+      <div className="flex justify-between items-center mb-4">
+        <button 
+          onClick={() => setIsFormOpen(!isFormOpen)} 
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 flex items-center"
+          style={{ backgroundColor: buttonColor }}
+        >
+          <FaPlus className="mr-2" /> {isFormOpen ? 'Fechar Formulário' : 'Adicionar Nova Entrada'}
+        </button>
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Pesquisar entradas..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="p-2 pl-8 border rounded"
+          />
+          <FaSearch className="absolute left-2 top-3 text-gray-400" />
+        </div>
+      </div>
 
       {isFormOpen && (
         <div className="mt-4 p-4 bg-gray-100 rounded">
@@ -297,8 +327,8 @@ function KPITracker({ sidebarColor, buttonColor }) {
             </tr>
           </thead>
           <tbody>
-            {kpiEntries.map(entry => (
-              <tr key={entry.entry_id} className="hover:bg-gray-100">
+            {currentEntries.map(entry => (
+              <tr key={entry.entry_id}>
                 <td className="px-4 py-2 border">{entry.template_name}</td>
                 <td className="px-4 py-2 border">{entry.cnpj}</td>
                 <td className="px-4 py-2 border">{entry.actual_value}</td>
@@ -334,6 +364,19 @@ function KPITracker({ sidebarColor, buttonColor }) {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Paginação */}
+      <div className="flex justify-center mt-4">
+        {Array.from({ length: Math.ceil(filteredEntries.length / entriesPerPage) }, (_, i) => (
+          <button
+            key={i}
+            onClick={() => paginate(i + 1)}
+            className={`mx-1 px-3 py-1 rounded ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+          >
+            {i + 1}
+          </button>
+        ))}
       </div>
     </div>
   );
