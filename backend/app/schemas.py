@@ -98,6 +98,8 @@ class KPITemplateBase(BaseModel):
     kpicode: str
     company_category: str
     compliance: Optional[List[str]] = []
+    genero: Optional[str] = None  # Novo campo
+    raca: Optional[str] = None  # Novo campo
 
 class KPITemplateCreate(KPITemplateBase):
     pass
@@ -147,6 +149,8 @@ class KPIEntryWithTemplate(BaseModel):
     kpicode: str
     company_category: str
     compliance: Optional[List[str]] = []
+    genero: Optional[str] = None  # Novo campo
+    raca: Optional[str] = None  # Novo campo
 
     class Config:
         from_attributes = True

@@ -17,9 +17,15 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
     kpicode: '',
     company_category: '',
     compliance: [],
+    genero: '',
+    raca: ''
   });
 
-  const units = ['kg', 'ton', 'm³', 'kWh', '%', '€', '$', 'unidades'];
+  const units = [
+    'kg', 'ton', 'm³', 'kWh', '%', '€', '$', 'unidades',
+    'tCO2e', 'MWh', 'hectares', 'kgCO2e/€', 'kWh/m²', 'kgCO2e/unidade', 'm³/€',
+    'pontos'  // Nova unidade adicionada
+  ];
   const frequencies = ['Diária', 'Semanal', 'Mensal', 'Trimestral', 'Semestral', 'Anual'];
   const collectionMethods = ['Manual', 'Automático', 'Semi-automático', 'Estimativa', 'Cálculo'];
   const subcategories = {
@@ -35,7 +41,8 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
       'Condições de trabalho',
       'Respeito aos direitos humanos',
       'Questões sociais e comunitárias',
-      'Saúde e segurança'
+      'Saúde e segurança',
+      'DEI (Diversidade, Equidade e Inclusão)'  // Nova subcategoria adicionada
     ],
     governance: [
       'Ética empresarial',
@@ -58,6 +65,9 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
     'social_bond_principles': 'Social Bond Principles'
   };
 
+  const generoOptions = ['Masculino', 'Feminino', 'Outro', 'Não aplicável'];
+  const racaOptions = ['Branca', 'Preta', 'Parda', 'Amarela', 'Indígena', 'Não aplicável'];
+
   const fetchKPIs = useCallback(async () => {
     try {
       const response = await axios.get('http://localhost:8000/api/kpi-templates');
@@ -73,11 +83,19 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setNewKPI(prev => ({ ...prev, [name]: value }));
+    if (editingKPI) {
+      setEditingKPI(prev => ({ ...prev, [name]: value }));
+    } else {
+      setNewKPI(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleComplianceChange = (selected) => {
-    setNewKPI(prev => ({ ...prev, compliance: selected.map(item => item.value) }));
+    if (editingKPI) {
+      setEditingKPI(prev => ({ ...prev, compliance: selected.map(item => item.value) }));
+    } else {
+      setNewKPI(prev => ({ ...prev, compliance: selected.map(item => item.value) }));
+    }
   };
 
   const handleAddKPI = async () => {
@@ -96,6 +114,8 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
         kpicode: '',
         company_category: '',
         compliance: [],
+        genero: '',
+        raca: ''
       });
     } catch (error) {
       console.error('Erro ao adicionar KPI Template:', error);
@@ -125,7 +145,7 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
     }
   };
 
-  const renderKPIForm = (kpi, isAdding) => (
+  const renderKPIForm = (kpi) => (
     <div className="grid grid-cols-2 gap-4">
       <div>
         <label className="block mb-2">Nome</label>
@@ -236,6 +256,34 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
           className="w-full p-2 border rounded"
         />
       </div>
+      <div>
+        <label className="block mb-2">Gênero</label>
+        <select
+          name="genero"
+          value={kpi.genero}
+          onChange={handleInputChange}
+          className="w-full p-2 border rounded"
+        >
+          <option value="">Selecione um gênero</option>
+          {generoOptions.map(genero => (
+            <option key={genero} value={genero}>{genero}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label className="block mb-2">Raça</label>
+        <select
+          name="raca"
+          value={kpi.raca}
+          onChange={handleInputChange}
+          className="w-full p-2 border rounded"
+        >
+          <option value="">Selecione uma raça</option>
+          {racaOptions.map(raca => (
+            <option key={raca} value={raca}>{raca}</option>
+          ))}
+        </select>
+      </div>
       <div className="col-span-2">
         <label className="block mb-2">Compliance</label>
         <MultiSelect
@@ -253,7 +301,10 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
       <h2 className="text-2xl font-bold mb-4">Gerenciamento de Templates de KPI</h2>
       
       <button
-        onClick={() => setIsAddingKPI(true)}
+        onClick={() => {
+          setIsAddingKPI(true);
+          setEditingKPI(null);
+        }}
         className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
         style={{ backgroundColor: buttonColor }}
       >
@@ -265,7 +316,7 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
           <h3 className="text-lg font-bold mb-2">
             {isAddingKPI ? 'Adicionar Novo Template de KPI' : 'Editar Template de KPI'}
           </h3>
-          {renderKPIForm(isAddingKPI ? newKPI : editingKPI, isAddingKPI)}
+          {renderKPIForm(isAddingKPI ? newKPI : editingKPI)}
           <div className="mt-4 space-x-2">
             <button
               onClick={isAddingKPI ? handleAddKPI : handleUpdateKPI}
@@ -297,6 +348,8 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
               <th className="px-4 py-2 border">Frequência</th>
               <th className="px-4 py-2 border">Código KPI</th>
               <th className="px-4 py-2 border">Compliance</th>
+              <th className="px-4 py-2 border">Gênero</th>
+              <th className="px-4 py-2 border">Raça</th>
               <th className="px-4 py-2 border">Ações</th>
             </tr>
           </thead>
@@ -311,6 +364,8 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
                 <td className="px-4 py-2 border">
                   {kpi.compliance && kpi.compliance.map(item => complianceFullNames[item] || item).join(', ')}
                 </td>
+                <td className="px-4 py-2 border">{kpi.genero || 'N/A'}</td>
+                <td className="px-4 py-2 border">{kpi.raca || 'N/A'}</td>
                 <td className="px-4 py-2 border">
                   <button
                     onClick={() => setEditingKPI(kpi)}

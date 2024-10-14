@@ -83,6 +83,8 @@ class KPITemplate(Base):
     kpicode = Column(String, unique=True, index=True)
     company_category = Column(String)
     compliance = Column(ARRAY(String))
+    genero = Column(String)  # Novo campo
+    raca = Column(String)  # Novo campo
 
 class KPIEntry(Base):
     __tablename__ = "kpi_entries"
@@ -112,7 +114,7 @@ class KPIEntryWithTemplate(Base):
     month = Column(Integer)
     status = Column(String)
     cnpj = Column(String)
-    isfavorite = Column(Boolean)  # Adicionado o campo isfavorite
+    isfavorite = Column(Boolean)
     template_id = Column(Integer)
     template_name = Column(String)
     unit = Column(String)
@@ -124,3 +126,5 @@ class KPIEntryWithTemplate(Base):
     kpicode = Column(String)
     company_category = Column(String)
     compliance = Column(ARRAY(String))
+    genero = Column(String)  # Novo campo
+    raca = Column(String)  # Novo campo
