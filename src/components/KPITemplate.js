@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaSearch } from 'react-icons/fa';
 import { MultiSelect } from "react-multi-select-component";
 
-function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
+function KPITemplate({ sidebarColor, buttonColor }) {
+  const [kpis, setKpis] = useState([]);
   const [isAddingKPI, setIsAddingKPI] = useState(false);
   const [editingKPI, setEditingKPI] = useState(null);
   const [newKPI, setNewKPI] = useState({
@@ -18,6 +19,11 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
     company_category: '',
     compliance: [],
   });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [kpisPerPage] = useState(12);  // Número de KPIs por página
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const units = ['kg', 'ton', 'm³', 'kWh', '%', '€', '$', 'unidades'];
   const frequencies = ['Diária', 'Semanal', 'Mensal', 'Trimestral', 'Semestral', 'Anual'];
@@ -60,16 +66,36 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
 
   const fetchKPIs = useCallback(async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/kpi-templates');
+      setIsLoading(true);
+      const response = await axios.get('http://localhost:8000/api/kpi-templates?limit=1000000');
+      console.log('Número de KPIs recebidos:', response.data.length);
       setKpis(response.data);
+      setError(null);
     } catch (error) {
       console.error('Erro ao buscar KPI Templates:', error);
+      setError('Falha ao carregar os KPIs. Por favor, tente novamente.');
+    } finally {
+      setIsLoading(false);
     }
-  }, [setKpis]);
+  }, []);
 
   useEffect(() => {
     fetchKPIs();
   }, [fetchKPIs]);
+
+  // Filtragem de KPIs baseada no termo de pesquisa
+  const filteredKPIs = kpis.filter(kpi => 
+    kpi.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    kpi.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    kpi.kpicode.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Lógica de paginação
+  const indexOfLastKPI = currentPage * kpisPerPage;
+  const indexOfFirstKPI = indexOfLastKPI - kpisPerPage;
+  const currentKPIs = filteredKPIs.slice(indexOfFirstKPI, indexOfLastKPI);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -252,84 +278,114 @@ function KPITemplate({ kpis, setKpis, sidebarColor, buttonColor }) {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold mb-4">Gerenciamento de Templates de KPI</h2>
       
-      <button
-        onClick={() => setIsAddingKPI(true)}
-        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        style={{ backgroundColor: buttonColor }}
-      >
-        Adicionar Novo Template de KPI
-      </button>
-
-      {(isAddingKPI || editingKPI) && (
-        <div className="mt-4 p-4 bg-gray-100 rounded">
-          <h3 className="text-lg font-bold mb-2">
-            {isAddingKPI ? 'Adicionar Novo Template de KPI' : 'Editar Template de KPI'}
-          </h3>
-          {renderKPIForm(isAddingKPI ? newKPI : editingKPI, isAddingKPI)}
-          <div className="mt-4 space-x-2">
-            <button
-              onClick={isAddingKPI ? handleAddKPI : handleUpdateKPI}
-              className="text-white px-4 py-2 rounded hover:opacity-80"
-              style={{ backgroundColor: buttonColor }}
-            >
-              {isAddingKPI ? 'Adicionar' : 'Atualizar'}
-            </button>
-            <button
-              onClick={() => {
-                setIsAddingKPI(false);
-                setEditingKPI(null);
-              }}
-              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-            >
-              Cancelar
-            </button>
-          </div>
+      <div className="flex justify-between items-center mb-4">
+        <button 
+          onClick={() => setIsAddingKPI(!isAddingKPI)} 
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          style={{ backgroundColor: buttonColor }}
+        >
+          {isAddingKPI ? 'Cancelar' : 'Adicionar Novo KPI'}
+        </button>
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Pesquisar KPIs..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="p-2 pl-8 border rounded"
+          />
+          <FaSearch className="absolute left-2 top-3 text-gray-400" />
         </div>
-      )}
-
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border">
-          <thead>
-            <tr>
-              <th className="px-4 py-2 border">Nome</th>
-              <th className="px-4 py-2 border">Categoria</th>
-              <th className="px-4 py-2 border">Unidade</th>
-              <th className="px-4 py-2 border">Frequência</th>
-              <th className="px-4 py-2 border">Código KPI</th>
-              <th className="px-4 py-2 border">Compliance</th>
-              <th className="px-4 py-2 border">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {kpis.map((kpi) => (
-              <tr key={kpi.id} className="hover:bg-gray-100">
-                <td className="px-4 py-2 border">{kpi.name}</td>
-                <td className="px-4 py-2 border capitalize">{kpi.category}</td>
-                <td className="px-4 py-2 border">{kpi.unit}</td>
-                <td className="px-4 py-2 border">{kpi.frequency}</td>
-                <td className="px-4 py-2 border">{kpi.kpicode}</td>
-                <td className="px-4 py-2 border">
-                  {kpi.compliance && kpi.compliance.map(item => complianceFullNames[item] || item).join(', ')}
-                </td>
-                <td className="px-4 py-2 border">
-                  <button
-                    onClick={() => setEditingKPI(kpi)}
-                    className="text-blue-500 hover:text-blue-700 mr-2"
-                  >
-                    <FaEdit />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteKPI(kpi.id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <FaTrash />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
+
+      {isLoading && <p>Carregando KPIs...</p>}
+      {error && <p className="text-red-500">{error}</p>}
+      
+      {!isLoading && !error && (
+        <>
+          {isAddingKPI && (
+            <div className="mt-4 p-4 bg-gray-100 rounded">
+              <h3 className="text-lg font-bold mb-2">
+                {isAddingKPI ? 'Adicionar Novo Template de KPI' : 'Editar Template de KPI'}
+              </h3>
+              {renderKPIForm(isAddingKPI ? newKPI : editingKPI, isAddingKPI)}
+              <div className="mt-4 space-x-2">
+                <button
+                  onClick={isAddingKPI ? handleAddKPI : handleUpdateKPI}
+                  className="text-white px-4 py-2 rounded hover:opacity-80"
+                  style={{ backgroundColor: buttonColor }}
+                >
+                  {isAddingKPI ? 'Adicionar' : 'Atualizar'}
+                </button>
+                <button
+                  onClick={() => {
+                    setIsAddingKPI(false);
+                    setEditingKPI(null);
+                  }}
+                  className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white border">
+              <thead>
+                <tr>
+                  <th className="px-4 py-2 border">Nome</th>
+                  <th className="px-4 py-2 border">Categoria</th>
+                  <th className="px-4 py-2 border">Unidade</th>
+                  <th className="px-4 py-2 border">Frequência</th>
+                  <th className="px-4 py-2 border">Código KPI</th>
+                  <th className="px-4 py-2 border">Compliance</th>
+                  <th className="px-4 py-2 border">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentKPIs.map((kpi) => (
+                  <tr key={kpi.id}>
+                    <td className="px-4 py-2 border">{kpi.name}</td>
+                    <td className="px-4 py-2 border capitalize">{kpi.category}</td>
+                    <td className="px-4 py-2 border">{kpi.unit}</td>
+                    <td className="px-4 py-2 border">{kpi.frequency}</td>
+                    <td className="px-4 py-2 border">{kpi.kpicode}</td>
+                    <td className="px-4 py-2 border">{kpi.compliance && kpi.compliance.map(item => complianceFullNames[item] || item).join(', ')}</td>
+                    <td className="px-4 py-2 border">
+                      <button
+                        onClick={() => setEditingKPI(kpi)}
+                        className="text-blue-500 hover:text-blue-700 mr-2"
+                      >
+                        <FaEdit />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteKPI(kpi.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <FaTrash />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Paginação */}
+          <div className="flex justify-center mt-4">
+            {Array.from({ length: Math.ceil(filteredKPIs.length / kpisPerPage) }, (_, i) => (
+              <button
+                key={i}
+                onClick={() => paginate(i + 1)}
+                className={`mx-1 px-3 py-1 rounded ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

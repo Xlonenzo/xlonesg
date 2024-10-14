@@ -34,7 +34,7 @@ function AnalyticsContent({ pageTitle }) {
         const category = categoryMap[pageTitle];
         console.log(`Buscando KPIs para a categoria: ${category}`);
         const response = await axios.get(`http://localhost:8000/api/kpi-entries-with-templates`, {
-          params: { category: category }
+          params: { category: category, limit: 1000000 }  // Aumentando o limite
         });
         console.log('Número de KPIs recebidos:', response.data.length);
         setKpis(response.data);

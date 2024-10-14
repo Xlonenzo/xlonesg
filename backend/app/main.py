@@ -303,8 +303,9 @@ def create_kpi_template(kpi_template: schemas.KPITemplateCreate, db: Session = D
     return db_kpi_template
 
 @app.get("/api/kpi-templates", response_model=List[schemas.KPITemplate])
-def read_kpi_templates(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def read_kpi_templates(skip: int = 0, limit: int = 1000000, db: Session = Depends(get_db)):
     kpi_templates = db.query(models.KPITemplate).offset(skip).limit(limit).all()
+    print(f"Número de KPI Templates retornados: {len(kpi_templates)}")  # Log para debug
     return kpi_templates
 
 @app.get("/api/kpi-templates/{kpi_template_id}", response_model=schemas.KPITemplate)
@@ -410,13 +411,14 @@ def read_kpi_entry(kpi_entry_id: int, db: Session = Depends(get_db)):
 def read_kpi_entries_with_templates(
     category: Optional[str] = Query(None),
     skip: int = 0,
-    limit: int = 100,
+    limit: int = Query(1000000, le=1000000),  # Definindo um limite máximo
     db: Session = Depends(get_db)
 ):
     query = db.query(models.KPIEntryWithTemplate)
     if category:
         query = query.filter(models.KPIEntryWithTemplate.category == category)
     entries = query.offset(skip).limit(limit).all()
+    print(f"Número de KPIs retornados: {len(entries)}")  # Log para debug
     return entries
 
 if __name__ == "__main__":
