@@ -8,9 +8,12 @@ function KPICard({ kpi }) {
       <p className="text-xs text-gray-600 mb-1">Ano: {kpi.year}</p>
       <p className="text-xs text-gray-600 mb-1">Mês: {kpi.month}</p>
       <p className="text-xs text-gray-600 mb-1">Unidade: {kpi.unit}</p>
+      <p className="text-xs text-gray-600 mb-1">CNPJ: {kpi.cnpj}</p>
+      <p className="text-xs text-gray-600 mb-1">Estado: {kpi.state}</p>
       <p className="text-sm text-green-600 font-bold">Atual: {kpi.actual_value}</p>
       <p className="text-sm text-blue-600 font-bold">Alvo: {kpi.target_value}</p>
       <p className="text-xs text-gray-600 mt-1">Status: {kpi.status}</p>
+      <p className="text-xs text-gray-600 mt-1">Favorito: {kpi.isfavorite ? 'Sim' : 'Não'}</p>
     </div>
   );
 }

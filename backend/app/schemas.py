@@ -151,6 +151,7 @@ class KPIEntryWithTemplate(BaseModel):
     compliance: Optional[List[str]] = []
     genero: Optional[str] = None  # Novo campo
     raca: Optional[str] = None  # Novo campo
+    state: Optional[str]  # Adicione esta linha
 
     class Config:
         from_attributes = True
