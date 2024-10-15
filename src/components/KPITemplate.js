@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaSearch, FaFilter } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaSearch, FaFilter, FaCopy } from 'react-icons/fa';
 import { MultiSelect } from "react-multi-select-component";
 
 function KPITemplate({ sidebarColor, buttonColor }) {
@@ -100,16 +100,16 @@ function KPITemplate({ sidebarColor, buttonColor }) {
   };
 
   const filteredAndSearchedKPIs = kpis.filter(kpi => {
-    const matchesSearch = kpi.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          kpi.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          kpi.kpicode.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = kpi.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          kpi.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          kpi.kpicode?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesFilters = Object.keys(filters).every(key => {
       if (!filters[key]) return true;
       if (key === 'compliance') {
         return kpi[key] && kpi[key].some(item => item.toLowerCase().includes(filters[key].toLowerCase()));
       }
-      return kpi[key].toString().toLowerCase().includes(filters[key].toLowerCase());
+      return kpi[key]?.toString().toLowerCase().includes(filters[key].toLowerCase());
     });
 
     return matchesSearch && matchesFilters;
@@ -218,6 +218,26 @@ function KPITemplate({ sidebarColor, buttonColor }) {
       } catch (error) {
         console.error('Erro ao excluir KPI Template:', error);
       }
+    }
+  };
+
+  const handleDuplicate = async (kpi) => {
+    try {
+      const duplicatedKPI = {
+        ...kpi,
+        id: undefined,  // Remova o ID para criar um novo template
+        name: `${kpi.name} (Cópia)`,  // Adicione "(Cópia)" ao nome para distinguir
+        kpicode: '',  // Deixe o kpicode vazio
+        compliance: [...kpi.compliance]  // Crie uma nova cópia do array compliance
+      };
+      const response = await axios.post('http://localhost:8000/api/kpi-templates', duplicatedKPI);
+      const newKPI = response.data;
+      setKpis([...kpis, newKPI]);
+      setEditingKPI(newKPI);  // Abre o formulário de edição para o novo KPI
+      alert('KPI Template duplicado com sucesso! Por favor, insira um novo código para o KPI.');
+    } catch (error) {
+      console.error('Erro ao duplicar KPI Template:', error);
+      alert('Erro ao duplicar KPI Template. Por favor, tente novamente.');
     }
   };
 
@@ -463,9 +483,15 @@ function KPITemplate({ sidebarColor, buttonColor }) {
                       </button>
                       <button
                         onClick={() => handleDeleteKPI(kpi.id)}
-                        className="text-red-500 hover:text-red-700"
+                        className="text-red-500 hover:text-red-700 mr-2"
                       >
                         <FaTrash />
+                      </button>
+                      <button
+                        onClick={() => handleDuplicate(kpi)}
+                        className="text-green-500 hover:text-green-700"
+                      >
+                        <FaCopy />
                       </button>
                     </td>
                   </tr>

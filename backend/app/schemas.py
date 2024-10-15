@@ -1,4 +1,4 @@
-from pydantic import BaseModel, constr
+from pydantic import BaseModel, constr, Field
 from datetime import date
 from typing import Optional, List
 
@@ -33,6 +33,8 @@ class KPI(KPIBase):
 class TaskBase(BaseModel):
     description: str
     status: str
+    impact: str
+    probability: str
 
 class TaskCreate(TaskBase):
     pass
@@ -56,7 +58,7 @@ class ActionPlanCreate(ActionPlanBase):
 class ActionPlan(ActionPlanBase):
     id: int
     tasks: List[Task] = []
-    kpi: Optional[KPI] = None  # Adicionado este campo para retornar o KPI associado
+    kpi: Optional[KPI] = None
 
     class Config:
         from_attributes = True
@@ -95,9 +97,9 @@ class KPITemplateBase(BaseModel):
     description: str
     frequency: str
     collection_method: str
-    kpicode: str
+    kpicode: Optional[str] = Field(default=None)
     company_category: str
-    compliance: Optional[List[str]] = []
+    compliance: List[str]  # Defina como uma lista de strings
     genero: Optional[str] = None  # Novo campo
     raca: Optional[str] = None  # Novo campo
 

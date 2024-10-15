@@ -7,6 +7,9 @@ from .database import SessionLocal, engine
 from typing import List, Optional
 import re
 from sqlalchemy.orm import joinedload
+from sqlalchemy import func, String
+from sqlalchemy.dialects import postgresql
+from uuid import uuid4
 
 app = FastAPI()
 
@@ -296,16 +299,31 @@ def create_company(company: schemas.CompanyCreate, db: Session = Depends(get_db)
 
 @app.post("/api/kpi-templates", response_model=schemas.KPITemplate)
 def create_kpi_template(kpi_template: schemas.KPITemplateCreate, db: Session = Depends(get_db)):
-    db_kpi_template = models.KPITemplate(**kpi_template.dict())
-    db.add(db_kpi_template)
-    db.commit()
-    db.refresh(db_kpi_template)
-    return db_kpi_template
+    kpi_dict = kpi_template.dict()
+    
+    # Gerar um kpicode único se não for fornecido ou for vazio
+    if not kpi_dict['kpicode']:
+        kpi_dict['kpicode'] = f"KPI-{uuid4().hex[:8].upper()}"
+    
+    # Verificar se o kpicode já existe
+    while db.query(models.KPITemplate).filter(models.KPITemplate.kpicode == kpi_dict['kpicode']).first():
+        kpi_dict['kpicode'] = f"KPI-{uuid4().hex[:8].upper()}"
+    
+    kpi_dict['compliance'] = func.cast(kpi_dict['compliance'], postgresql.ARRAY(String))
+    
+    try:
+        db_kpi_template = models.KPITemplate(**kpi_dict)
+        db.add(db_kpi_template)
+        db.commit()
+        db.refresh(db_kpi_template)
+        return db_kpi_template
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Erro ao criar template de KPI: {str(e)}")
 
 @app.get("/api/kpi-templates", response_model=List[schemas.KPITemplate])
-def read_kpi_templates(skip: int = 0, limit: int = 1000000, db: Session = Depends(get_db)):
+def read_kpi_templates(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     kpi_templates = db.query(models.KPITemplate).offset(skip).limit(limit).all()
-    print(f"Número de KPI Templates retornados: {len(kpi_templates)}")  # Log para debug
     return kpi_templates
 
 @app.get("/api/kpi-templates/{kpi_template_id}", response_model=schemas.KPITemplate)
@@ -411,14 +429,13 @@ def read_kpi_entry(kpi_entry_id: int, db: Session = Depends(get_db)):
 def read_kpi_entries_with_templates(
     category: Optional[str] = Query(None),
     skip: int = 0,
-    limit: int = Query(1000000, le=1000000),  # Definindo um limite máximo
+    limit: int = 100,
     db: Session = Depends(get_db)
 ):
     query = db.query(models.KPIEntryWithTemplate)
     if category:
         query = query.filter(models.KPIEntryWithTemplate.category == category)
     entries = query.offset(skip).limit(limit).all()
-    print(f"Número de KPIs retornados: {len(entries)}")  # Log para debug
     return entries
 
 if __name__ == "__main__":

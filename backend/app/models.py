@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, Float, Text, Boolean, Date, ForeignKey, ARRAY
+from sqlalchemy import Column, Integer, String, Float, Text, Boolean, Date, ForeignKey, ARRAY, Enum, UniqueConstraint
 from sqlalchemy.orm import relationship
 from .database import Base
+from sqlalchemy.dialects import postgresql
 
 class KPI(Base):
     __tablename__ = "kpis"
@@ -24,6 +25,7 @@ class KPI(Base):
     company_category = Column(String)
     isfavorite = Column(Boolean, default=False)
     compliance = Column(ARRAY(String))  # Novo campo
+    action_plans = relationship("ActionPlan", back_populates="kpi")
 
 class ActionPlan(Base):
     __tablename__ = "actionplans"
@@ -31,11 +33,12 @@ class ActionPlan(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     objective = Column(String, index=True)
-    start_date = Column(Date)
-    end_date = Column(Date)
-    kpi_id = Column(Integer, ForeignKey("xlonesg.kpis.id"))  # Adicionado este campo
+    start_date = Column(String)
+    end_date = Column(String)
+    kpi_id = Column(Integer, ForeignKey("kpis.id"))
+
     tasks = relationship("Task", back_populates="action_plan")
-    kpi = relationship("KPI")  # Adicionado esta relação
+    kpi = relationship("KPI", back_populates="action_plans")
 
 class Task(Base):
     __tablename__ = "tasks"
@@ -44,7 +47,10 @@ class Task(Base):
     id = Column(Integer, primary_key=True, index=True)
     description = Column(String, index=True)
     status = Column(String)
-    action_plan_id = Column(Integer, ForeignKey("xlonesg.actionplans.id"))
+    impact = Column(String)
+    probability = Column(String)
+    action_plan_id = Column(Integer, ForeignKey("actionplans.id"))  # Certifique-se de que o nome da tabela está correto
+
     action_plan = relationship("ActionPlan", back_populates="tasks")
 
 class Company(Base):
@@ -70,7 +76,10 @@ class Company(Base):
 
 class KPITemplate(Base):
     __tablename__ = "kpi_templates"
-    __table_args__ = {"schema": "xlonesg"}
+    __table_args__ = (
+        UniqueConstraint('kpicode', name='uq_kpi_templates_kpicode'),
+        {"schema": "xlonesg"}
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
@@ -80,9 +89,9 @@ class KPITemplate(Base):
     description = Column(Text)
     frequency = Column(String)
     collection_method = Column(String)
-    kpicode = Column(String, unique=True, index=True)
+    kpicode = Column(String, nullable=True, unique=True, server_default='')  # Use uma string vazia como padrão
     company_category = Column(String)
-    compliance = Column(ARRAY(String))
+    compliance = Column(postgresql.ARRAY(String))  # Defina como um array de strings
     genero = Column(String)  # Novo campo
     raca = Column(String)  # Novo campo
 

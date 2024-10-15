@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaStar, FaPlus, FaSearch, FaFilter } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaStar, FaPlus, FaSearch, FaFilter, FaCopy } from 'react-icons/fa';
 
 function KPITracker({ sidebarColor, buttonColor }) {
   const [kpiEntries, setKpiEntries] = useState([]);
@@ -180,6 +180,22 @@ function KPITracker({ sidebarColor, buttonColor }) {
   const currentEntries = filteredAndSearchedEntries.slice(indexOfFirstEntry, indexOfLastEntry);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  const handleDuplicate = async (entry) => {
+    try {
+      const duplicatedEntry = {
+        ...entry,
+        entry_id: undefined,  // Remova o ID para criar uma nova entrada
+        isfavorite: false,    // Reset o status de favorito
+      };
+      await axios.post('http://localhost:8000/api/kpi-entries', duplicatedEntry);
+      fetchKPIEntries();
+      alert('KPI duplicado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao duplicar entrada de KPI:', error);
+      alert('Erro ao duplicar entrada de KPI. Por favor, tente novamente.');
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -389,9 +405,15 @@ function KPITracker({ sidebarColor, buttonColor }) {
                   </button>
                   <button
                     onClick={() => handleDelete(entry.entry_id)}
-                    className="text-red-500 hover:text-red-700"
+                    className="text-red-500 hover:text-red-700 mr-2"
                   >
                     <FaTrash />
+                  </button>
+                  <button
+                    onClick={() => handleDuplicate(entry)}
+                    className="text-green-500 hover:text-green-700"
+                  >
+                    <FaCopy />
                   </button>
                 </td>
               </tr>

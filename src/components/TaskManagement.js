@@ -4,8 +4,16 @@ import { FaEdit, FaTrash } from 'react-icons/fa';
 
 function TaskManagement({ actionPlanId, onClose }) {
   const [tasks, setTasks] = useState([]);
-  const [newTask, setNewTask] = useState({ description: '', status: 'Pendente' });
+  const [newTask, setNewTask] = useState({ 
+    description: '', 
+    status: 'Pendente',
+    impact: 'Moderado',
+    probability: 'Moderado'
+  });
   const [editingTask, setEditingTask] = useState(null);
+
+  const impactOptions = ['Muito baixo', 'Baixo', 'Moderado', 'Alto', 'Muito Alto'];
+  const probabilityOptions = ['Muito baixo', 'Baixo', 'Moderado', 'Alto', 'Muito Alto'];
 
   const fetchTasks = useCallback(async () => {
     try {
@@ -14,7 +22,7 @@ function TaskManagement({ actionPlanId, onClose }) {
     } catch (error) {
       console.error('Erro ao buscar tarefas:', error);
     }
-  }, [actionPlanId]); // Adicione quaisquer dependências necessárias aqui
+  }, [actionPlanId]);
 
   useEffect(() => {
     fetchTasks();
@@ -24,7 +32,7 @@ function TaskManagement({ actionPlanId, onClose }) {
     try {
       const response = await axios.post(`http://localhost:8000/api/action-plans/${actionPlanId}/tasks`, newTask);
       setTasks([...tasks, response.data]);
-      setNewTask({ description: '', status: 'Pendente' });
+      setNewTask({ description: '', status: 'Pendente', impact: 'Moderado', probability: 'Moderado' });
     } catch (error) {
       console.error('Erro ao adicionar tarefa:', error);
     }
@@ -64,7 +72,7 @@ function TaskManagement({ actionPlanId, onClose }) {
               : setNewTask({...newTask, description: e.target.value})
             }
             placeholder="Descrição da tarefa"
-            className="w-full p-2 border rounded"
+            className="w-full p-2 border rounded mb-2"
           />
           <select
             value={editingTask ? editingTask.status : newTask.status}
@@ -72,11 +80,35 @@ function TaskManagement({ actionPlanId, onClose }) {
               ? setEditingTask({...editingTask, status: e.target.value})
               : setNewTask({...newTask, status: e.target.value})
             }
-            className="w-full mt-2 p-2 border rounded"
+            className="w-full p-2 border rounded mb-2"
           >
             <option value="Pendente">Pendente</option>
             <option value="Em andamento">Em andamento</option>
             <option value="Concluída">Concluída</option>
+          </select>
+          <select
+            value={editingTask ? editingTask.impact : newTask.impact}
+            onChange={(e) => editingTask
+              ? setEditingTask({...editingTask, impact: e.target.value})
+              : setNewTask({...newTask, impact: e.target.value})
+            }
+            className="w-full p-2 border rounded mb-2"
+          >
+            {impactOptions.map(option => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+          <select
+            value={editingTask ? editingTask.probability : newTask.probability}
+            onChange={(e) => editingTask
+              ? setEditingTask({...editingTask, probability: e.target.value})
+              : setNewTask({...newTask, probability: e.target.value})
+            }
+            className="w-full p-2 border rounded mb-2"
+          >
+            {probabilityOptions.map(option => (
+              <option key={option} value={option}>{option}</option>
+            ))}
           </select>
           <button
             onClick={editingTask ? handleUpdateTask : handleAddTask}
@@ -96,7 +128,7 @@ function TaskManagement({ actionPlanId, onClose }) {
         <div className="mt-4">
           {tasks.map((task) => (
             <div key={task.id} className="mb-2 flex justify-between items-center">
-              <span>{task.description} - {task.status}</span>
+              <span>{task.description} - {task.status} - Impacto: {task.impact} - Probabilidade: {task.probability}</span>
               <div>
                 <button
                   onClick={() => setEditingTask(task)}
