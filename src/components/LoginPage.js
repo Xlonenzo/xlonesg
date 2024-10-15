@@ -1,6 +1,14 @@
 // src/components/LoginPage.js
 
 import React, { useState } from 'react';
+import { sha256 } from 'js-sha256';
+
+// Lista de usuários (em um cenário real, isso estaria em um banco de dados)
+const users = [
+  { username: 'xlon', passwordHash: '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4' }, // senha: 1234
+  { username: 'admin', passwordHash: '8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918' }, // senha: admin
+  { username: 'user', passwordHash: '04f8996da763b7a969b1028ee3007569eaf3a635486ddab211d512c85b9df8fb' }, // senha: user
+];
 
 function LoginPage({ onLogin }) {
   const [username, setUsername] = useState('');
@@ -10,9 +18,11 @@ function LoginPage({ onLogin }) {
   const handleLogin = (e) => {
     e.preventDefault();
     
-    // Simulação de autenticação básica
-    if (username === 'xlon' && password === '1234') {
-      onLogin();  // Chama a função passada como prop para indicar que o login foi bem-sucedido
+    const passwordHash = sha256(password);
+    const user = users.find(u => u.username === username && u.passwordHash === passwordHash);
+
+    if (user) {
+      onLogin(username);  // Passa o nome do usuário para a função de login
     } else {
       setError('Usuário ou senha incorretos');
     }
