@@ -14,11 +14,11 @@ function ActionPlanManagement() {
   const [isAddingPlan, setIsAddingPlan] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
   const [managingTasks, setManagingTasks] = useState(null);
-  const [kpis, setKpis] = useState([]);
+  const [viewKpis, setViewKpis] = useState([]);
 
   useEffect(() => {
     fetchActionPlans();
-    fetchKPIs();
+    fetchViewKPIs();
   }, []);
 
   const fetchActionPlans = async () => {
@@ -30,12 +30,13 @@ function ActionPlanManagement() {
     }
   };
 
-  const fetchKPIs = async () => {
+  const fetchViewKPIs = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/kpis');
-      setKpis(response.data);
+      const response = await axios.get('http://localhost:8000/api/kpi-entries-with-templates');
+      console.log('KPIs da view:', response.data); // Log para depuração
+      setViewKpis(response.data);
     } catch (error) {
-      console.error('Erro ao buscar KPIs:', error);
+      console.error('Erro ao buscar KPIs da view:', error);
     }
   };
 
@@ -115,8 +116,8 @@ function ActionPlanManagement() {
             className="w-full p-2 border rounded mb-2"
           >
             <option value="">Selecione um KPI</option>
-            {kpis.map(kpi => (
-              <option key={kpi.id} value={kpi.id}>{kpi.name}</option>
+            {viewKpis.map(kpi => (
+              <option key={kpi.id} value={kpi.id}>{kpi.name || kpi.template_name}</option>
             ))}
           </select>
           <button
@@ -203,8 +204,8 @@ function ActionPlanManagement() {
             className="w-full p-2 border rounded mb-2"
           >
             <option value="">Selecione um KPI</option>
-            {kpis.map(kpi => (
-              <option key={kpi.id} value={kpi.id}>{kpi.name}</option>
+            {viewKpis.map(kpi => (
+              <option key={kpi.id} value={kpi.id}>{kpi.name || kpi.template_name}</option>
             ))}
           </select>
           <button
