@@ -429,13 +429,14 @@ def read_kpi_entry(kpi_entry_id: int, db: Session = Depends(get_db)):
 def read_kpi_entries_with_templates(
     category: Optional[str] = Query(None),
     skip: int = 0,
-    limit: int = 100,
+    limit: int = 1000,  # Aumentado para 1000
     db: Session = Depends(get_db)
 ):
     query = db.query(models.KPIEntryWithTemplate)
     if category:
         query = query.filter(models.KPIEntryWithTemplate.category == category)
     entries = query.offset(skip).limit(limit).all()
+    print(f"Total de KPIs retornados: {len(entries)}")
     return entries
 
 if __name__ == "__main__":

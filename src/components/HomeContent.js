@@ -16,10 +16,12 @@ function HomeContent() {
   const fetchKPIs = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:8000/api/kpi-entries-with-templates');
+      const response = await axios.get('http://localhost:8000/api/kpi-entries-with-templates?limit=1000');
       setAllKpis(response.data);
-      setFavoriteKpis(response.data.filter(kpi => kpi.isfavorite));
-      console.log('All KPIs fetched:', response.data);
+      const favorites = response.data.filter(kpi => kpi.isfavorite);
+      setFavoriteKpis(favorites);
+      console.log('Total KPIs:', response.data.length);
+      console.log('Favorite KPIs:', favorites.length);
     } catch (error) {
       console.error('Erro ao buscar KPIs:', error);
       setError('Falha ao carregar os KPIs. Por favor, tente novamente mais tarde.');
