@@ -40,7 +40,7 @@ def validate_cnpj(cnpj: str) -> str:
     
     return cnpj
 
-# Rotas para Planos de Ação
+# Rotas para Planos de Aço
 @app.post("/api/action-plans", response_model=schemas.ActionPlan)
 def create_action_plan(action_plan: schemas.ActionPlanCreate, db: Session = Depends(get_db)):
     db_action_plan = models.ActionPlan(**action_plan.dict())
@@ -438,6 +438,38 @@ def read_kpi_entries_with_templates(
     entries = query.offset(skip).limit(limit).all()
     print(f"Total de KPIs retornados: {len(entries)}")
     return entries
+
+@app.post("/api/customization", response_model=schemas.Customization)
+def create_customization(customization: schemas.CustomizationCreate, db: Session = Depends(get_db)):
+    print(f"Recebendo requisição POST para /api/customization: {customization.dict()}")
+    try:
+        db_customization = models.Customization(**customization.dict())
+        db.add(db_customization)
+        db.commit()
+        db.refresh(db_customization)
+        print(f"Customização criada com sucesso: {db_customization.id}")
+        return db_customization
+    except Exception as e:
+        print(f"Erro ao criar customização: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/customization", response_model=schemas.Customization)
+def get_customization(db: Session = Depends(get_db)):
+    customization = db.query(models.Customization).first()
+    if not customization:
+        raise HTTPException(status_code=404, detail="Customization not found")
+    return customization
+
+@app.put("/api/customization/{customization_id}", response_model=schemas.Customization)
+def update_customization(customization_id: int, customization: schemas.CustomizationCreate, db: Session = Depends(get_db)):
+    db_customization = db.query(models.Customization).filter(models.Customization.id == customization_id).first()
+    if not db_customization:
+        raise HTTPException(status_code=404, detail="Customization not found")
+    for key, value in customization.dict().items():
+        setattr(db_customization, key, value)
+    db.commit()
+    db.refresh(db_customization)
+    return db_customization
 
 if __name__ == "__main__":
     print("Iniciando a aplicação...")

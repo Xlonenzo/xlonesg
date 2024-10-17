@@ -1,5 +1,6 @@
 // App.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
 // Remova as importações não utilizadas
 // import {
@@ -53,10 +54,12 @@ function App() {
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(true);
-  const [sidebarColor, setSidebarColor] = useState('#727E7A');
-  const [logo, setLogo] = useState('/logo.png');
-  const [buttonColor, setButtonColor] = useState('#4A5568');
-  const [fontColor, setFontColor] = useState('#D1D5DB');
+  const [customization, setCustomization] = useState({
+    sidebar_color: '#727E7A',
+    button_color: '#4A5568',
+    font_color: '#D1D5DB',
+    logo_url: '/logo.png'
+  });
 
   // Inicializar estados com dados importados
   const [articles, setArticles] = useState(articlesData);
@@ -85,6 +88,19 @@ function App() {
     setIsLoggedIn(false);
   };
 
+  useEffect(() => {
+    fetchCustomization();
+  }, []);
+
+  const fetchCustomization = async () => {
+    try {
+      const response = await axios.get('http://localhost:8000/api/customization');
+      setCustomization(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar customização:', error);
+    }
+  };
+
   // Função para renderizar o conteúdo baseado no item de menu ativo
   const renderContent = () => {
     switch (activeMenuItem) {
@@ -95,10 +111,8 @@ function App() {
       case '/admin/customization':
         return (
           <Customization
-            setSidebarColor={setSidebarColor}
-            setLogo={setLogo}
-            setButtonColor={setButtonColor}
-            setFontColor={setFontColor}
+            customization={customization}
+            setCustomization={setCustomization}
           />
         );
       case '/info-library':
@@ -121,9 +135,9 @@ function App() {
       case '/analytics/comparacao-kpi':
         return <ComparacaoKPI />;
       case '/kpi-management':
-        return <KPIManagement kpis={kpis} setKpis={setKpis} buttonColor={buttonColor} />;
+        return <KPIManagement kpis={kpis} setKpis={setKpis} buttonColor={customization.button_color} />;
       case '/kpi-templates':
-        return <KPITemplate kpis={kpiTemplates} setKpis={setKpiTemplates} sidebarColor={sidebarColor} buttonColor={buttonColor} />;
+        return <KPITemplate kpis={kpiTemplates} setKpis={setKpiTemplates} sidebarColor={customization.sidebar_color} buttonColor={customization.button_color} />;
       case '/action-plan':
         return (
           <ActionPlanManagement
@@ -136,7 +150,7 @@ function App() {
       case '/admin/company-management':
         return <CompanyManagement />;
       case '/kpi-tracker':
-        return <KPITracker kpiEntries={kpiEntries} setKpiEntries={setKpiEntries} sidebarColor={sidebarColor} buttonColor={buttonColor} />;
+        return <KPITracker kpiEntries={kpiEntries} setKpiEntries={setKpiEntries} sidebarColor={customization.sidebar_color} buttonColor={customization.button_color} />;
       default:
         return <div>Selecione uma opção do menu</div>;
     }
@@ -152,14 +166,14 @@ function App() {
       <div className="flex flex-col w-full">
         <Topbar
           onLogout={handleLogout}
-          sidebarColor={sidebarColor}
-          buttonColor={buttonColor}
-          fontColor={fontColor}
+          sidebarColor={customization.sidebar_color}
+          buttonColor={customization.button_color}
+          fontColor={customization.font_color}
         />
 
         <div className="flex h-full">
           <Sidebar
-            sidebarColor={sidebarColor}
+            sidebarColor={customization.sidebar_color}
             menuItems={menuItems}
             activeMenuItem={activeMenuItem}
             setActiveMenuItem={setActiveMenuItem}
@@ -169,13 +183,13 @@ function App() {
             setIsAdminOpen={setIsAdminOpen}
             isSidebarCollapsed={isSidebarCollapsed}
             toggleSidebar={toggleSidebar}
-            logo={logo}
-            buttonColor={buttonColor}
-            fontColor={fontColor}
+            logo={customization.logo_url}
+            buttonColor={customization.button_color}
+            fontColor={customization.font_color}
           />
 
           <main className="flex-1 overflow-y-auto p-8">
-            <h1 className="text-2xl font-bold mb-6" style={{ color: fontColor }}>
+            <h1 className="text-2xl font-bold mb-6" style={{ color: customization.font_color }}>
               Dashboard ESG
             </h1>
             {renderContent()}

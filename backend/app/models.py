@@ -138,3 +138,13 @@ class KPIEntryWithTemplate(Base):
     genero = Column(String)  # Novo campo
     raca = Column(String)  # Novo campo
     state = Column(String, nullable=True)  # Permite que o campo seja nulo
+
+class Customization(Base):
+    __tablename__ = "customizations"
+    __table_args__ = {"schema": "xlonesg"}
+
+    id = Column(Integer, primary_key=True, index=True)
+    sidebar_color = Column(String)
+    button_color = Column(String)
+    font_color = Column(String)
+    logo_url = Column(String)
