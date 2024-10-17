@@ -1,5 +1,6 @@
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from . import models, schemas
@@ -10,17 +11,28 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import func, String
 from sqlalchemy.dialects import postgresql
 from uuid import uuid4
+import shutil
+import os
 
 app = FastAPI()
 
 # Configuração CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Adicione a origem do seu frontend aqui
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
-    allow_methods=["*"],  # Permite todos os métodos
-    allow_headers=["*"],  # Permite todos os cabeçalhos
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
+# Configuração para servir arquivos estáticos
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Certifique-se de que o diretório para logos existe
+os.makedirs("static/logos", exist_ok=True)
+
+# Configuração da base URL
+BASE_URL = "http://localhost:8000"  # Ajuste conforme necessário
 
 # Dependency
 def get_db():
@@ -467,6 +479,67 @@ def update_customization(customization_id: int, customization: schemas.Customiza
         raise HTTPException(status_code=404, detail="Customization not found")
     for key, value in customization.dict().items():
         setattr(db_customization, key, value)
+    db.commit()
+    db.refresh(db_customization)
+    return db_customization
+
+# Nova rota para upload de logo
+@app.post("/api/upload-logo")
+async def upload_logo(file: UploadFile = File(...)):
+    try:
+        file_location = f"static/logos/{file.filename}"
+        with open(file_location, "wb+") as file_object:
+            shutil.copyfileobj(file.file, file_object)
+        return {"logo_url": f"{BASE_URL}/static/logos/{file.filename}"}
+    except Exception as e:
+        print(f"Erro ao fazer upload da logo: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao fazer upload da logo: {str(e)}")
+
+# Atualizar a rota de customização para incluir o upload de logo
+@app.post("/api/customization", response_model=schemas.Customization)
+async def create_customization(
+    customization: schemas.CustomizationCreate = Depends(),
+    logo: UploadFile = File(None),
+    db: Session = Depends(get_db)
+):
+    print(f"Recebendo requisição POST para /api/customization: {customization.dict()}")
+    try:
+        if logo:
+            file_location = f"static/logos/{logo.filename}"
+            with open(file_location, "wb+") as file_object:
+                shutil.copyfileobj(logo.file, file_object)
+            customization.logo_url = f"{BASE_URL}/static/logos/{logo.filename}"
+
+        db_customization = models.Customization(**customization.dict())
+        db.add(db_customization)
+        db.commit()
+        db.refresh(db_customization)
+        print(f"Customização criada com sucesso: {db_customization.id}")
+        return db_customization
+    except Exception as e:
+        print(f"Erro ao criar customização: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/customization/{customization_id}", response_model=schemas.Customization)
+async def update_customization(
+    customization_id: int,
+    customization: schemas.CustomizationCreate = Depends(),
+    logo: UploadFile = File(None),
+    db: Session = Depends(get_db)
+):
+    db_customization = db.query(models.Customization).filter(models.Customization.id == customization_id).first()
+    if not db_customization:
+        raise HTTPException(status_code=404, detail="Customization not found")
+    
+    if logo:
+        file_location = f"static/logos/{logo.filename}"
+        with open(file_location, "wb+") as file_object:
+            shutil.copyfileobj(logo.file, file_object)
+        customization.logo_url = f"{BASE_URL}/static/logos/{logo.filename}"
+
+    for key, value in customization.dict().items():
+        setattr(db_customization, key, value)
+    
     db.commit()
     db.refresh(db_customization)
     return db_customization
