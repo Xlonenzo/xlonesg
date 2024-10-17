@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bell, LogOut } from 'lucide-react';
 
-const Topbar = ({ onLogout, sidebarColor }) => {
+const Topbar = ({ onLogout, sidebarColor, fontColor }) => {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false); // Estado para controlar o dropdown de notificações
   const notificationRef = useRef(null); // Ref para o botão de notificações e o dropdown
 
@@ -26,8 +26,8 @@ const Topbar = ({ onLogout, sidebarColor }) => {
 
   return (
     <div
-      style={{ backgroundColor: sidebarColor }} // Aplica a cor dinamicamente no topo
-      className="text-white h-16 flex justify-between items-center px-4"
+      style={{ backgroundColor: sidebarColor }}
+      className="h-16 flex justify-between items-center px-4"
     >
       {/* Espaço à esquerda para manter a estrutura */}
       <div />
@@ -35,7 +35,7 @@ const Topbar = ({ onLogout, sidebarColor }) => {
       {/* Notificações e Logout à direita */}
       <div className="flex items-center relative ml-auto" ref={notificationRef}>
         {/* Botão de Notificações */}
-        <button onClick={toggleNotifications} className="mr-4 relative">
+        <button onClick={toggleNotifications} className="mr-4 relative" style={{ color: fontColor }}>
           <Bell size={24} />
           {/* Indicador de notificação */}
           <span className="absolute top-0 right-0 inline-block w-2 h-2 bg-red-600 rounded-full"></span>
@@ -43,7 +43,7 @@ const Topbar = ({ onLogout, sidebarColor }) => {
 
         {/* Dropdown de Notificações */}
         {isNotificationOpen && (
-          <div className="absolute right-0 mt-2 w-64 bg-white text-black rounded-lg shadow-lg z-10">
+          <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg z-10">
             <ul className="p-4">
               <li className="mb-2 border-b pb-2">Notificação 1</li>
               <li className="mb-2 border-b pb-2">Notificação 2</li>
@@ -53,7 +53,7 @@ const Topbar = ({ onLogout, sidebarColor }) => {
         )}
 
         {/* Botão de Logout */}
-        <button onClick={onLogout} className="flex items-center text-white">
+        <button onClick={onLogout} className="flex items-center" style={{ color: fontColor }}>
           <LogOut size={24} className="mr-2" />
           <span>Sair</span>
         </button>
