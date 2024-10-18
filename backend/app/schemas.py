@@ -1,4 +1,4 @@
-from pydantic import BaseModel, constr, Field
+from pydantic import BaseModel, constr, Field, EmailStr
 from datetime import date
 from typing import Optional, List
 
@@ -168,6 +168,19 @@ class CustomizationCreate(CustomizationBase):
     pass
 
 class Customization(CustomizationBase):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+class UserBase(BaseModel):
+    username: str
+    email: EmailStr
+
+class UserCreate(UserBase):
+    password: str
+
+class User(UserBase):
     id: int
 
     class Config:

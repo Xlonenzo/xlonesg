@@ -148,3 +148,12 @@ class Customization(Base):
     button_color = Column(String)
     font_color = Column(String)
     logo_url = Column(String)
+
+class User(Base):
+    __tablename__ = "users"
+    __table_args__ = {"schema": "xlonesg"}
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True)
+    email = Column(String, unique=True, index=True)
+    hashed_password = Column(String)

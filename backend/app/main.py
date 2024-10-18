@@ -13,13 +13,15 @@ from sqlalchemy.dialects import postgresql
 from uuid import uuid4
 import shutil
 import os
+from passlib.context import CryptContext
+from pydantic import BaseModel
 
 app = FastAPI()
 
 # Configuração CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000"],  # Ajuste para a URL do seu frontend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -543,6 +545,65 @@ async def update_customization(
     db.commit()
     db.refresh(db_customization)
     return db_customization
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+class LoginData(BaseModel):
+    username: str
+    password: str
+
+@app.post("/login")
+def login(login_data: LoginData, db: Session = Depends(get_db)):
+    print(f"Login attempt for user: {login_data.username}")  # Log
+    user = db.query(models.User).filter(models.User.username == login_data.username).first()
+    if not user:
+        print(f"User not found: {login_data.username}")  # Log
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+    if not verify_password(login_data.password, user.hashed_password):
+        print(f"Incorrect password for user: {login_data.username}")  # Log
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
+    print(f"Successful login for user: {login_data.username}")  # Log
+    return {"message": "Login successful"}
+
+# Existing user creation route
+@app.post("/users/", response_model=schemas.User)
+def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    db_user = db.query(models.User).filter(models.User.username == user.username).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Username already registered")
+    db_user = db.query(models.User).filter(models.User.email == user.email).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    hashed_password = get_password_hash(user.password)
+    db_user = models.User(username=user.username, email=user.email, hashed_password=hashed_password)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+@app.get("/users/", response_model=List[schemas.User])
+def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    users = db.query(models.User).offset(skip).limit(limit).all()
+    return users
+
+@app.delete("/users/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(get_db)):
+    print(f"Attempting to delete user with id: {user_id}")  # Log
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if user is None:
+        print(f"User with id {user_id} not found")  # Log
+        raise HTTPException(status_code=404, detail="User not found")
+    print(f"Deleting user: {user.username}")  # Log
+    db.delete(user)
+    db.commit()
+    print(f"User {user.username} deleted successfully")  # Log
+    return {"message": "User deleted successfully"}
 
 if __name__ == "__main__":
     print("Iniciando a aplicação...")

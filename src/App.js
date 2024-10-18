@@ -43,6 +43,7 @@ import Topbar from './components/Topbar';
 import CompanyManagement from './components/CompanyManagement'; // Adicione esta linha
 import KPITemplate from './components/KPITemplate';
 import KPITracker from './components/KPITracker';
+import Register from './components/Register';
 
 // Importar estilos
 import './index.css';
@@ -55,10 +56,10 @@ function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(true);
   const [customization, setCustomization] = useState({
-    sidebar_color: '#727E7A',
-    button_color: '#4A5568',
-    font_color: '#D1D5DB',
-    logo_url: '/logo.png'
+    sidebar_color: '#ffffff',
+    button_color: '#3490dc',
+    font_color: '#333333',
+    logo_url: ''
   });
 
   // Inicializar estados com dados importados
@@ -86,6 +87,14 @@ function App() {
 
   const handleLogout = () => {
     setIsLoggedIn(false);
+  };
+
+  const [isRegistering, setIsRegistering] = useState(false);
+
+  const handleRegister = (userData) => {
+    setIsLoggedIn(true);
+    setIsRegistering(false);
+    // Aqui você pode adicionar lógica adicional, como salvar os dados do usuário no estado
   };
 
   useEffect(() => {
@@ -125,7 +134,7 @@ function App() {
           />
         );
       case '/admin/user-management':
-        return <UserManagement />;
+        return <UserManagement buttonColor={customization.button_color} />;
       case '/analytics/environment':
         return <AnalyticsContent pageTitle="Meio Ambiente" />;
       case '/analytics/governance':
@@ -158,7 +167,10 @@ function App() {
 
   // Verifica se o usuário está logado
   if (!isLoggedIn) {
-    return <LoginPage onLogin={handleLogin} />;
+    if (isRegistering) {
+      return <Register onRegister={handleRegister} />;
+    }
+    return <LoginPage onLogin={handleLogin} onRegister={() => setIsRegistering(true)} />;
   }
 
   return (
