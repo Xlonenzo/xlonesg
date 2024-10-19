@@ -157,3 +157,4 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
+    role = Column(Enum('admin', 'editor', 'viewer', name='user_roles'), default='viewer')

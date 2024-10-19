@@ -8,6 +8,7 @@ function UserManagement({ buttonColor }) {
   const [newUsername, setNewUsername] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [newRole, setNewRole] = useState('viewer'); // Novo estado para role
   const [editingUser, setEditingUser] = useState(null);
 
   useEffect(() => {
@@ -30,12 +31,11 @@ function UserManagement({ buttonColor }) {
       await axios.post('http://localhost:8000/users/', {
         username: newUsername,
         email: newEmail,
-        password: newPassword
+        password: newPassword,
+        role: newRole
       });
       alert('Usuário criado com sucesso!');
-      setNewUsername('');
-      setNewEmail('');
-      setNewPassword('');
+      resetForm();
       fetchUsers();
     } catch (error) {
       console.error('Erro ao criar usuário:', error);
@@ -73,26 +73,43 @@ function UserManagement({ buttonColor }) {
     setEditingUser(user);
     setNewUsername(user.username);
     setNewEmail(user.email);
+    setNewRole(user.role);
   };
 
   const handleUpdateUser = async (e) => {
     e.preventDefault();
     try {
-      await axios.put(`http://localhost:8000/users/${editingUser.id}`, {
+      const response = await axios.put(`http://localhost:8000/users/${editingUser.id}`, {
         username: newUsername,
         email: newEmail,
-        password: newPassword // Note: Updating password might require additional security measures
+        password: newPassword,
+        role: newRole
       });
+      console.log('Resposta do servidor:', response.data);
       alert('Usuário atualizado com sucesso!');
-      setEditingUser(null);
-      setNewUsername('');
-      setNewEmail('');
-      setNewPassword('');
+      resetForm();
       fetchUsers();
     } catch (error) {
       console.error('Erro ao atualizar usuário:', error);
-      alert('Erro ao atualizar usuário. Por favor, tente novamente.');
+      let errorMessage = 'Erro ao atualizar usuário. ';
+      if (error.response) {
+        console.error('Dados da resposta de erro:', error.response.data);
+        errorMessage += error.response.data.detail || JSON.stringify(error.response.data);
+      } else if (error.request) {
+        errorMessage += 'Não foi possível se conectar ao servidor.';
+      } else {
+        errorMessage += error.message;
+      }
+      alert(errorMessage);
     }
+  };
+
+  const resetForm = () => {
+    setEditingUser(null);
+    setNewUsername('');
+    setNewEmail('');
+    setNewPassword('');
+    setNewRole('viewer');
   };
 
   return (
@@ -108,6 +125,7 @@ function UserManagement({ buttonColor }) {
               <tr>
                 <th className="text-left p-3 font-semibold">Nome de Usuário</th>
                 <th className="text-left p-3 font-semibold">Email</th>
+                <th className="text-left p-3 font-semibold">Role</th>
                 <th className="text-left p-3 font-semibold">Ações</th>
               </tr>
             </thead>
@@ -116,6 +134,7 @@ function UserManagement({ buttonColor }) {
                 <tr key={user.id} className="border-b hover:bg-gray-50">
                   <td className="p-3">{user.username}</td>
                   <td className="p-3">{user.email}</td>
+                  <td className="p-3">{user.role}</td>
                   <td className="p-3">
                     <button
                       onClick={() => handleEditUser(user)}
@@ -168,6 +187,16 @@ function UserManagement({ buttonColor }) {
             className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             required={!editingUser}
           />
+          <select
+            value={newRole}
+            onChange={(e) => setNewRole(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          >
+            <option value="viewer">Viewer</option>
+            <option value="editor">Editor</option>
+            <option value="admin">Admin</option>
+          </select>
           <button
             type="submit"
             className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
@@ -182,6 +211,7 @@ function UserManagement({ buttonColor }) {
                 setNewUsername('');
                 setNewEmail('');
                 setNewPassword('');
+                setNewRole('viewer');
               }}
               className="ml-2 bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
             >
