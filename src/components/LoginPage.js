@@ -3,21 +3,24 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-function LoginPage({ onLogin }) {
+const LoginPage = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     try {
       const response = await axios.post('http://localhost:8000/login', { username, password });
       if (response.data.message === 'Login successful') {
-        onLogin(username);
+        onLogin({ username: username }); // Passando o nome do usuário para App.js
+      } else {
+        setError('Login falhou. Por favor, verifique suas credenciais.');
       }
     } catch (error) {
-      console.error('Erro de login:', error.response?.data || error.message);
-      setError('Usuário ou senha incorretos');
+      console.error('Erro ao fazer login:', error);
+      setError('Erro ao fazer login. Por favor, tente novamente.');
     }
   };
 
@@ -26,10 +29,11 @@ function LoginPage({ onLogin }) {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Login
+            Faça login na sua conta
           </h2>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {error && <div className="text-red-500 text-center">{error}</div>} {/* Exibe a mensagem de erro */}
           <input type="hidden" name="remember" value="true" />
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
@@ -55,7 +59,6 @@ function LoginPage({ onLogin }) {
                 id="password"
                 name="password"
                 type="password"
-                autoComplete="current-password"
                 required
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                 placeholder="Senha"
@@ -64,10 +67,6 @@ function LoginPage({ onLogin }) {
               />
             </div>
           </div>
-
-          {error && (
-            <div className="text-red-500 text-sm mt-2">{error}</div>
-          )}
 
           <div>
             <button
@@ -78,17 +77,9 @@ function LoginPage({ onLogin }) {
             </button>
           </div>
         </form>
-        <div className="text-sm">
-          <button
-            onClick={onLogin}
-            className="font-medium text-indigo-600 hover:text-indigo-500 focus:outline-none"
-          >
-            Não tem uma conta? Registre-se
-          </button>
-        </div>
       </div>
     </div>
   );
-}
+};
 
 export default LoginPage;

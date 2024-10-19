@@ -61,6 +61,7 @@ function App() {
     font_color: '#333333',
     logo_url: ''
   });
+  const [userName, setUserName] = useState('');
 
   // Inicializar estados com dados importados
   const [articles, setArticles] = useState(articlesData);
@@ -81,8 +82,10 @@ function App() {
   };
 
   // Funções de login/logout
-  const handleLogin = () => {
+  const handleLogin = (userData) => {
     setIsLoggedIn(true);
+    setUserName(userData.username);
+    console.log('Nome do usuário definido:', userData.username);
   };
 
   const handleLogout = () => {
@@ -181,6 +184,7 @@ function App() {
           sidebarColor={customization.sidebar_color}
           buttonColor={customization.button_color}
           fontColor={customization.font_color}
+          userName={userName} // Passando o nome do usuário para o Topbar
         />
 
         <div className="flex h-full">
