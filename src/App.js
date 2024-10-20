@@ -2,29 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-// Remova as importações não utilizadas
-// import {
-//   Home,
-//   Settings,
-//   BarChart2,
-//   Leaf,
-//   Users,
-//   Briefcase,
-//   ChevronDown,
-//   ChevronRight,
-//   Menu,
-//   Book,
-//   ClipboardList,
-//   Database,
-// } from 'lucide-react';
-
-// Importar dados de arquivos separados
-import articlesData from './data/articles';
-import actionPlansData from './data/actionPlans';
-import dataSourcesData from './data/dataSources';
-import kpisData from './data/kpis';
-import menuItemsData from './data/menuItems';
-
 // Importar componentes
 import HomeContent from './components/HomeContent';
 import AdminContent from './components/AdminContent';
@@ -40,21 +17,25 @@ import ComparacaoKPI from './components/ComparacaoKPI';
 import Customization from './components/Customization';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
-import CompanyManagement from './components/CompanyManagement'; // Adicione esta linha
+import CompanyManagement from './components/CompanyManagement';
 import KPITemplate from './components/KPITemplate';
 import KPITracker from './components/KPITracker';
 import Register from './components/Register';
 
-// Importar estilos
+// Importar dados e estilos
+import articlesData from './data/articles';
+import actionPlansData from './data/actionPlans';
+import dataSourcesData from './data/dataSources';
+import kpisData from './data/kpis';
+import menuItemsData from './data/menuItems';
 import './index.css';
 
 function App() {
-  // Estados de personalização
   const [activeMenuItem, setActiveMenuItem] = useState('/');
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [customization, setCustomization] = useState({
     sidebar_color: '#ffffff',
     button_color: '#3490dc',
@@ -63,42 +44,15 @@ function App() {
   });
   const [userName, setUserName] = useState('');
 
-  // Inicializar estados com dados importados
   const [articles, setArticles] = useState(articlesData);
   const [actionPlans, setActionPlans] = useState(actionPlansData);
   const [dataSources, setDataSources] = useState(dataSourcesData);
   const [kpis, setKpis] = useState(kpisData);
   const menuItems = menuItemsData;
 
-  // Adicione este novo estado para os templates de KPI
   const [kpiTemplates, setKpiTemplates] = useState([]);
-
-  // Adicione este novo estado para as entradas de KPI
   const [kpiEntries, setKpiEntries] = useState([]);
-
-  // Função para alternar a sidebar
-  const toggleSidebar = () => {
-    setIsSidebarCollapsed(!isSidebarCollapsed);
-  };
-
-  // Funções de login/logout
-  const handleLogin = (userData) => {
-    setIsLoggedIn(true);
-    setUserName(userData.username);
-    console.log('Nome do usuário definido:', userData.username);
-  };
-
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-  };
-
   const [isRegistering, setIsRegistering] = useState(false);
-
-  const handleRegister = (userData) => {
-    setIsLoggedIn(true);
-    setIsRegistering(false);
-    // Aqui você pode adicionar lógica adicional, como salvar os dados do usuário no estado
-  };
 
   useEffect(() => {
     fetchCustomization();
@@ -113,7 +67,27 @@ function App() {
     }
   };
 
-  // Função para renderizar o conteúdo baseado no item de menu ativo
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(!isSidebarCollapsed);
+  };
+
+  const handleLogin = (userData) => {
+    setIsLoggedIn(true);
+    setUserName(userData.username);
+    console.log('Nome do usuário definido:', userData.username);
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setActiveMenuItem('/');
+  };
+
+  const handleRegister = (userData) => {
+    setIsLoggedIn(true);
+    setIsRegistering(false);
+    setUserName(userData.username);
+  };
+
   const renderContent = () => {
     switch (activeMenuItem) {
       case '/':
@@ -168,10 +142,9 @@ function App() {
     }
   };
 
-  // Verifica se o usuário está logado
   if (!isLoggedIn) {
     if (isRegistering) {
-      return <Register onRegister={handleRegister} />;
+      return <Register onRegister={handleRegister} onCancel={() => setIsRegistering(false)} />;
     }
     return <LoginPage onLogin={handleLogin} onRegister={() => setIsRegistering(true)} />;
   }
@@ -184,7 +157,7 @@ function App() {
           sidebarColor={customization.sidebar_color}
           buttonColor={customization.button_color}
           fontColor={customization.font_color}
-          userName={userName} // Passando o nome do usuário para o Topbar
+          userName={userName}
         />
 
         <div className="flex h-full">
