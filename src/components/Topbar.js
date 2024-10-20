@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bell, LogOut, User } from 'lucide-react';
 
-const Topbar = ({ onLogout, sidebarColor, fontColor, userName }) => {
+const Topbar = ({ onLogout, sidebarColor, fontColor, userName, role }) => {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false); // Estado para controlar o dropdown de notificações
   const notificationRef = useRef(null); // Ref para o botão de notificações e o dropdown
 
@@ -31,15 +31,17 @@ const Topbar = ({ onLogout, sidebarColor, fontColor, userName }) => {
       style={{ backgroundColor: sidebarColor }}
       className="h-16 flex justify-between items-center px-4"
     >
-      {/* Espaço à esquerda para manter a estrutura */}
-      <div />
+      {/* Role do usuário à esquerda */}
+      <div className="flex items-center" style={{ color: fontColor }}>
+        <span className="font-semibold">{role || 'Função não definida'}</span>
+      </div>
 
       {/* Nome do usuário, Notificações e Logout à direita */}
       <div className="flex items-center relative ml-auto" ref={notificationRef}>
         {/* Nome do usuário */}
         <div className="flex items-center mr-6" style={{ color: fontColor }}>
           <User size={24} className="mr-2" />
-          <span>{userName || 'Usuário'}</span>
+          <span className="font-semibold">{userName || 'Usuário'}</span>
         </div>
 
         {/* Botão de Notificações */}

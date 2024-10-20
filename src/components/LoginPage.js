@@ -14,7 +14,8 @@ const LoginPage = ({ onLogin }) => {
     try {
       const response = await axios.post('http://localhost:8000/login', { username, password });
       if (response.data.message === 'Login successful') {
-        onLogin({ username: username }); // Passando o nome do usuário para App.js
+        console.log('Login response:', response.data); // Adicione este log
+        onLogin({ username: response.data.username, role: response.data.role });
       } else {
         setError('Login falhou. Por favor, verifique suas credenciais.');
       }

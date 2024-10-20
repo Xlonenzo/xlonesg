@@ -564,16 +564,17 @@ class LoginData(BaseModel):
 
 @app.post("/login")
 def login(login_data: LoginData, db: Session = Depends(get_db)):
-    print(f"Login attempt for user: {login_data.username}")  # Log
+    print(f"Login attempt for user: {login_data.username}")
     user = db.query(models.User).filter(models.User.username == login_data.username).first()
     if not user:
-        print(f"User not found: {login_data.username}")  # Log
+        print(f"User not found: {login_data.username}")
         raise HTTPException(status_code=400, detail="Incorrect username or password")
     if not verify_password(login_data.password, user.hashed_password):
-        print(f"Incorrect password for user: {login_data.username}")  # Log
+        print(f"Incorrect password for user: {login_data.username}")
         raise HTTPException(status_code=400, detail="Incorrect username or password")
-    print(f"Successful login for user: {login_data.username}")  # Log
-    return {"message": "Login successful"}
+    print(f"Successful login for user: {login_data.username}")
+    print(f"User role: {user.role}")
+    return {"message": "Login successful", "username": user.username, "role": user.role}
 
 # Rotas para usuários
 @app.post("/users/", response_model=schemas.User)
@@ -634,3 +635,4 @@ if __name__ == "__main__":
     models.Base.metadata.create_all(bind=engine)
     print("Tabelas criadas (se não existirem)")
     print("Rotas definidas em main.py")
+

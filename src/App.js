@@ -43,6 +43,7 @@ function App() {
     logo_url: ''
   });
   const [userName, setUserName] = useState('');
+  const [userRole, setUserRole] = useState('');
 
   const [articles, setArticles] = useState(articlesData);
   const [actionPlans, setActionPlans] = useState(actionPlansData);
@@ -72,8 +73,10 @@ function App() {
   };
 
   const handleLogin = (userData) => {
+    console.log('User data after login:', userData); // Adicione este log
     setIsLoggedIn(true);
     setUserName(userData.username);
+    setUserRole(userData.role);
     console.log('Nome do usuário definido:', userData.username);
   };
 
@@ -158,6 +161,7 @@ function App() {
           buttonColor={customization.button_color}
           fontColor={customization.font_color}
           userName={userName}
+          role={userRole}
         />
 
         <div className="flex h-full">
