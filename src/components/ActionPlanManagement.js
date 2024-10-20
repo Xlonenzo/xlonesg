@@ -9,7 +9,7 @@ function ActionPlanManagement() {
     objective: '',
     start_date: '',
     end_date: '',
-    kpi_id: null,
+    entry_id: null,
   });
   const [isAddingPlan, setIsAddingPlan] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
@@ -33,7 +33,7 @@ function ActionPlanManagement() {
   const fetchViewKPIs = async () => {
     try {
       const response = await axios.get('http://localhost:8000/api/kpi-entries-with-templates');
-      console.log('KPIs da view:', response.data); // Log para depuração
+      console.log('KPIs da view:', response.data);
       setViewKpis(response.data);
     } catch (error) {
       console.error('Erro ao buscar KPIs da view:', error);
@@ -48,7 +48,7 @@ function ActionPlanManagement() {
         objective: '',
         start_date: '',
         end_date: '',
-        kpi_id: null,
+        entry_id: null,
       });
       setIsAddingPlan(false);
     } catch (error) {
@@ -69,10 +69,18 @@ function ActionPlanManagement() {
   const handleDeleteActionPlan = async (id) => {
     if (window.confirm('Tem certeza que deseja excluir este plano de ação?')) {
       try {
-        await axios.delete(`http://localhost:8000/api/action-plans/${id}`);
-        setActionPlans(actionPlans.filter((plan) => plan.id !== id));
+        const response = await axios.delete(`http://localhost:8000/api/action-plans/${id}`);
+        if (response.status === 200) {
+          setActionPlans(actionPlans.filter((plan) => plan.id !== id));
+        }
       } catch (error) {
-        console.error('Erro ao deletar plano de ação:', error);
+        if (error.response && error.response.status === 404) {
+          console.error('Erro ao deletar plano de ação: Plano não encontrado');
+          alert('Erro: O plano de ação não foi encontrado. Ele pode já ter sido deletado.');
+        } else {
+          console.error('Erro ao deletar plano de ação:', error);
+          alert('Ocorreu um erro ao tentar deletar o plano de ação. Por favor, tente novamente.');
+        }
       }
     }
   };
@@ -111,13 +119,13 @@ function ActionPlanManagement() {
             className="w-full p-2 border rounded mb-2"
           />
           <select
-            value={newActionPlan.kpi_id || ''}
-            onChange={(e) => setNewActionPlan({...newActionPlan, kpi_id: e.target.value ? parseInt(e.target.value) : null})}
+            value={newActionPlan.entry_id || ''}
+            onChange={(e) => setNewActionPlan({...newActionPlan, entry_id: e.target.value ? parseInt(e.target.value) : null})}
             className="w-full p-2 border rounded mb-2"
           >
             <option value="">Selecione um KPI</option>
             {viewKpis.map(kpi => (
-              <option key={kpi.id} value={kpi.id}>{kpi.name || kpi.template_name}</option>
+              <option key={kpi.entry_id} value={kpi.entry_id}>{kpi.name || kpi.template_name}</option>
             ))}
           </select>
           <button
@@ -199,13 +207,13 @@ function ActionPlanManagement() {
             className="w-full p-2 border rounded mb-2"
           />
           <select
-            value={editingPlan.kpi_id || ''}
-            onChange={(e) => setEditingPlan({...editingPlan, kpi_id: e.target.value ? parseInt(e.target.value) : null})}
+            value={editingPlan.entry_id || ''}
+            onChange={(e) => setEditingPlan({...editingPlan, entry_id: e.target.value ? parseInt(e.target.value) : null})}
             className="w-full p-2 border rounded mb-2"
           >
             <option value="">Selecione um KPI</option>
             {viewKpis.map(kpi => (
-              <option key={kpi.id} value={kpi.id}>{kpi.name || kpi.template_name}</option>
+              <option key={kpi.entry_id} value={kpi.entry_id}>{kpi.name || kpi.template_name}</option>
             ))}
           </select>
           <button

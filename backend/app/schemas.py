@@ -41,16 +41,16 @@ class TaskCreate(TaskBase):
 
 class Task(TaskBase):
     id: int
-    action_plan_id: int
+    action_plan_id: Optional[int] = None
 
     class Config:
         from_attributes = True
 
 class ActionPlanBase(BaseModel):
     objective: str
-    start_date: date
-    end_date: date
-    kpi_id: Optional[int] = None  # Adicionado este campo
+    start_date: str
+    end_date: str
+    entry_id: Optional[int] = None
 
 class ActionPlanCreate(ActionPlanBase):
     pass
@@ -58,10 +58,21 @@ class ActionPlanCreate(ActionPlanBase):
 class ActionPlan(ActionPlanBase):
     id: int
     tasks: List[Task] = []
-    kpi: Optional[KPI] = None
 
     class Config:
         from_attributes = True
+
+    @classmethod
+    def from_orm(cls, obj):
+        data = {
+            "id": obj.id,
+            "objective": obj.objective,
+            "start_date": obj.start_date.isoformat() if isinstance(obj.start_date, date) else obj.start_date,
+            "end_date": obj.end_date.isoformat() if isinstance(obj.end_date, date) else obj.end_date,
+            "entry_id": obj.entry_id,
+            "tasks": [Task.from_orm(task) for task in obj.tasks]
+        }
+        return cls(**data)
 
 class CompanyBase(BaseModel):
     cnpj: str

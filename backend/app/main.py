@@ -16,6 +16,7 @@ import os
 from passlib.context import CryptContext
 from pydantic import BaseModel
 import logging
+from datetime import date
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -65,11 +66,12 @@ def create_action_plan(action_plan: schemas.ActionPlanCreate, db: Session = Depe
     db.add(db_action_plan)
     db.commit()
     db.refresh(db_action_plan)
-    return db_action_plan
+    return schemas.ActionPlan.from_orm(db_action_plan)
 
 @app.get("/api/action-plans", response_model=List[schemas.ActionPlan])
 def read_action_plans(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return db.query(models.ActionPlan).offset(skip).limit(limit).all()
+    action_plans = db.query(models.ActionPlan).offset(skip).limit(limit).all()
+    return [schemas.ActionPlan.from_orm(plan) for plan in action_plans]
 
 # Nova rota para adicionar tarefa a um plano de ação
 @app.post("/api/action-plans/{action_plan_id}/tasks", response_model=schemas.Task)
@@ -159,17 +161,31 @@ def update_action_plan(action_plan_id: int, action_plan: schemas.ActionPlanCreat
         setattr(db_action_plan, key, value)
     db.commit()
     db.refresh(db_action_plan)
-    return db_action_plan
+    return schemas.ActionPlan.from_orm(db_action_plan)
 
 # Remover um plano de ação
 @app.delete("/api/action-plans/{action_plan_id}", response_model=schemas.ActionPlan)
 def delete_action_plan(action_plan_id: int, db: Session = Depends(get_db)):
     db_action_plan = db.query(models.ActionPlan).filter(models.ActionPlan.id == action_plan_id).first()
     if db_action_plan is None:
-        raise HTTPException(status_code=404, detail="Action plan not found")
+        raise HTTPException(status_code=404, detail=f"Action plan with id {action_plan_id} not found")
+    
+    # Remova as tarefas associadas
+    db.query(models.Task).filter(models.Task.action_plan_id == action_plan_id).delete()
+    
+    # Agora delete o plano de ação
     db.delete(db_action_plan)
     db.commit()
-    return db_action_plan
+    
+    # Crie um objeto ActionPlan sem tarefas para retornar
+    return schemas.ActionPlan(
+        id=db_action_plan.id,
+        objective=db_action_plan.objective,
+        start_date=db_action_plan.start_date.isoformat() if isinstance(db_action_plan.start_date, date) else db_action_plan.start_date,
+        end_date=db_action_plan.end_date.isoformat() if isinstance(db_action_plan.end_date, date) else db_action_plan.end_date,
+        entry_id=db_action_plan.entry_id,
+        tasks=[]
+    )
 
 # Atualizar uma tarefa
 @app.put("/api/tasks/{task_id}", response_model=schemas.Task)

@@ -24,8 +24,7 @@ class KPI(Base):
     kpicode = Column(String, unique=True, index=True)
     company_category = Column(String)
     isfavorite = Column(Boolean, default=False)
-    compliance = Column(ARRAY(String))  # Novo campo
-    action_plans = relationship("ActionPlan", back_populates="kpi")
+    compliance = Column(ARRAY(String))
 
 class ActionPlan(Base):
     __tablename__ = "actionplans"
@@ -35,10 +34,15 @@ class ActionPlan(Base):
     objective = Column(String, index=True)
     start_date = Column(String)
     end_date = Column(String)
-    kpi_id = Column(Integer, ForeignKey("kpis.id"))
+    entry_id = Column(Integer, index=True)
+    cnpj = Column(String(14), index=True)
 
     tasks = relationship("Task", back_populates="action_plan")
-    kpi = relationship("KPI", back_populates="action_plans")
+
+    # Relacionamento com a view KPIEntryWithTemplate
+    kpi_entry = relationship("KPIEntryWithTemplate", 
+                             foreign_keys=[entry_id], 
+                             primaryjoin="ActionPlan.entry_id == KPIEntryWithTemplate.entry_id")
 
 class Task(Base):
     __tablename__ = "tasks"
@@ -49,7 +53,7 @@ class Task(Base):
     status = Column(String)
     impact = Column(String)
     probability = Column(String)
-    action_plan_id = Column(Integer, ForeignKey("actionplans.id"))  # Certifique-se de que o nome da tabela está correto
+    action_plan_id = Column(Integer, ForeignKey("xlonesg.actionplans.id", ondelete="CASCADE"))
 
     action_plan = relationship("ActionPlan", back_populates="tasks")
 
