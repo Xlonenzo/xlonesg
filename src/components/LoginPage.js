@@ -14,7 +14,7 @@ const LoginPage = ({ onLogin }) => {
     try {
       const response = await axios.post('http://localhost:8000/login', { username, password });
       if (response.data.message === 'Login successful') {
-        console.log('Login response:', response.data); // Adicione este log
+        console.log('Login response:', response.data);
         onLogin({ username: response.data.username, role: response.data.role });
       } else {
         setError('Login falhou. Por favor, verifique suas credenciais.');
@@ -29,12 +29,14 @@ const LoginPage = ({ onLogin }) => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
+          {/* Use o caminho relativo à pasta public para o logotipo */}
+          <img className="mx-auto h-24 w-auto" src={process.env.PUBLIC_URL + '/logo.png'} alt="Logo" />
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Faça login na sua conta
           </h2>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && <div className="text-red-500 text-center">{error}</div>} {/* Exibe a mensagem de erro */}
+          {error && <div className="text-red-500 text-center">{error}</div>}
           <input type="hidden" name="remember" value="true" />
           <div className="rounded-md shadow-sm -space-y-px">
             <div>

@@ -71,12 +71,14 @@ function KPITemplate({ sidebarColor, buttonColor }) {
     { label: "CSRD", value: "csrd" },
     { label: "IDiversa", value: "idiversa" },
     { label: "Social Bond Principles", value: "social_bond_principles" },
+    { label: "Green Bond Principles", value: "green_bond_principles" },
   ];
 
   const complianceFullNames = {
     'csrd': 'CSRD',
     'idiversa': 'IDiversa',
-    'social_bond_principles': 'Social Bond Principles'
+    'social_bond_principles': 'Social Bond Principles',
+    'green_bond_principles': 'Green Bond Principles'
   };
 
   // Adicione estas duas novas constantes
