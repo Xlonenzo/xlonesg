@@ -96,25 +96,27 @@ function App() {
       case '/':
         return <HomeContent kpis={kpis} />;
       case '/admin':
-        return <AdminContent />;
+        return userRole === 'admin' ? <AdminContent /> : <UnauthorizedAccess />;
       case '/admin/customization':
-        return (
+        return userRole === 'admin' ? (
           <Customization
             customization={customization}
             setCustomization={setCustomization}
           />
-        );
+        ) : <UnauthorizedAccess />;
       case '/info-library':
         return <InfoLibrary articles={articles} setArticles={setArticles} />;
       case '/admin/data-source':
-        return (
+        return userRole === 'admin' ? (
           <DataSourceManagement
             dataSources={dataSources}
             setDataSources={setDataSources}
           />
-        );
+        ) : <UnauthorizedAccess />;
       case '/admin/user-management':
-        return <UserManagement buttonColor={customization.button_color} />;
+        return userRole === 'admin' ? (
+          <UserManagement buttonColor={customization.button_color} />
+        ) : <UnauthorizedAccess />;
       case '/analytics/environment':
         return <AnalyticsContent pageTitle="Meio Ambiente" />;
       case '/analytics/governance':
@@ -126,7 +128,9 @@ function App() {
       case '/kpi-management':
         return <KPIManagement kpis={kpis} setKpis={setKpis} buttonColor={customization.button_color} />;
       case '/kpi-templates':
-        return <KPITemplate kpis={kpiTemplates} setKpis={setKpiTemplates} sidebarColor={customization.sidebar_color} buttonColor={customization.button_color} />;
+        return ['admin', 'editor'].includes(userRole) ? (
+          <KPITemplate kpis={kpiTemplates} setKpis={setKpiTemplates} sidebarColor={customization.sidebar_color} buttonColor={customization.button_color} />
+        ) : <UnauthorizedAccess />;
       case '/action-plan':
         return (
           <ActionPlanManagement
@@ -137,9 +141,11 @@ function App() {
           />
         );
       case '/admin/company-management':
-        return <CompanyManagement />;
+        return userRole === 'admin' ? <CompanyManagement /> : <UnauthorizedAccess />;
       case '/kpi-tracker':
-        return <KPITracker kpiEntries={kpiEntries} setKpiEntries={setKpiEntries} sidebarColor={customization.sidebar_color} buttonColor={customization.button_color} />;
+        return ['admin', 'editor'].includes(userRole) ? (
+          <KPITracker kpiEntries={kpiEntries} setKpiEntries={setKpiEntries} sidebarColor={customization.sidebar_color} buttonColor={customization.button_color} />
+        ) : <UnauthorizedAccess />;
       default:
         return <div>Selecione uma opção do menu</div>;
     }
@@ -194,3 +200,10 @@ function App() {
 }
 
 export default App;
+
+// Componente para exibir mensagem de acesso não autorizado
+const UnauthorizedAccess = () => (
+  <div className="text-red-600 font-bold">
+    Acesso não autorizado. Você não tem permissão para visualizar esta página.
+  </div>
+);
