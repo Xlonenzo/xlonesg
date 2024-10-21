@@ -11,6 +11,9 @@ import {
   Database,
   User,
   Sliders,
+  Building,
+  FileText,
+  Activity,
 } from 'lucide-react';
 
 const menuItemsData = [
@@ -21,9 +24,9 @@ const menuItemsData = [
     path: '/admin',
     subItems: [
       { name: 'Fonte de Dados', icon: <Database size={20} />, path: '/admin/data-source' },
-      { name: 'Perfis e Usuários', icon: <User size={20} />, path: '/admin/user-management' }, 
-      // Novo item para Personalização
-      { name: 'Personalização', icon: <Settings size={20} />, path: '/admin/customization' }
+      { name: 'Perfis e Usuários', icon: <User size={20} />, path: '/admin/user-management' },
+      { name: 'Personalização', icon: <Settings size={20} />, path: '/admin/customization' },
+      { name: 'Gerenciamento de Empresas', icon: <Building size={20} />, path: '/admin/company-management' },
     ]
   },
   {
@@ -37,7 +40,8 @@ const menuItemsData = [
       { name: 'Comparação de KPI', icon: <Sliders size={20} />, path: '/analytics/comparacao-kpi' },
     ],
   },
-  { name: 'Gerenciamento de KPIs', icon: <Settings size={20} />, path: '/kpi-management' },
+  { name: 'KPIs', icon: <FileText size={20} />, path: '/kpi-templates' },
+  { name: 'Rastreador de KPIs', icon: <Activity size={20} />, path: '/kpi-tracker' },
   { name: 'Biblioteca de Informações', icon: <Book size={20} />, path: '/info-library' },
   { name: 'Plano de Ação', icon: <ClipboardList size={20} />, path: '/action-plan' },
 ];

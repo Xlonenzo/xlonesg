@@ -1,81 +1,146 @@
 // Customization.js
 import React, { useState } from 'react';
+import axios from 'axios';
 
-const Customization = ({ setSidebarColor, setLogo, setButtonColor, setFontColor }) => {
-  const [newLogo, setNewLogo] = useState(null); // Estado para armazenar a nova logo temporária
+const Customization = ({ customization, setCustomization }) => {
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Função para trocar a cor da sidebar
-  const handleSidebarColorChange = (event) => {
-    setSidebarColor(event.target.value);
+  const handleColorChange = async (event, type) => {
+    const newCustomization = { ...customization, [type]: event.target.value };
+    setCustomization(newCustomization);
+    await saveCustomization(newCustomization);
   };
 
-  // Função para trocar a cor do botão
-  const handleButtonColorChange = (event) => {
-    setButtonColor(event.target.value);
-  };
-
-  // Função para trocar a cor da fonte
-  const handleFontColorChange = (event) => {
-    setFontColor(event.target.value);
-  };
-
-  // Função para trocar o logo
-  const handleLogoChange = (event) => {
+  const handleLogoChange = async (event) => {
     const file = event.target.files[0];
     if (file) {
-      const logoUrl = URL.createObjectURL(file); // Cria uma URL temporária para visualizar a imagem
-      setNewLogo(logoUrl); // Armazena a logo localmente
-      setLogo(logoUrl); // Atualiza o logo na sidebar
+      setIsLoading(true);
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await axios.post('http://localhost:8000/api/upload-logo', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        const logoUrl = response.data.logo_url;
+        const newCustomization = { ...customization, logo_url: logoUrl };
+        setCustomization(newCustomization);
+        await saveCustomization(newCustomization);
+      } catch (error) {
+        console.error('Erro ao fazer upload da logo:', error.response ? error.response.data : error.message);
+        alert('Erro ao fazer upload da logo: ' + (error.response ? error.response.data.detail : error.message));
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const saveCustomization = async (newCustomization) => {
+    try {
+      setIsLoading(true);
+      if (newCustomization.id) {
+        await axios.put(`http://localhost:8000/api/customization/${newCustomization.id}`, newCustomization);
+      } else {
+        const response = await axios.post('http://localhost:8000/api/customization', newCustomization);
+        setCustomization(response.data);
+      }
+    } catch (error) {
+      console.error('Erro ao salvar customização:', error);
+      alert('Erro ao salvar customização');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div>
-      <h2 className="text-xl font-bold mb-4">Personalização</h2>
+    <div className="bg-gray-100 min-h-screen p-8">
+      <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-md p-8">
+        <h2 className="text-3xl font-bold mb-8 text-center text-gray-800">Personalização</h2>
 
-      {/* Alterar a cor da Sidebar */}
-      <label className="block mb-2">Cor da Sidebar:</label>
-      <input
-        type="color"
-        onChange={handleSidebarColorChange}
-        className="block mb-4"
-        defaultValue="#727E7A"
-      />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Cor da Sidebar:</label>
+              <div className="flex items-center">
+                <input
+                  type="color"
+                  value={customization.sidebar_color}
+                  onChange={(e) => handleColorChange(e, 'sidebar_color')}
+                  className="h-10 w-10 rounded-full shadow-sm cursor-pointer"
+                />
+                <span className="ml-3 text-gray-600">{customization.sidebar_color}</span>
+              </div>
+            </div>
 
-      {/* Alterar a cor do Botão */}
-      <label className="block mb-2">Cor do Botão:</label>
-      <input
-        type="color"
-        onChange={handleButtonColorChange}
-        className="block mb-4"
-        defaultValue="#4A5568" // Cor padrão: cinza escuro
-      />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Cor do Botão:</label>
+              <div className="flex items-center">
+                <input
+                  type="color"
+                  value={customization.button_color}
+                  onChange={(e) => handleColorChange(e, 'button_color')}
+                  className="h-10 w-10 rounded-full shadow-sm cursor-pointer"
+                />
+                <span className="ml-3 text-gray-600">{customization.button_color}</span>
+              </div>
+            </div>
 
-      {/* Alterar a cor da Fonte */}
-      <label className="block mb-2">Cor da Fonte:</label>
-      <input
-        type="color"
-        onChange={handleFontColorChange}
-        className="block mb-4"
-        defaultValue="#D1D5DB" // Cor padrão: cinza claro
-      />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Cor da Fonte:</label>
+              <div className="flex items-center">
+                <input
+                  type="color"
+                  value={customization.font_color}
+                  onChange={(e) => handleColorChange(e, 'font_color')}
+                  className="h-10 w-10 rounded-full shadow-sm cursor-pointer"
+                />
+                <span className="ml-3 text-gray-600">{customization.font_color}</span>
+              </div>
+            </div>
+          </div>
 
-      {/* Upload do novo logo */}
-      <label className="block mb-2">Alterar Logo:</label>
-      <input
-        type="file"
-        accept="image/*"
-        onChange={handleLogoChange}
-        className="block mb-4"
-      />
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Alterar Logo:</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleLogoChange}
+                className="block w-full text-sm text-gray-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-full file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-blue-50 file:text-blue-700
+                  hover:file:bg-blue-100"
+              />
+            </div>
 
-      {/* Exibir a logo temporária para visualização */}
-      {newLogo && (
-        <div className="mt-4">
-          <h3 className="text-lg mb-2">Visualização da Nova Logo:</h3>
-          <img src={newLogo} alt="Nova Logo" className="h-16 w-auto" />
+            {customization.logo_url && (
+              <div className="mt-4">
+                <h3 className="text-lg font-medium text-gray-700 mb-2">Logo Atual:</h3>
+                <div className="border rounded-lg p-4 bg-gray-50">
+                  <img 
+                    src={customization.logo_url} 
+                    alt="Logo Atual" 
+                    className="max-h-32 w-auto mx-auto"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = "/placeholder-logo.png";
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      )}
+
+        {isLoading && (
+          <div className="mt-8 text-center">
+            <p className="text-blue-600 font-semibold">Salvando alterações...</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

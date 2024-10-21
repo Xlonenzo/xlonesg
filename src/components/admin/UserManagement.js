@@ -1,179 +1,224 @@
 // src/components/admin/UserManagement.js
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
-const initialRolesData = [
-  { id: 1, name: 'Admin', description: 'Acesso total ao sistema' },
-  { id: 2, name: 'Editor', description: 'Pode editar conteúdos' },
-  { id: 3, name: 'Viewer', description: 'Acesso apenas para visualização' },
-];
+function UserManagement({ buttonColor }) {
+  const [users, setUsers] = useState([]);
+  const [newUsername, setNewUsername] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newRole, setNewRole] = useState('viewer'); // Novo estado para role
+  const [editingUser, setEditingUser] = useState(null);
 
-const initialUsersData = [
-  { id: 1, name: 'João Silva', role: 'Admin' },
-  { id: 2, name: 'Maria Souza', role: 'Editor' },
-  { id: 3, name: 'Carlos Oliveira', role: 'Viewer' },
-];
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
-function UserManagement() {
-  const [roles, setRoles] = useState(initialRolesData);
-  const [users, setUsers] = useState(initialUsersData);
-  const [newRoleName, setNewRoleName] = useState('');
-  const [newRoleDescription, setNewRoleDescription] = useState('');
-  const [newUserName, setNewUserName] = useState('');
-  const [newUserRole, setNewUserRole] = useState(roles[0]?.name || '');
-
-  // Função para alterar o perfil (role) de um usuário
-  const handleRoleChange = (userId, newRole) => {
-    const updatedUsers = users.map(user =>
-      user.id === userId ? { ...user, role: newRole } : user
-    );
-    setUsers(updatedUsers);
-  };
-
-  // Função para adicionar um novo perfil (role)
-  const handleAddRole = () => {
-    if (newRoleName && newRoleDescription) {
-      const newRole = {
-        id: roles.length + 1,
-        name: newRoleName,
-        description: newRoleDescription,
-      };
-      setRoles([...roles, newRole]);
-      setNewRoleName(''); // Limpa o campo após adicionar
-      setNewRoleDescription(''); // Limpa o campo após adicionar
-    } else {
-      alert('Por favor, preencha todos os campos para adicionar um novo perfil.');
+  const fetchUsers = async () => {
+    try {
+      const response = await axios.get('http://localhost:8000/users/');
+      setUsers(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar usuários:', error);
+      alert('Erro ao carregar usuários. Por favor, tente novamente.');
     }
   };
 
-  // Função para adicionar um novo usuário
-  const handleAddUser = () => {
-    if (newUserName && newUserRole) {
-      const newUser = {
-        id: users.length + 1,
-        name: newUserName,
-        role: newUserRole,
-      };
-      setUsers([...users, newUser]);
-      setNewUserName(''); // Limpa o campo após adicionar
-      setNewUserRole(roles[0]?.name || ''); // Reseta o campo de role
-    } else {
-      alert('Por favor, preencha todos os campos para adicionar um novo usuário.');
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post('http://localhost:8000/users/', {
+        username: newUsername,
+        email: newEmail,
+        password: newPassword,
+        role: newRole
+      });
+      alert('Usuário criado com sucesso!');
+      resetForm();
+      fetchUsers();
+    } catch (error) {
+      console.error('Erro ao criar usuário:', error);
+      alert('Erro ao criar usuário. Por favor, tente novamente.');
     }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (window.confirm('Tem certeza que deseja excluir este usuário?')) {
+      try {
+        const response = await axios.delete(`http://localhost:8000/users/${userId}`);
+        if (response.data.message === "User deleted successfully") {
+          alert('Usuário excluído com sucesso!');
+          fetchUsers();
+        } else {
+          throw new Error('Resposta inesperada do servidor');
+        }
+      } catch (error) {
+        console.error('Erro ao excluir usuário:', error);
+        if (error.response) {
+          // O servidor respondeu com um status de erro
+          alert(`Erro ao excluir usuário: ${error.response.data.detail || 'Erro desconhecido'}`);
+        } else if (error.request) {
+          // A requisição foi feita mas não houve resposta
+          alert('Erro ao excluir usuário: Não foi possível conectar ao servidor');
+        } else {
+          // Algo aconteceu na configuração da requisição que causou o erro
+          alert(`Erro ao excluir usuário: ${error.message}`);
+        }
+      }
+    }
+  };
+
+  const handleEditUser = (user) => {
+    setEditingUser(user);
+    setNewUsername(user.username);
+    setNewEmail(user.email);
+    setNewRole(user.role);
+  };
+
+  const handleUpdateUser = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await axios.put(`http://localhost:8000/users/${editingUser.id}`, {
+        username: newUsername,
+        email: newEmail,
+        password: newPassword,
+        role: newRole
+      });
+      console.log('Resposta do servidor:', response.data);
+      alert('Usuário atualizado com sucesso!');
+      resetForm();
+      fetchUsers();
+    } catch (error) {
+      console.error('Erro ao atualizar usuário:', error);
+      let errorMessage = 'Erro ao atualizar usuário. ';
+      if (error.response) {
+        console.error('Dados da resposta de erro:', error.response.data);
+        errorMessage += error.response.data.detail || JSON.stringify(error.response.data);
+      } else if (error.request) {
+        errorMessage += 'Não foi possível se conectar ao servidor.';
+      } else {
+        errorMessage += error.message;
+      }
+      alert(errorMessage);
+    }
+  };
+
+  const resetForm = () => {
+    setEditingUser(null);
+    setNewUsername('');
+    setNewEmail('');
+    setNewPassword('');
+    setNewRole('viewer');
   };
 
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-bold mb-4">Gerenciamento de Perfis e Usuários</h2>
+    <div className="p-6 bg-white rounded-lg shadow-md">
+      <h2 className="text-2xl font-bold mb-6 text-gray-800">Gerenciamento de Usuários</h2>
       
-      {/* Gerenciamento de Usuários */}
-      <h3 className="text-xl font-bold mb-2">Usuários</h3>
-      <table className="min-w-full bg-white shadow-md rounded mb-6">
-        <thead>
-          <tr>
-            <th className="text-left p-4">Nome</th>
-            <th className="text-left p-4">Perfil</th>
-            <th className="text-left p-4">Ações</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map(user => (
-            <tr key={user.id} className="border-b">
-              <td className="p-4">{user.name}</td>
-              <td className="p-4">{user.role}</td>
-              <td className="p-4">
-                <select
-                  value={user.role}
-                  onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                  className="border p-2 rounded"
-                >
-                  {roles.map(role => (
-                    <option key={role.id} value={role.name}>
-                      {role.name}
-                    </option>
-                  ))}
-                </select>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {/* Adicionar Novo Usuário */}
-      <div className="mt-6">
-        <h3 className="text-xl font-bold mb-2">Adicionar Novo Usuário</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input
-            type="text"
-            placeholder="Nome do Usuário"
-            value={newUserName}
-            onChange={(e) => setNewUserName(e.target.value)}
-            className="border p-2 rounded"
-          />
-          <select
-            value={newUserRole}
-            onChange={(e) => setNewUserRole(e.target.value)}
-            className="border p-2 rounded"
-          >
-            {roles.map(role => (
-              <option key={role.id} value={role.name}>
-                {role.name}
-              </option>
-            ))}
-          </select>
+      {/* Lista de Usuários */}
+      <div className="mb-8">
+        <h3 className="text-xl font-semibold mb-4 text-gray-700">Usuários Existentes</h3>
+        <div className="overflow-x-auto">
+          <table className="min-w-full bg-white border border-gray-300">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="text-left p-3 font-semibold">Nome de Usuário</th>
+                <th className="text-left p-3 font-semibold">Email</th>
+                <th className="text-left p-3 font-semibold">Role</th>
+                <th className="text-left p-3 font-semibold">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map(user => (
+                <tr key={user.id} className="border-b hover:bg-gray-50">
+                  <td className="p-3">{user.username}</td>
+                  <td className="p-3">{user.email}</td>
+                  <td className="p-3">{user.role}</td>
+                  <td className="p-3">
+                    <button
+                      onClick={() => handleEditUser(user)}
+                      style={{ backgroundColor: buttonColor }}
+                      className="text-white px-2 py-1 rounded mr-2 hover:opacity-80"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={() => handleDeleteUser(user.id)}
+                      className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
+                    >
+                      Excluir
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <button
-          onClick={handleAddUser}
-          className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        >
-          Adicionar Usuário
-        </button>
       </div>
 
-      {/* Gerenciamento de Perfis */}
-      <h3 className="text-xl font-bold mt-8 mb-2">Perfis</h3>
-      <table className="min-w-full bg-white shadow-md rounded">
-        <thead>
-          <tr>
-            <th className="text-left p-4">Perfil</th>
-            <th className="text-left p-4">Descrição</th>
-          </tr>
-        </thead>
-        <tbody>
-          {roles.map(role => (
-            <tr key={role.id} className="border-b">
-              <td className="p-4">{role.name}</td>
-              <td className="p-4">{role.description}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {/* Adicionar Novo Perfil */}
-      <div className="mt-6">
-        <h3 className="text-xl font-bold mb-2">Adicionar Novo Perfil</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Criar/Editar Usuário */}
+      <div className="bg-gray-50 p-6 rounded-lg">
+        <h3 className="text-xl font-semibold mb-4 text-gray-700">
+          {editingUser ? 'Editar Usuário' : 'Criar Novo Usuário'}
+        </h3>
+        <form onSubmit={editingUser ? handleUpdateUser : handleCreateUser} className="space-y-4">
           <input
             type="text"
-            placeholder="Nome do Perfil"
-            value={newRoleName}
-            onChange={(e) => setNewRoleName(e.target.value)}
-            className="border p-2 rounded"
+            placeholder="Nome de usuário"
+            value={newUsername}
+            onChange={(e) => setNewUsername(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
           />
           <input
-            type="text"
-            placeholder="Descrição do Perfil"
-            value={newRoleDescription}
-            onChange={(e) => setNewRoleDescription(e.target.value)}
-            className="border p-2 rounded"
+            type="email"
+            placeholder="E-mail"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
           />
-        </div>
-        <button
-          onClick={handleAddRole}
-          className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        >
-          Adicionar Perfil
-        </button>
+          <input
+            type="password"
+            placeholder="Senha"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required={!editingUser}
+          />
+          <select
+            value={newRole}
+            onChange={(e) => setNewRole(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          >
+            <option value="viewer">Viewer</option>
+            <option value="editor">Editor</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button
+            type="submit"
+            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+          >
+            {editingUser ? 'Atualizar Usuário' : 'Criar Usuário'}
+          </button>
+          {editingUser && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingUser(null);
+                setNewUsername('');
+                setNewEmail('');
+                setNewPassword('');
+                setNewRole('viewer');
+              }}
+              className="ml-2 bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
+            >
+              Cancelar Edição
+            </button>
+          )}
+        </form>
       </div>
     </div>
   );

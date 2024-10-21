@@ -1,20 +1,7 @@
 // src/components/AnalyticsContent.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-
-function KPICard({ kpi }) {
-  return (
-    <div className="bg-white shadow-md rounded-lg p-4 m-2">
-      <h3 className="text-lg font-bold mb-1">{kpi.name}</h3>
-      <p className="text-sm text-gray-600 mb-2">{kpi.description}</p>
-      <p className="text-xs text-gray-600 mb-1">Ano: {kpi.year}</p>
-      <p className="text-xs text-gray-600 mb-1">Mês: {kpi.month}</p>
-      <p className="text-xs text-gray-600 mb-1">Unidade: {kpi.unit}</p>
-      <p className="text-sm text-green-600 font-bold">Atual: {kpi.actual_value}</p>
-      <p className="text-sm text-blue-600 font-bold">Alvo: {kpi.target_value}</p>
-    </div>
-  );
-}
+import KPICard from './KPICard';
 
 function AnalyticsContent({ pageTitle }) {
   const [kpis, setKpis] = useState([]);
@@ -23,6 +10,9 @@ function AnalyticsContent({ pageTitle }) {
   const [error, setError] = useState(null);
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedUnit, setSelectedUnit] = useState('');
 
   const categoryMap = useMemo(() => ({
     'Meio Ambiente': 'environment',
@@ -30,8 +20,12 @@ function AnalyticsContent({ pageTitle }) {
     'Governança': 'governance'
   }), []);
 
+  // Definindo as opções de filtro usando useMemo
   const years = useMemo(() => [...new Set(kpis.map(kpi => kpi.year))].sort((a, b) => b - a), [kpis]);
   const months = useMemo(() => [...new Set(kpis.map(kpi => kpi.month))].sort((a, b) => a - b), [kpis]);
+  const statuses = useMemo(() => [...new Set(kpis.map(kpi => kpi.status))], [kpis]);
+  const states = useMemo(() => [...new Set(kpis.map(kpi => kpi.state))], [kpis]);
+  const units = useMemo(() => [...new Set(kpis.map(kpi => kpi.unit))], [kpis]);
 
   useEffect(() => {
     const fetchKPIs = async () => {
@@ -39,8 +33,10 @@ function AnalyticsContent({ pageTitle }) {
       try {
         const category = categoryMap[pageTitle];
         console.log(`Buscando KPIs para a categoria: ${category}`);
-        const response = await axios.get(`http://localhost:8000/api/kpis/category/${category}`);
-        console.log('Resposta da API:', response.data);
+        const response = await axios.get(`http://localhost:8000/api/kpi-entries-with-templates`, {
+          params: { category: category, limit: 1000000 }  // Aumentando o limite
+        });
+        console.log('Número de KPIs recebidos:', response.data.length);
         setKpis(response.data);
         setFilteredKpis(response.data);
         setError(null);
@@ -65,8 +61,17 @@ function AnalyticsContent({ pageTitle }) {
     if (selectedMonth) {
       filtered = filtered.filter(kpi => kpi.month === parseInt(selectedMonth));
     }
+    if (selectedStatus) {
+      filtered = filtered.filter(kpi => kpi.status === selectedStatus);
+    }
+    if (selectedState) {
+      filtered = filtered.filter(kpi => kpi.state === selectedState);
+    }
+    if (selectedUnit) {
+      filtered = filtered.filter(kpi => kpi.unit === selectedUnit);
+    }
     setFilteredKpis(filtered);
-  }, [kpis, selectedYear, selectedMonth]);
+  }, [kpis, selectedYear, selectedMonth, selectedStatus, selectedState, selectedUnit]);
 
   if (loading) return <div>Carregando...</div>;
   if (error) return <div>Erro: {error}</div>;
@@ -74,11 +79,11 @@ function AnalyticsContent({ pageTitle }) {
   return (
     <div>
       <h2 className="text-2xl font-bold mb-4">Análise de {pageTitle}</h2>
-      <div className="mb-4">
+      <div className="mb-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
         <select 
           value={selectedYear} 
           onChange={(e) => setSelectedYear(e.target.value)}
-          className="mr-2 p-2 border rounded"
+          className="p-2 border rounded"
         >
           <option value="">Todos os anos</option>
           {years.map(year => (
@@ -95,6 +100,36 @@ function AnalyticsContent({ pageTitle }) {
             <option key={month} value={month}>{month}</option>
           ))}
         </select>
+        <select 
+          value={selectedStatus} 
+          onChange={(e) => setSelectedStatus(e.target.value)}
+          className="p-2 border rounded"
+        >
+          <option value="">Todos os status</option>
+          {statuses.map(status => (
+            <option key={status} value={status}>{status}</option>
+          ))}
+        </select>
+        <select 
+          value={selectedState} 
+          onChange={(e) => setSelectedState(e.target.value)}
+          className="p-2 border rounded"
+        >
+          <option value="">Todos os estados</option>
+          {states.map(state => (
+            <option key={state} value={state}>{state}</option>
+          ))}
+        </select>
+        <select 
+          value={selectedUnit} 
+          onChange={(e) => setSelectedUnit(e.target.value)}
+          className="p-2 border rounded"
+        >
+          <option value="">Todas as unidades</option>
+          {units.map(unit => (
+            <option key={unit} value={unit}>{unit}</option>
+          ))}
+        </select>
       </div>
       <p>Total de KPIs: {filteredKpis.length}</p>
       {filteredKpis.length === 0 ? (
@@ -102,7 +137,7 @@ function AnalyticsContent({ pageTitle }) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filteredKpis.map(kpi => (
-            <KPICard key={kpi.id} kpi={kpi} />
+            <KPICard key={kpi.entry_id} kpi={kpi} />
           ))}
         </div>
       )}

@@ -1,27 +1,6 @@
-import React, { useState } from 'react';
-
-// Remova as importações não utilizadas
-// import {
-//   Home,
-//   Settings,
-//   BarChart2,
-//   Leaf,
-//   Users,
-//   Briefcase,
-//   ChevronDown,
-//   ChevronRight,
-//   Menu,
-//   Book,
-//   ClipboardList,
-//   Database,
-// } from 'lucide-react';
-
-// Importar dados de arquivos separados
-import articlesData from './data/articles';
-import actionPlansData from './data/actionPlans';
-import dataSourcesData from './data/dataSources';
-import kpisData from './data/kpis';
-import menuItemsData from './data/menuItems';
+// App.js
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
 // Importar componentes
 import HomeContent from './components/HomeContent';
@@ -38,70 +17,106 @@ import ComparacaoKPI from './components/ComparacaoKPI';
 import Customization from './components/Customization';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
+import CompanyManagement from './components/CompanyManagement';
+import KPITemplate from './components/KPITemplate';
+import KPITracker from './components/KPITracker';
+import Register from './components/Register';
 
-// Importar estilos
+// Importar dados e estilos
+import articlesData from './data/articles';
+import actionPlansData from './data/actionPlans';
+import dataSourcesData from './data/dataSources';
+import kpisData from './data/kpis';
+import menuItemsData from './data/menuItems';
 import './index.css';
 
 function App() {
-  // Estados de personalização
   const [activeMenuItem, setActiveMenuItem] = useState('/');
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
-  const [sidebarColor, setSidebarColor] = useState('#727E7A');
-  const [logo, setLogo] = useState('/logo.png');
-  const [buttonColor, setButtonColor] = useState('#4A5568');
-  const [fontColor, setFontColor] = useState('#D1D5DB');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [customization, setCustomization] = useState({
+    sidebar_color: '#ffffff',
+    button_color: '#3490dc',
+    font_color: '#333333',
+    logo_url: ''
+  });
+  const [userName, setUserName] = useState('');
+  const [userRole, setUserRole] = useState('');
 
-  // Inicializar estados com dados importados
   const [articles, setArticles] = useState(articlesData);
   const [actionPlans, setActionPlans] = useState(actionPlansData);
   const [dataSources, setDataSources] = useState(dataSourcesData);
   const [kpis, setKpis] = useState(kpisData);
   const menuItems = menuItemsData;
 
-  // Função para alternar a sidebar
+  const [kpiTemplates, setKpiTemplates] = useState([]);
+  const [kpiEntries, setKpiEntries] = useState([]);
+  const [isRegistering, setIsRegistering] = useState(false);
+
+  useEffect(() => {
+    fetchCustomization();
+  }, []);
+
+  const fetchCustomization = async () => {
+    try {
+      const response = await axios.get('http://localhost:8000/api/customization');
+      setCustomization(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar customização:', error);
+    }
+  };
+
   const toggleSidebar = () => {
     setIsSidebarCollapsed(!isSidebarCollapsed);
   };
 
-  // Funções de login/logout
-  const handleLogin = () => {
+  const handleLogin = (userData) => {
+    console.log('User data after login:', userData); // Adicione este log
     setIsLoggedIn(true);
+    setUserName(userData.username);
+    setUserRole(userData.role);
+    console.log('Nome do usuário definido:', userData.username);
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
+    setActiveMenuItem('/');
   };
 
-  // Função para renderizar o conteúdo baseado no item de menu ativo
+  const handleRegister = (userData) => {
+    setIsLoggedIn(true);
+    setIsRegistering(false);
+    setUserName(userData.username);
+  };
+
   const renderContent = () => {
     switch (activeMenuItem) {
       case '/':
         return <HomeContent kpis={kpis} />;
       case '/admin':
-        return <AdminContent />;
+        return userRole === 'admin' ? <AdminContent /> : <UnauthorizedAccess />;
       case '/admin/customization':
-        return (
+        return userRole === 'admin' ? (
           <Customization
-            setSidebarColor={setSidebarColor}
-            setLogo={setLogo}
-            setButtonColor={setButtonColor}
-            setFontColor={setFontColor}
+            customization={customization}
+            setCustomization={setCustomization}
           />
-        );
+        ) : <UnauthorizedAccess />;
       case '/info-library':
         return <InfoLibrary articles={articles} setArticles={setArticles} />;
       case '/admin/data-source':
-        return (
+        return userRole === 'admin' ? (
           <DataSourceManagement
             dataSources={dataSources}
             setDataSources={setDataSources}
           />
-        );
+        ) : <UnauthorizedAccess />;
       case '/admin/user-management':
-        return <UserManagement />;
+        return userRole === 'admin' ? (
+          <UserManagement buttonColor={customization.button_color} />
+        ) : <UnauthorizedAccess />;
       case '/analytics/environment':
         return <AnalyticsContent pageTitle="Meio Ambiente" />;
       case '/analytics/governance':
@@ -111,7 +126,11 @@ function App() {
       case '/analytics/comparacao-kpi':
         return <ComparacaoKPI />;
       case '/kpi-management':
-        return <KPIManagement kpis={kpis} setKpis={setKpis} buttonColor={buttonColor} />;
+        return <KPIManagement kpis={kpis} setKpis={setKpis} buttonColor={customization.button_color} />;
+      case '/kpi-templates':
+        return ['admin', 'editor'].includes(userRole) ? (
+          <KPITemplate kpis={kpiTemplates} setKpis={setKpiTemplates} sidebarColor={customization.sidebar_color} buttonColor={customization.button_color} />
+        ) : <UnauthorizedAccess />;
       case '/action-plan':
         return (
           <ActionPlanManagement
@@ -121,14 +140,22 @@ function App() {
             setKpis={setKpis}
           />
         );
+      case '/admin/company-management':
+        return userRole === 'admin' ? <CompanyManagement /> : <UnauthorizedAccess />;
+      case '/kpi-tracker':
+        return ['admin', 'editor'].includes(userRole) ? (
+          <KPITracker kpiEntries={kpiEntries} setKpiEntries={setKpiEntries} sidebarColor={customization.sidebar_color} buttonColor={customization.button_color} />
+        ) : <UnauthorizedAccess />;
       default:
         return <div>Selecione uma opção do menu</div>;
     }
   };
 
-  // Verifica se o usuário está logado
   if (!isLoggedIn) {
-    return <LoginPage onLogin={handleLogin} />;
+    if (isRegistering) {
+      return <Register onRegister={handleRegister} onCancel={() => setIsRegistering(false)} />;
+    }
+    return <LoginPage onLogin={handleLogin} onRegister={() => setIsRegistering(true)} />;
   }
 
   return (
@@ -136,14 +163,16 @@ function App() {
       <div className="flex flex-col w-full">
         <Topbar
           onLogout={handleLogout}
-          sidebarColor={sidebarColor}
-          buttonColor={buttonColor}
-          fontColor={fontColor}
+          sidebarColor={customization.sidebar_color}
+          buttonColor={customization.button_color}
+          fontColor={customization.font_color}
+          userName={userName}
+          role={userRole}
         />
 
         <div className="flex h-full">
           <Sidebar
-            sidebarColor={sidebarColor}
+            sidebarColor={customization.sidebar_color}
             menuItems={menuItems}
             activeMenuItem={activeMenuItem}
             setActiveMenuItem={setActiveMenuItem}
@@ -153,13 +182,13 @@ function App() {
             setIsAdminOpen={setIsAdminOpen}
             isSidebarCollapsed={isSidebarCollapsed}
             toggleSidebar={toggleSidebar}
-            logo={logo}
-            buttonColor={buttonColor}
-            fontColor={fontColor}
+            logo={customization.logo_url}
+            buttonColor={customization.button_color}
+            fontColor={customization.font_color}
           />
 
           <main className="flex-1 overflow-y-auto p-8">
-            <h1 className="text-2xl font-bold mb-6" style={{ color: fontColor }}>
+            <h1 className="text-2xl font-bold mb-6" style={{ color: customization.font_color }}>
               Dashboard ESG
             </h1>
             {renderContent()}
@@ -171,3 +200,10 @@ function App() {
 }
 
 export default App;
+
+// Componente para exibir mensagem de acesso não autorizado
+const UnauthorizedAccess = () => (
+  <div className="text-red-600 font-bold">
+    Acesso não autorizado. Você não tem permissão para visualizar esta página.
+  </div>
+);

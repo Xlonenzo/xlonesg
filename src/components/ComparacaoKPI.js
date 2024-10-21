@@ -14,7 +14,7 @@ function ComparacaoKPI() {
 
   const fetchKPIs = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/kpis');
+      const response = await axios.get('http://localhost:8000/api/kpi-entries-with-templates');
       setKpis(response.data);
     } catch (error) {
       console.error('Erro ao buscar KPIs:', error);
@@ -31,15 +31,15 @@ function ComparacaoKPI() {
 
   // Função para obter os KPIs filtrados por categoria ou CNPJ
   const getKpisOptions = () => {
-    const kpisCategoryNames = kpisCategory.map(kpi => kpi.name);
-    const kpisCNPJNames = kpisCNPJ.map(kpi => kpi.name);
+    const kpisCategoryNames = kpisCategory.map(kpi => kpi.template_name);
+    const kpisCNPJNames = kpisCNPJ.map(kpi => kpi.template_name);
     return [...new Set([...kpisCategoryNames, ...kpisCNPJNames])];
   };
 
   // Preparar os dados para o gráfico
   const getDataForChart = () => {
-    const categoryKpi = kpisCategory.find(kpi => kpi.name === selectedKpi);
-    const cnpjKpi = kpisCNPJ.find(kpi => kpi.name === selectedKpi);
+    const categoryKpi = kpisCategory.find(kpi => kpi.template_name === selectedKpi);
+    const cnpjKpi = kpisCNPJ.find(kpi => kpi.template_name === selectedKpi);
 
     return [
       {

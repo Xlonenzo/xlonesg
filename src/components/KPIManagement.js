@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { FaEdit, FaTrash } from 'react-icons/fa';
+import { MultiSelect } from "react-multi-select-component";
 
 function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
   const [isAddingKPI, setIsAddingKPI] = useState(false);
@@ -21,7 +22,8 @@ function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
     cnpj: '',
     kpicode: '',
     company_category: '',
-    isfavorite: false
+    isfavorite: false,
+    compliance: [],
   });
 
 
@@ -74,12 +76,29 @@ function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
   const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
   const statuses = ['Ativo', 'Inativo', 'Em progresso'];
 
-  const fetchKPIs = useCallback(async () => {
+  const complianceOptions = [
+    { label: "CSRD", value: "csrd" },
+    { label: "IDiversa", value: "idiversa" },
+    { label: "Social Bond Principles", value: "social_bond_principles" },
+  ];
+
+  const complianceFullNames = {
+    'csrd': 'CSRD',
+    'idiversa': 'IDiversa',
+    'social_bond_principles': 'Social Bond Principles'
+  };
+
+  const fetchKPIs = useCallback(async (category) => {
+    const url = `http://localhost:8000/api/kpis${category ? `?category=${category}` : ''}`;
+    console.log('Fetching KPIs from:', url);
     try {
-      const response = await axios.get('http://localhost:8000/api/kpis');
+      const response = await axios.get(url);
+      console.log('Response:', response.data);
       setKpis(response.data);
     } catch (error) {
-      console.error('Erro ao buscar KPIs:', error);
+      console.error('Erro ao buscar KPIs:', error.response?.data || error.message);
+      console.error('Status do erro:', error.response?.status);
+      console.error('URL da requisição:', url);
     }
   }, [setKpis]);
 
@@ -89,7 +108,11 @@ function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
 
   const handleAddKPI = async () => {
     try {
-      const response = await axios.post('http://localhost:8000/api/kpis', newKPI);
+      const kpiToAdd = {
+        ...newKPI,
+        compliance: Array.isArray(newKPI.compliance) ? newKPI.compliance : [],
+      };
+      const response = await axios.post('http://localhost:8000/api/kpis', kpiToAdd);
       setKpis([...kpis, response.data]);
       setIsAddingKPI(false);
       setNewKPI({
@@ -108,7 +131,8 @@ function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
         cnpj: '',
         kpicode: '',
         company_category: '',
-        isfavorite: false
+        isfavorite: false,
+        compliance: [],
       });
     } catch (error) {
       console.error('Erro ao adicionar KPI:', error);
@@ -118,7 +142,11 @@ function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
   const handleUpdateKPI = async () => {
     if (editingKPI) {
       try {
-        const response = await axios.put(`http://localhost:8000/api/kpis/${editingKPI.id}`, editingKPI);
+        const kpiToUpdate = {
+          ...editingKPI,
+          compliance: Array.isArray(editingKPI.compliance) ? editingKPI.compliance : [],
+        };
+        const response = await axios.put(`http://localhost:8000/api/kpis/${editingKPI.id}`, kpiToUpdate);
         setKpis(prevKPIs => prevKPIs.map(kpi => (kpi.id === editingKPI.id ? response.data : kpi)));
         setEditingKPI(null);
       } catch (error) {
@@ -196,6 +224,22 @@ function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
   };
 
   const sortedKpis = getSortedKpis(getFilteredKpis());
+
+  const handleComplianceChange = (selectedOptions, isNewKPI) => {
+    const complianceValues = selectedOptions.map(option => option.value);
+    if (isNewKPI) {
+      setNewKPI(prev => ({ ...prev, compliance: complianceValues }));
+    } else {
+      setEditingKPI(prev => ({ ...prev, compliance: complianceValues }));
+    }
+  };
+
+  const formatCompliance = (compliance) => {
+    if (Array.isArray(compliance)) {
+      return compliance.map(item => complianceFullNames[item] || item);
+    }
+    return [];
+  };
 
   const renderKPIForm = (kpi, isNewKPI = false) => (
     <div className="grid grid-cols-2 gap-4">
@@ -356,6 +400,18 @@ function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
           className="mr-2"
         />
         <label htmlFor="isfavorite">Marcar como favorito</label>
+      </div>
+      
+      <div className="col-span-2">
+        <label className="block mb-2">Compliance</label>
+        <MultiSelect
+          options={complianceOptions}
+          value={complianceOptions.filter(option => 
+            Array.isArray(kpi.compliance) && kpi.compliance.includes(option.value)
+          )}
+          onChange={(selected) => handleComplianceChange(selected, isNewKPI)}
+          labelledBy="Selecione as opções de compliance"
+        />
       </div>
     </div>
   );
@@ -541,6 +597,7 @@ function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
                   className="w-full mt-1 p-1 border rounded"
                 />
               </th>
+              <th className="px-4 py-2 border">Compliance</th>
               <th className="px-4 py-2 border">Ações</th>
             </tr>
           </thead>
@@ -553,6 +610,19 @@ function KPIManagement({ kpis, setKpis, sidebarColor, buttonColor }) {
                 <td className="px-4 py-2 border">{kpi.actual_value} {kpi.unit}</td>
                 <td className="px-4 py-2 border">{kpi.cnpj}</td>
                 <td className="px-4 py-2 border">{kpi.kpicode}</td>
+                <td className="px-4 py-2 border">
+                  {formatCompliance(kpi.compliance).length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {formatCompliance(kpi.compliance).map((item, index) => (
+                        <span key={index} className="bg-blue-100 px-2 py-1 rounded text-sm text-blue-800">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    "N/A"
+                  )}
+                </td>
                 <td className="px-4 py-2 border">
                   <div className="flex space-x-2 justify-center">
                     <button

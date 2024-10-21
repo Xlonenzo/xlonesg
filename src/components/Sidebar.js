@@ -83,11 +83,11 @@ function Sidebar({
             {/* Logo */}
             <img src={logo} alt="Logo" className="h-10 w-auto" />
             {/* Título */}
-            <span className="text-white font-bold text-lg ml-2">ESG Dashboard</span>
+            <span style={{ color: fontColor }} className="font-bold text-lg ml-2">ESG Dashboard</span>
           </div>
         )}
         {/* Botão para Colapsar/Expandir Sidebar */}
-        <button onClick={toggleSidebar} className="text-white focus:outline-none">
+        <button onClick={toggleSidebar} style={{ color: fontColor }} className="focus:outline-none">
           <Menu size={24} />
         </button>
       </div>
