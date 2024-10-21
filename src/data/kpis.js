@@ -14,7 +14,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: 'XLON',
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E1'
   },
   {
     id: 2,
@@ -30,7 +31,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: 'XLON',
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E2'
   },
   {
     id: 3,
@@ -46,7 +48,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: 'XLON',
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'S1'
   },
   {
     id: 4,
@@ -62,7 +65,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: 'XLON',
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'G1'
   },
   {
     id: 5,
@@ -78,7 +82,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: 'XLON',
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E3'
   },
   {
     id: 6,
@@ -94,7 +99,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: 'XLON',
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E4'
   },
   {
     id: 7,
@@ -110,7 +116,8 @@ const kpisData = [
     status: 'Concluído',
     is_favorite: false,
     companhia: 'XLON',
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'G2'
   },
   {
     id: 8,
@@ -126,7 +133,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: 'XLON',
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E5'
   },
   {
     id: 9,
@@ -142,7 +150,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: 'XLON',
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'S2'
   },
   {
     id: 10,
@@ -158,7 +167,8 @@ const kpisData = [
     status: 'Planejado',
     is_favorite: false,
     companhia: 'XLON',
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E6'
   },
   {
     id: 11,
@@ -174,7 +184,8 @@ const kpisData = [
     status: 'Concluído',
     is_favorite: false,
     companhia: 'XLON',
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'S3'
   },
   {
     id: 12,
@@ -190,7 +201,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: 'XLON',
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E7'
   },
   {
     id: 13,
@@ -206,7 +218,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: 'XLON',
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E8'
   },
   {
     id: 14,
@@ -222,7 +235,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: 'XLON',
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'G3'
   },
   {
     id: 15,
@@ -238,7 +252,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: 'XLON',
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E9'
   },
   {
     id: 16,
@@ -254,7 +269,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: true,
     companhia: 'XLON',
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'S4'
   },
   {
     id: 17,
@@ -270,7 +286,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: 'XLON',
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'S5'
   },
   {
     id: 18,
@@ -286,7 +303,8 @@ const kpisData = [
     status: 'Concluído',
     is_favorite: true,
     companhia: 'XLON',
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'S6'
   },
   {
     id: 19,
@@ -302,7 +320,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: 'XLON',
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E10'
   },
   {
     id: 20,
@@ -318,7 +337,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: true,
     companhia: 'XLON',
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E11'
   },
 
   // Novos KPIs com target_value e actual_value iguais e companhia em branco
@@ -336,7 +356,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: '',  // Campo em branco
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E1'
   },
   {
     id: 22,
@@ -352,7 +373,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: '',  // Campo em branco
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E2'
   },
   {
     id: 23,
@@ -368,7 +390,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: '',  // Campo em branco
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'S1'
   },
   {
     id: 24,
@@ -384,7 +407,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: '',  // Campo em branco
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'G1'
   },
   {
     id: 25,
@@ -400,7 +424,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: '',  // Campo em branco
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E3'
   },
   {
     id: 26,
@@ -416,7 +441,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: '',  // Campo em branco
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E4'
   },
   {
     id: 27,
@@ -432,7 +458,8 @@ const kpisData = [
     status: 'Concluído',
     is_favorite: false,
     companhia: '',  // Campo em branco
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'G2'
   },
   {
     id: 28,
@@ -448,7 +475,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: '',  // Campo em branco
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E5'
   },
   {
     id: 29,
@@ -464,7 +492,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: '',  // Campo em branco
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'S2'
   },
   {
     id: 30,
@@ -480,7 +509,8 @@ const kpisData = [
     status: 'Planejado',
     is_favorite: false,
     companhia: '',  // Campo em branco
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E6'
   },
   {
     id: 31,
@@ -496,7 +526,8 @@ const kpisData = [
     status: 'Concluído',
     is_favorite: false,
     companhia: '',  // Campo em branco
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'S3'
   },
   {
     id: 32,
@@ -512,7 +543,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: '',  // Campo em branco
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E7'
   },
   {
     id: 33,
@@ -528,7 +560,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: '',  // Campo em branco
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E8'
   },
   {
     id: 34,
@@ -544,7 +577,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: '',  // Campo em branco
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'G3'
   },
   {
     id: 35,
@@ -560,7 +594,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: '',  // Campo em branco
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E9'
   },
   {
     id: 36,
@@ -576,7 +611,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: true,
     companhia: '',  // Campo em branco
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'S4'
   },
   {
     id: 37,
@@ -592,7 +628,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: '',  // Campo em branco
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'S5'
   },
   {
     id: 38,
@@ -608,7 +645,8 @@ const kpisData = [
     status: 'Concluído',
     is_favorite: true,
     companhia: '',  // Campo em branco
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'S6'
   },
   {
     id: 39,
@@ -624,7 +662,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: false,
     companhia: '',  // Campo em branco
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E10'
   },
   {
     id: 40,
@@ -640,7 +679,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: true,
     companhia: '',  // Campo em branco
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E11'
   },
   {
     id: 40,
@@ -648,7 +688,7 @@ const kpisData = [
     category: 'environment',
     year: 2024,
     target_value: 1,
-    actual_value: 0,  // Igual ao target_value
+    actual_value: 0,  // Diferente do target_value
     unit: '',
     description: 'IEER - Indice ESG de Equidade Racial',
     frequency: 'Anual',
@@ -656,7 +696,8 @@ const kpisData = [
     status: 'Em andamento',
     is_favorite: true,
     companhia: '',  // Campo em branco
-    setor: 'TI'
+    setor: 'TI',
+    codigo: 'E12'
   }
 ];
 
