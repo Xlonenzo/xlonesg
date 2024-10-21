@@ -356,9 +356,9 @@ def create_kpi_template(kpi_template: schemas.KPITemplateCreate, db: Session = D
         raise HTTPException(status_code=400, detail=f"Erro ao criar template de KPI: {str(e)}")
 
 @app.get("/api/kpi-templates", response_model=List[schemas.KPITemplate])
-def read_kpi_templates(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    kpi_templates = db.query(models.KPITemplate).offset(skip).limit(limit).all()
-    return kpi_templates
+def read_kpi_templates(skip: int = 0, limit: int = 1000, db: Session = Depends(get_db)):
+    templates = db.query(models.KPITemplate).offset(skip).limit(limit).all()
+    return templates
 
 @app.get("/api/kpi-templates/{kpi_template_id}", response_model=schemas.KPITemplate)
 def read_kpi_template(kpi_template_id: int, db: Session = Depends(get_db)):

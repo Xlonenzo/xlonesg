@@ -50,7 +50,8 @@ function KPITracker({ sidebarColor, buttonColor }) {
 
   const fetchTemplates = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/kpi-templates');
+      const response = await axios.get('http://localhost:8000/api/kpi-templates?limit=1000');
+      console.log('Número de templates de KPI recebidos:', response.data.length);
       setTemplates(response.data);
     } catch (error) {
       console.error('Erro ao buscar templates de KPI:', error);
