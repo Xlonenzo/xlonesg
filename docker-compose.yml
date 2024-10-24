@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: xlon1234
+      POSTGRES_DB: xlonesg
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  pgdata:
+
+

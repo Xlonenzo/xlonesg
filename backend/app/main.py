@@ -16,7 +16,8 @@ import os
 from passlib.context import CryptContext
 from pydantic import BaseModel
 import logging
-from datetime import date
+from datetime import date, datetime
+import traceback
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -26,7 +27,7 @@ app = FastAPI()
 # Configuração CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Ajuste para a URL do seu frontend
+    allow_origins=["http://gen.xlon.com.br"],  # Ajuste para a URL do seu frontend
     allow_credentials=True,
     allow_methods=["*"],  # Isso permite todos os métodos, incluindo PUT
     allow_headers=["*"],
@@ -579,18 +580,14 @@ class LoginData(BaseModel):
     password: str
 
 @app.post("/login")
-def login(login_data: LoginData, db: Session = Depends(get_db)):
-    print(f"Login attempt for user: {login_data.username}")
-    user = db.query(models.User).filter(models.User.username == login_data.username).first()
-    if not user:
-        print(f"User not found: {login_data.username}")
+def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
+    print(f"Tentativa de login para o usuário: {user.username}")
+    db_user = db.query(models.User).filter(models.User.username == user.username).first()
+    if not db_user:
         raise HTTPException(status_code=400, detail="Incorrect username or password")
-    if not verify_password(login_data.password, user.hashed_password):
-        print(f"Incorrect password for user: {login_data.username}")
+    if not verify_password(user.password, db_user.hashed_password):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
-    print(f"Successful login for user: {login_data.username}")
-    print(f"User role: {user.role}")
-    return {"message": "Login successful", "username": user.username, "role": user.role}
+    return {"message": "Login successful", "username": user.username, "role": db_user.role}
 
 # Rotas para usuários
 @app.post("/users/", response_model=schemas.User)
@@ -645,6 +642,100 @@ def delete_user(user_id: int, db: Session = Depends(get_db)):
     db.delete(db_user)
     db.commit()
     return db_user
+
+# Rotas para Bonds (Títulos)
+
+@app.post("/api/bonds", response_model=schemas.Bond)
+def create_bond(bond: schemas.BondCreate, db: Session = Depends(get_db)):
+    logger.info(f"Recebendo requisição para criar novo título: {bond.dict()}")
+    try:
+        db_bond = models.Bond(**bond.dict())
+        db.add(db_bond)
+        db.commit()
+        db.refresh(db_bond)
+        logger.info(f"Título criado com sucesso: {db_bond.id}")
+        return db_bond
+    except SQLAlchemyError as e:
+        logger.error(f"Erro ao criar título: {str(e)}")
+        logger.error(traceback.format_exc())
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Falha ao criar título: {str(e)}")
+
+@app.get("/api/bonds", response_model=List[schemas.Bond])
+def read_bonds(
+    skip: int = 0, 
+    limit: int = 100, 
+    type: Optional[str] = Query(None, description="Filtrar por tipo de título"),
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Bond)
+    if type:
+        query = query.filter(models.Bond.type == type)
+    bonds = query.offset(skip).limit(limit).all()
+    return bonds
+
+@app.get("/api/bonds/{bond_id}", response_model=schemas.Bond)
+def read_bond(bond_id: int, db: Session = Depends(get_db)):
+    db_bond = db.query(models.Bond).filter(models.Bond.id == bond_id).first()
+    if db_bond is None:
+        raise HTTPException(status_code=404, detail="Título não encontrado")
+    return db_bond
+
+@app.put("/api/bonds/{bond_id}", response_model=schemas.Bond)
+def update_bond(bond_id: int, bond: schemas.BondCreate, db: Session = Depends(get_db)):
+    db_bond = db.query(models.Bond).filter(models.Bond.id == bond_id).first()
+    if db_bond is None:
+        raise HTTPException(status_code=404, detail="Título não encontrado")
+    
+    bond_data = bond.dict(exclude_unset=True)
+    for key, value in bond_data.items():
+        setattr(db_bond, key, value)
+    
+    try:
+        db.commit()
+        db.refresh(db_bond)
+        logger.info(f"Título atualizado com sucesso: {db_bond.id}")
+        return db_bond
+    except SQLAlchemyError as e:
+        logger.error(f"Erro ao atualizar título: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Falha ao atualizar título: {str(e)}")
+
+@app.delete("/api/bonds/{bond_id}", response_model=schemas.Bond)
+def delete_bond(bond_id: int, db: Session = Depends(get_db)):
+    db_bond = db.query(models.Bond).filter(models.Bond.id == bond_id).first()
+    if db_bond is None:
+        raise HTTPException(status_code=404, detail="Título não encontrado")
+    try:
+        db.delete(db_bond)
+        db.commit()
+        logger.info(f"Título deletado com sucesso: {bond_id}")
+        return db_bond
+    except SQLAlchemyError as e:
+        logger.error(f"Erro ao deletar título: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Falha ao deletar título: {str(e)}")
+
+@app.post("/api/bonds/minimal", response_model=schemas.Bond)
+def create_minimal_bond(bond: schemas.BondCreate, db: Session = Depends(get_db)):
+    try:
+        minimal_bond_dict = {
+            "name": bond.name,
+            "type": bond.type,
+            "value": bond.value,
+            "esg_percentage": bond.esg_percentage,
+            "issue_date": bond.issue_date
+        }
+        db_bond = models.Bond(**minimal_bond_dict)
+        db.add(db_bond)
+        db.commit()
+        db.refresh(db_bond)
+        return db_bond
+    except Exception as e:
+        logger.error(f"Erro ao criar título mínimo: {str(e)}")
+        logger.error(traceback.format_exc())
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Falha ao criar título mínimo: {str(e)}")
 
 if __name__ == "__main__":
     print("Iniciando a aplicação...")

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { FaEdit, FaTrash, FaSearch, FaFilter, FaCopy } from 'react-icons/fa';
 import { MultiSelect } from "react-multi-select-component";
+import { API_URL } from '../config';
 
 function KPITemplate({ sidebarColor, buttonColor }) {
   const [kpis, setKpis] = useState([]);
@@ -134,7 +135,7 @@ function KPITemplate({ sidebarColor, buttonColor }) {
   const fetchKPIs = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await axios.get('http://localhost:8000/api/kpi-templates?limit=1000000');
+      const response = await axios.get(`${API_URL}/api/kpi-templates?limit=1000000`);
       console.log('Número de KPIs recebidos:', response.data.length);
       setKpis(response.data);
       setError(null);
@@ -178,7 +179,7 @@ function KPITemplate({ sidebarColor, buttonColor }) {
 
   const handleAddKPI = async () => {
     try {
-      const response = await axios.post('http://localhost:8000/api/kpi-templates', newKPI);
+      const response = await axios.post(`${API_URL}/api/kpi-templates`, newKPI);
       setKpis([...kpis, response.data]);
       setIsAddingKPI(false);
       setNewKPI({
@@ -203,7 +204,7 @@ function KPITemplate({ sidebarColor, buttonColor }) {
   const handleUpdateKPI = async () => {
     if (editingKPI) {
       try {
-        const response = await axios.put(`http://localhost:8000/api/kpi-templates/${editingKPI.id}`, editingKPI);
+        const response = await axios.put(`${API_URL}/api/kpi-templates/${editingKPI.id}`, editingKPI);
         setKpis(prevKPIs => prevKPIs.map(kpi => (kpi.id === editingKPI.id ? response.data : kpi)));
         setEditingKPI(null);
       } catch (error) {
@@ -215,7 +216,7 @@ function KPITemplate({ sidebarColor, buttonColor }) {
   const handleDeleteKPI = async (id) => {
     if (window.confirm('Tem certeza de que deseja excluir este KPI Template?')) {
       try {
-        await axios.delete(`http://localhost:8000/api/kpi-templates/${id}`);
+        await axios.delete(`${API_URL}/api/kpi-templates/${id}`);
         setKpis(prevKPIs => prevKPIs.filter(kpi => kpi.id !== id));
       } catch (error) {
         console.error('Erro ao excluir KPI Template:', error);
@@ -227,15 +228,15 @@ function KPITemplate({ sidebarColor, buttonColor }) {
     try {
       const duplicatedKPI = {
         ...kpi,
-        id: undefined,  // Remova o ID para criar um novo template
-        name: `${kpi.name} (Cópia)`,  // Adicione "(Cópia)" ao nome para distinguir
-        kpicode: '',  // Deixe o kpicode vazio
-        compliance: [...kpi.compliance]  // Crie uma nova cópia do array compliance
+        id: undefined,
+        name: `${kpi.name} (Cópia)`,
+        kpicode: '',
+        compliance: [...kpi.compliance]
       };
-      const response = await axios.post('http://localhost:8000/api/kpi-templates', duplicatedKPI);
+      const response = await axios.post(`${API_URL}/api/kpi-templates`, duplicatedKPI);
       const newKPI = response.data;
       setKpis([...kpis, newKPI]);
-      setEditingKPI(newKPI);  // Abre o formulário de edição para o novo KPI
+      setEditingKPI(newKPI);
       alert('KPI Template duplicado com sucesso! Por favor, insira um novo código para o KPI.');
     } catch (error) {
       console.error('Erro ao duplicar KPI Template:', error);

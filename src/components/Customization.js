@@ -1,6 +1,9 @@
 // Customization.js
 import React, { useState } from 'react';
 import axios from 'axios';
+import { API_URL } from '../config';
+
+const isDevelopment = process.env.NODE_ENV === 'development';
 
 const Customization = ({ customization, setCustomization }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -18,7 +21,7 @@ const Customization = ({ customization, setCustomization }) => {
       try {
         const formData = new FormData();
         formData.append('file', file);
-        const response = await axios.post('http://localhost:8000/api/upload-logo', formData, {
+        const response = await axios.post(`${API_URL}/api/upload-logo`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
@@ -40,9 +43,9 @@ const Customization = ({ customization, setCustomization }) => {
     try {
       setIsLoading(true);
       if (newCustomization.id) {
-        await axios.put(`http://localhost:8000/api/customization/${newCustomization.id}`, newCustomization);
+        await axios.put(`${API_URL}/api/customization`, newCustomization);
       } else {
-        const response = await axios.post('http://localhost:8000/api/customization', newCustomization);
+        const response = await axios.post(`${API_URL}/api/customization`, newCustomization);
         setCustomization(response.data);
       }
     } catch (error) {
@@ -50,6 +53,15 @@ const Customization = ({ customization, setCustomization }) => {
       alert('Erro ao salvar customização');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const updateCustomization = async (newCustomization) => {
+    try {
+      const response = await axios.put(`${API_URL}/api/customization`, newCustomization);
+      setCustomization(response.data);
+    } catch (error) {
+      console.error('Erro ao atualizar customização:', error);
     }
   };
 

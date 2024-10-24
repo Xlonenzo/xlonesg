@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_URL } from '../config'; // Importe a configuração da API_URL
 
 function DataSourceManagement() {
   const [dataSources, setDataSources] = useState([]);
@@ -19,7 +20,7 @@ function DataSourceManagement() {
 
   const fetchDataSources = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/data-sources/', {
+      const response = await axios.get(`${API_URL}/data-sources/`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
@@ -33,7 +34,7 @@ function DataSourceManagement() {
   // Função para adicionar uma nova fonte de dados
   const handleAddDataSource = async () => {
     try {
-      const response = await axios.post('http://localhost:8000/data-sources/', newDataSource, {
+      const response = await axios.post(`${API_URL}/data-sources/`, newDataSource, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
@@ -53,7 +54,7 @@ function DataSourceManagement() {
   // Função para deletar uma fonte de dados
   const handleDeleteDataSource = async (id) => {
     try {
-      await axios.delete(`http://localhost:8000/data-sources/${id}`, {
+      await axios.delete(`${API_URL}/data-sources/${id}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
@@ -67,7 +68,7 @@ function DataSourceManagement() {
   // Função para sincronizar uma fonte de dados
   const handleSyncDataSource = async (id) => {
     try {
-      await axios.post(`http://localhost:8000/data-sources/${id}/sync`, {}, {
+      await axios.post(`${API_URL}/data-sources/${id}/sync`, {}, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`,
         },

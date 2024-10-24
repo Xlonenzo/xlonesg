@@ -1,4 +1,3 @@
-// App.js
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
@@ -29,6 +28,9 @@ import dataSourcesData from './data/dataSources';
 import kpisData from './data/kpis';
 import menuItemsData from './data/menuItems';
 import './index.css';
+
+// Importar configuração
+import { API_URL } from './config';
 
 function App() {
   const [activeMenuItem, setActiveMenuItem] = useState('/');
@@ -61,7 +63,7 @@ function App() {
 
   const fetchCustomization = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/customization');
+      const response = await axios.get(`${API_URL}/api/customization`);
       setCustomization(response.data);
     } catch (error) {
       console.error('Erro ao buscar customização:', error);
@@ -73,7 +75,7 @@ function App() {
   };
 
   const handleLogin = (userData) => {
-    console.log('User data after login:', userData); // Adicione este log
+    console.log('User data after login:', userData);
     setIsLoggedIn(true);
     setUserName(userData.username);
     setUserRole(userData.role);

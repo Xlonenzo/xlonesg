@@ -17,7 +17,7 @@ function UserManagement({ buttonColor }) {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/users/');
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/users/`);
       setUsers(response.data);
     } catch (error) {
       console.error('Erro ao buscar usuários:', error);
@@ -28,7 +28,7 @@ function UserManagement({ buttonColor }) {
   const handleCreateUser = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:8000/users/', {
+      await axios.post(`${process.env.REACT_APP_API_URL}/users/`, {
         username: newUsername,
         email: newEmail,
         password: newPassword,
@@ -46,7 +46,7 @@ function UserManagement({ buttonColor }) {
   const handleDeleteUser = async (userId) => {
     if (window.confirm('Tem certeza que deseja excluir este usuário?')) {
       try {
-        const response = await axios.delete(`http://localhost:8000/users/${userId}`);
+        const response = await axios.delete(`${process.env.REACT_APP_API_URL}/users/${userId}`);
         if (response.data.message === "User deleted successfully") {
           alert('Usuário excluído com sucesso!');
           fetchUsers();
@@ -79,7 +79,7 @@ function UserManagement({ buttonColor }) {
   const handleUpdateUser = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.put(`http://localhost:8000/users/${editingUser.id}`, {
+      const response = await axios.put(`${process.env.REACT_APP_API_URL}/users/${editingUser.id}`, {
         username: newUsername,
         email: newEmail,
         password: newPassword,

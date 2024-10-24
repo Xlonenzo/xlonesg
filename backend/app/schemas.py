@@ -203,3 +203,51 @@ class User(UserBase):
 
     class Config:
         from_attributes = True
+
+class BondBase(BaseModel):
+    name: str
+    type: str
+    value: float
+    esg_percentage: float
+    issue_date: date
+    compliance_verified: bool
+    regulator: str
+    social_impact_type: str
+    estimated_social_impact: str
+    social_report_issued: bool
+    project_description: str
+    project_eligibility: str  # Alterado de bool para str
+    project_selection_date: date
+    resource_allocation_approved: bool
+    resource_manager: str
+    separate_account: bool
+    social_impact_achieved: str
+    social_impact_measured_date: Optional[date]
+    audit_completed: bool
+    audit_result: Optional[str]
+    report_frequency: Optional[str]
+    interest_rate: float
+    guarantee_value: float
+    issuer_name: str
+    issuer_cnpj: str
+    issuer_address: str
+    issuer_contact: str
+    intermediary_name: str
+    intermediary_cnpj: str
+    intermediary_contact: str
+    financial_institution_name: str
+    financial_institution_cnpj: str
+    financial_institution_contact: str
+
+class BondCreate(BondBase):
+    pass
+
+class Bond(BondBase):
+    id: int
+
+    class Config:
+        orm_mode = True
+
+class UserLogin(BaseModel):
+    username: str
+    password: str

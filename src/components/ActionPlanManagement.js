@@ -3,6 +3,9 @@ import axios from 'axios';
 import { FaEdit, FaTrash, FaTasks } from 'react-icons/fa';
 import TaskManagement from './TaskManagement';
 
+// Adicione esta importação no topo do arquivo
+import { API_URL } from '../config';
+
 function ActionPlanManagement() {
   const [actionPlans, setActionPlans] = useState([]);
   const [newActionPlan, setNewActionPlan] = useState({
@@ -23,7 +26,7 @@ function ActionPlanManagement() {
 
   const fetchActionPlans = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/action-plans');
+      const response = await axios.get(`${API_URL}/api/action-plans`);
       setActionPlans(response.data);
     } catch (error) {
       console.error('Erro ao buscar planos de ação:', error);
@@ -32,7 +35,7 @@ function ActionPlanManagement() {
 
   const fetchViewKPIs = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/api/kpi-entries-with-templates');
+      const response = await axios.get(`${API_URL}/api/kpi-entries-with-templates`);
       console.log('KPIs da view:', response.data);
       setViewKpis(response.data);
     } catch (error) {
@@ -42,7 +45,7 @@ function ActionPlanManagement() {
 
   const handleAddActionPlan = async () => {
     try {
-      const response = await axios.post('http://localhost:8000/api/action-plans', newActionPlan);
+      const response = await axios.post(`${API_URL}/api/action-plans`, newActionPlan);
       setActionPlans([...actionPlans, response.data]);
       setNewActionPlan({
         objective: '',
@@ -58,7 +61,7 @@ function ActionPlanManagement() {
 
   const handleUpdateActionPlan = async () => {
     try {
-      const response = await axios.put(`http://localhost:8000/api/action-plans/${editingPlan.id}`, editingPlan);
+      const response = await axios.put(`${API_URL}/api/action-plans/${editingPlan.id}`, editingPlan);
       setActionPlans(actionPlans.map(plan => plan.id === editingPlan.id ? response.data : plan));
       setEditingPlan(null);
     } catch (error) {
@@ -69,7 +72,7 @@ function ActionPlanManagement() {
   const handleDeleteActionPlan = async (id) => {
     if (window.confirm('Tem certeza que deseja excluir este plano de ação?')) {
       try {
-        const response = await axios.delete(`http://localhost:8000/api/action-plans/${id}`);
+        const response = await axios.delete(`${API_URL}/api/action-plans/${id}`);
         if (response.status === 200) {
           setActionPlans(actionPlans.filter((plan) => plan.id !== id));
         }

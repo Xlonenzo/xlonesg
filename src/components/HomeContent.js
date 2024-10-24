@@ -5,6 +5,12 @@ import { FaStar } from 'react-icons/fa';
 import { PieChart, Pie } from 'recharts';
 import IEERComparativoChart from './IEERComparativoChart';
 
+// Adicione esta linha no topo do arquivo
+const isDevelopment = process.env.NODE_ENV === 'development';
+
+// Modifique a definição de API_URL
+const API_URL = process.env.REACT_APP_API_URL || (isDevelopment ? 'http://localhost:8000' : 'https://gen.xlon.com.br');
+
 function HomeContent() {
   const [allKpis, setAllKpis] = useState([]);
   const [favoriteKpis, setFavoriteKpis] = useState([]);
@@ -18,7 +24,9 @@ function HomeContent() {
   const fetchKPIs = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:8000/api/kpi-entries-with-templates?limit=1000');
+      console.log('API URL:', API_URL); // Log para debug
+      const response = await axios.get(`${API_URL}/api/kpi-entries-with-templates?limit=1000`);
+      console.log('Response:', response); // Log para debug
       setAllKpis(response.data);
       const favorites = response.data.filter(kpi => kpi.isfavorite);
       setFavoriteKpis(favorites);
@@ -26,6 +34,7 @@ function HomeContent() {
       console.log('Favorite KPIs:', favorites.length);
     } catch (error) {
       console.error('Erro ao buscar KPIs:', error);
+      console.error('Erro detalhado:', error.response); // Log para mais detalhes do erro
       setError('Falha ao carregar os KPIs. Por favor, tente novamente mais tarde.');
     } finally {
       setLoading(false);

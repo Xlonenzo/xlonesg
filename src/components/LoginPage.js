@@ -3,6 +3,10 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
+// Determine a URL da API com base no ambiente
+const isDevelopment = process.env.NODE_ENV === 'development';
+const API_URL = process.env.REACT_APP_API_URL || (isDevelopment ? 'http://localhost:8000' : 'https://gen.xlon.com.br');
+
 const LoginPage = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -12,7 +16,9 @@ const LoginPage = ({ onLogin }) => {
     e.preventDefault();
     setError('');
     try {
-      const response = await axios.post('http://localhost:8000/login', { username, password });
+      console.log('Tentando fazer login com URL:', `${API_URL}/login`);
+      const response = await axios.post(`${API_URL}/login`, { username, password });
+      console.log('Response:', response);
       if (response.data.message === 'Login successful') {
         console.log('Login response:', response.data);
         onLogin({ username: response.data.username, role: response.data.role });
@@ -21,7 +27,8 @@ const LoginPage = ({ onLogin }) => {
       }
     } catch (error) {
       console.error('Erro ao fazer login:', error);
-      setError('Erro ao fazer login. Por favor, tente novamente.');
+      console.error('Erro detalhado:', error.response);
+      setError(`Erro ao fazer login: ${error.message}`);
     }
   };
 
