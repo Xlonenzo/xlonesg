@@ -63,7 +63,7 @@ function App() {
 
   const fetchCustomization = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/customization`);
+      const response = await axios.get(`${API_URL}/customization`);
       setCustomization(response.data);
     } catch (error) {
       console.error('Erro ao buscar customização:', error);

@@ -474,7 +474,7 @@ def read_kpi_entries_with_templates(
     print(f"Total de KPIs retornados: {len(entries)}")
     return entries
 
-@app.post("/api/customization", response_model=schemas.Customization)
+@app.post("/customization", response_model=schemas.Customization)
 def create_customization(customization: schemas.CustomizationCreate, db: Session = Depends(get_db)):
     print(f"Recebendo requisição POST para /api/customization: {customization.dict()}")
     try:
@@ -488,14 +488,14 @@ def create_customization(customization: schemas.CustomizationCreate, db: Session
         print(f"Erro ao criar customização: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/customization", response_model=schemas.Customization)
+@app.get("/customization", response_model=schemas.Customization)
 def get_customization(db: Session = Depends(get_db)):
     customization = db.query(models.Customization).first()
     if not customization:
         raise HTTPException(status_code=404, detail="Customization not found")
     return customization
 
-@app.put("/api/customization/{customization_id}", response_model=schemas.Customization)
+@app.put("/customization/{customization_id}", response_model=schemas.Customization)
 def update_customization(customization_id: int, customization: schemas.CustomizationCreate, db: Session = Depends(get_db)):
     db_customization = db.query(models.Customization).filter(models.Customization.id == customization_id).first()
     if not db_customization:
@@ -519,7 +519,7 @@ async def upload_logo(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Erro ao fazer upload da logo: {str(e)}")
 
 # Atualizar a rota de customização para incluir o upload de logo
-@app.post("/api/customization", response_model=schemas.Customization)
+@app.post("/customization", response_model=schemas.Customization)
 async def create_customization(
     customization: schemas.CustomizationCreate = Depends(),
     logo: UploadFile = File(None),
@@ -543,7 +543,7 @@ async def create_customization(
         print(f"Erro ao criar customização: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.put("/api/customization/{customization_id}", response_model=schemas.Customization)
+@app.put("/customization/{customization_id}", response_model=schemas.Customization)
 async def update_customization(
     customization_id: int,
     customization: schemas.CustomizationCreate = Depends(),
