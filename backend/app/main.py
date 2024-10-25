@@ -579,7 +579,7 @@ class LoginData(BaseModel):
     username: str
     password: str
 
-@app.post("/login")
+@app.post("/api/login")
 def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
     print(f"Tentativa de login para o usuário: {user.username}")
     db_user = db.query(models.User).filter(models.User.username == user.username).first()
