@@ -1,23 +1,23 @@
+# main.py
+
 from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import SQLAlchemyError
-from . import models, schemas
-from .database import SessionLocal, engine
 from typing import List, Optional
 import re
-from sqlalchemy.orm import joinedload
-from sqlalchemy import func, String
-from sqlalchemy.dialects import postgresql
-from uuid import uuid4
 import shutil
 import os
+from uuid import uuid4
 from passlib.context import CryptContext
 from pydantic import BaseModel
 import logging
 from datetime import date, datetime
 import traceback
+
+from . import models, schemas  # Certifique-se de que o caminho está correto
+from .database import SessionLocal, engine
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ app = FastAPI()
 # Configuração CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://gen.xlon.com.br"],  # Ajuste para a URL do seu frontend
+    allow_origins=["https://gen.xlon.com.br"],  # Ajuste para a URL do seu frontend com HTTPS
     allow_credentials=True,
     allow_methods=["*"],  # Isso permite todos os métodos, incluindo PUT
     allow_headers=["*"],
@@ -39,8 +39,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # Certifique-se de que o diretório para logos existe
 os.makedirs("static/logos", exist_ok=True)
 
-# Configuração da base URL
-BASE_URL = "http://localhost:8000"  # Ajuste conforme necessário
+# Configuração da base URL  
+BASE_URL = "https://api.xlon.com.br"  # Substitua pela URL pública do seu backend
 
 # Dependency
 def get_db():
@@ -60,7 +60,7 @@ def validate_cnpj(cnpj: str) -> str:
     
     return cnpj
 
-# Rotas para Planos de Aço
+# Rotas para Planos de Ação
 @app.post("/api/action-plans", response_model=schemas.ActionPlan)
 def create_action_plan(action_plan: schemas.ActionPlanCreate, db: Session = Depends(get_db)):
     db_action_plan = models.ActionPlan(**action_plan.dict())
@@ -87,13 +87,13 @@ def add_task_to_action_plan(action_plan_id: int, task: schemas.TaskCreate, db: S
     db.add(db_task)
     db.commit()
     db.refresh(db_task)
-    return db_task
+    return schemas.Task.from_orm(db_task)
 
 # Rota para obter todas as tarefas de um plano de ação
 @app.get("/api/action-plans/{action_plan_id}/tasks", response_model=List[schemas.Task])
 def read_tasks_for_action_plan(action_plan_id: int, db: Session = Depends(get_db)):
     tasks = db.query(models.Task).filter(models.Task.action_plan_id == action_plan_id).all()
-    return tasks
+    return [schemas.Task.from_orm(task) for task in tasks]
 
 # Rotas para KPIs
 
@@ -103,7 +103,7 @@ def create_kpi(kpi: schemas.KPICreate, db: Session = Depends(get_db)):
     db.add(db_kpi)
     db.commit()
     db.refresh(db_kpi)
-    return db_kpi
+    return schemas.KPI.from_orm(db_kpi)
 
 @app.get("/api/kpis", response_model=List[schemas.KPI])
 def read_kpis(
@@ -112,20 +112,20 @@ def read_kpis(
     category: Optional[str] = Query(None, description="Filter KPIs by category"),
     db: Session = Depends(get_db)
 ):
-    print(f"Recebida solicitação para KPIs. Category: {category}, Skip: {skip}, Limit: {limit}")
+    logger.info(f"Recebida solicitação para KPIs. Category: {category}, Skip: {skip}, Limit: {limit}")
     query = db.query(models.KPI)
     if category:
         query = query.filter(models.KPI.category == category)
     kpis = query.offset(skip).limit(limit).all()
-    print(f"Retornando {len(kpis)} KPIs")
-    return kpis
+    logger.info(f"Retornando {len(kpis)} KPIs")
+    return [schemas.KPI.from_orm(kpi) for kpi in kpis]
 
 @app.get("/api/kpis/{kpi_id}", response_model=schemas.KPI)
 def read_kpi(kpi_id: int, db: Session = Depends(get_db)):
     db_kpi = db.query(models.KPI).filter(models.KPI.id == kpi_id).first()
     if db_kpi is None:
         raise HTTPException(status_code=404, detail="KPI not found")
-    return db_kpi
+    return schemas.KPI.from_orm(db_kpi)
 
 @app.put("/api/kpis/{kpi_id}", response_model=schemas.KPI)
 def update_kpi(kpi_id: int, kpi: schemas.KPICreate, db: Session = Depends(get_db)):
@@ -136,7 +136,7 @@ def update_kpi(kpi_id: int, kpi: schemas.KPICreate, db: Session = Depends(get_db
         setattr(db_kpi, key, value)
     db.commit()
     db.refresh(db_kpi)
-    return db_kpi
+    return schemas.KPI.from_orm(db_kpi)
 
 @app.delete("/api/kpis/{kpi_id}", response_model=schemas.KPI)
 def delete_kpi(kpi_id: int, db: Session = Depends(get_db)):
@@ -145,7 +145,7 @@ def delete_kpi(kpi_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="KPI not found")
     db.delete(db_kpi)
     db.commit()
-    return db_kpi
+    return schemas.KPI.from_orm(db_kpi)
 
 # Rota de teste
 @app.get("/test")
@@ -198,7 +198,7 @@ def update_task(task_id: int, task: schemas.TaskCreate, db: Session = Depends(ge
         setattr(db_task, key, value)
     db.commit()
     db.refresh(db_task)
-    return db_task
+    return schemas.Task.from_orm(db_task)
 
 # Remover uma tarefa
 @app.delete("/api/tasks/{task_id}", response_model=schemas.Task)
@@ -208,11 +208,13 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Task not found")
     db.delete(db_task)
     db.commit()
-    return db_task
+    return schemas.Task.from_orm(db_task)
+
+# Rotas para Empresas
 
 @app.post("/api/companies/hierarchy", response_model=schemas.Company)
 def add_company_to_hierarchy(company: schemas.CompanyCreate, db: Session = Depends(get_db)):
-    print(f"Dados recebidos no backend: {company.dict()}")  # Log dos dados recebidos
+    logger.info(f"Dados recebidos no backend: {company.dict()}")  # Log dos dados recebidos
     
     try:
         validated_cnpj = validate_cnpj(company.cnpj)
@@ -247,21 +249,21 @@ def add_company_to_hierarchy(company: schemas.CompanyCreate, db: Session = Depen
         db.refresh(new_company)
     except SQLAlchemyError as e:
         db.rollback()
-        print(f"Erro ao inserir empresa: {str(e)}")
+        logger.error(f"Erro ao inserir empresa: {str(e)}")
         raise HTTPException(status_code=400, detail="Erro ao inserir empresa")
-    return new_company
+    return schemas.Company.from_orm(new_company)
 
 @app.get("/api/companies", response_model=List[schemas.Company])
 def read_companies(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     companies = db.query(models.Company).offset(skip).limit(limit).all()
-    return companies
+    return [schemas.Company.from_orm(company) for company in companies]
 
 @app.get("/api/companies/{company_id}", response_model=schemas.Company)
 def read_company(company_id: int, db: Session = Depends(get_db)):
-    db_company = crud.get_company(db, company_id=company_id)
+    db_company = db.query(models.Company).filter(models.Company.id == company_id).first()
     if db_company is None:
         raise HTTPException(status_code=404, detail="Empresa não encontrada")
-    return db_company
+    return schemas.Company.from_orm(db_company)
 
 @app.put("/api/companies/{company_id}", response_model=schemas.Company)
 def update_company(company_id: int, company: schemas.CompanyCreate, db: Session = Depends(get_db)):
@@ -278,9 +280,9 @@ def update_company(company_id: int, company: schemas.CompanyCreate, db: Session 
         db.refresh(db_company)
     except SQLAlchemyError as e:
         db.rollback()
-        print(f"Erro ao atualizar empresa: {str(e)}")
+        logger.error(f"Erro ao atualizar empresa: {str(e)}")
         raise HTTPException(status_code=400, detail="Erro ao atualizar empresa")
-    return db_company
+    return schemas.Company.from_orm(db_company)
 
 @app.delete("/api/companies/{company_id}", response_model=schemas.Company)
 def delete_company(company_id: int, db: Session = Depends(get_db)):
@@ -289,11 +291,11 @@ def delete_company(company_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Empresa não encontrada")
     db.delete(db_company)
     db.commit()
-    return db_company
+    return schemas.Company.from_orm(db_company)
 
 @app.post("/api/companies", response_model=schemas.Company)
 def create_company(company: schemas.CompanyCreate, db: Session = Depends(get_db)):
-    print(f"Dados recebidos no backend: {company.dict()}")  # Log dos dados recebidos
+    logger.info(f"Dados recebidos no backend: {company.dict()}")  # Log dos dados recebidos
     
     try:
         validated_cnpj = validate_cnpj(company.cnpj)
@@ -328,9 +330,11 @@ def create_company(company: schemas.CompanyCreate, db: Session = Depends(get_db)
         db.refresh(new_company)
     except SQLAlchemyError as e:
         db.rollback()
-        print(f"Erro ao inserir empresa: {str(e)}")
+        logger.error(f"Erro ao inserir empresa: {str(e)}")
         raise HTTPException(status_code=400, detail="Erro ao inserir empresa")
-    return new_company
+    return schemas.Company.from_orm(new_company)
+
+# Rotas para Templates de KPI
 
 @app.post("/api/kpi-templates", response_model=schemas.KPITemplate)
 def create_kpi_template(kpi_template: schemas.KPITemplateCreate, db: Session = Depends(get_db)):
@@ -344,29 +348,28 @@ def create_kpi_template(kpi_template: schemas.KPITemplateCreate, db: Session = D
     while db.query(models.KPITemplate).filter(models.KPITemplate.kpicode == kpi_dict['kpicode']).first():
         kpi_dict['kpicode'] = f"KPI-{uuid4().hex[:8].upper()}"
     
-    kpi_dict['compliance'] = func.cast(kpi_dict['compliance'], postgresql.ARRAY(String))
-    
     try:
         db_kpi_template = models.KPITemplate(**kpi_dict)
         db.add(db_kpi_template)
         db.commit()
         db.refresh(db_kpi_template)
-        return db_kpi_template
+        return schemas.KPITemplate.from_orm(db_kpi_template)
     except SQLAlchemyError as e:
         db.rollback()
+        logger.error(f"Erro ao criar template de KPI: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Erro ao criar template de KPI: {str(e)}")
 
 @app.get("/api/kpi-templates", response_model=List[schemas.KPITemplate])
 def read_kpi_templates(skip: int = 0, limit: int = 1000, db: Session = Depends(get_db)):
     templates = db.query(models.KPITemplate).offset(skip).limit(limit).all()
-    return templates
+    return [schemas.KPITemplate.from_orm(template) for template in templates]
 
 @app.get("/api/kpi-templates/{kpi_template_id}", response_model=schemas.KPITemplate)
 def read_kpi_template(kpi_template_id: int, db: Session = Depends(get_db)):
     db_kpi_template = db.query(models.KPITemplate).filter(models.KPITemplate.id == kpi_template_id).first()
     if db_kpi_template is None:
         raise HTTPException(status_code=404, detail="KPI Template not found")
-    return db_kpi_template
+    return schemas.KPITemplate.from_orm(db_kpi_template)
 
 @app.put("/api/kpi-templates/{kpi_template_id}", response_model=schemas.KPITemplate)
 def update_kpi_template(kpi_template_id: int, kpi_template: schemas.KPITemplateCreate, db: Session = Depends(get_db)):
@@ -377,7 +380,7 @@ def update_kpi_template(kpi_template_id: int, kpi_template: schemas.KPITemplateC
         setattr(db_kpi_template, key, value)
     db.commit()
     db.refresh(db_kpi_template)
-    return db_kpi_template
+    return schemas.KPITemplate.from_orm(db_kpi_template)
 
 @app.delete("/api/kpi-templates/{kpi_template_id}", response_model=schemas.KPITemplate)
 def delete_kpi_template(kpi_template_id: int, db: Session = Depends(get_db)):
@@ -386,7 +389,9 @@ def delete_kpi_template(kpi_template_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="KPI Template not found")
     db.delete(db_kpi_template)
     db.commit()
-    return db_kpi_template
+    return schemas.KPITemplate.from_orm(db_kpi_template)
+
+# Rotas para Entradas de KPI
 
 @app.post("/api/kpi-entries", response_model=schemas.KPIEntry)
 def create_kpi_entry(kpi_entry: schemas.KPIEntryCreate, db: Session = Depends(get_db)):
@@ -395,9 +400,10 @@ def create_kpi_entry(kpi_entry: schemas.KPIEntryCreate, db: Session = Depends(ge
         db.add(db_kpi_entry)
         db.commit()
         db.refresh(db_kpi_entry)
-        return db_kpi_entry
+        return schemas.KPIEntry.from_orm(db_kpi_entry)
     except SQLAlchemyError as e:
         db.rollback()
+        logger.error(f"Erro ao criar entrada de KPI: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Erro ao criar entrada de KPI: {str(e)}")
 
 @app.put("/api/kpi-entries/{kpi_entry_id}", response_model=schemas.KPIEntry)
@@ -410,9 +416,10 @@ def update_kpi_entry(kpi_entry_id: int, kpi_entry: schemas.KPIEntryCreate, db: S
             setattr(db_kpi_entry, key, value)
         db.commit()
         db.refresh(db_kpi_entry)
-        return db_kpi_entry
+        return schemas.KPIEntry.from_orm(db_kpi_entry)
     except SQLAlchemyError as e:
         db.rollback()
+        logger.error(f"Erro ao atualizar entrada de KPI: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Erro ao atualizar entrada de KPI: {str(e)}")
 
 @app.delete("/api/kpi-entries/{kpi_entry_id}", response_model=schemas.KPIEntry)
@@ -423,42 +430,50 @@ def delete_kpi_entry(kpi_entry_id: int, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="KPI Entry not found")
         db.delete(db_kpi_entry)
         db.commit()
-        return db_kpi_entry
+        return schemas.KPIEntry.from_orm(db_kpi_entry)
     except SQLAlchemyError as e:
         db.rollback()
+        logger.error(f"Erro ao excluir entrada de KPI: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Erro ao excluir entrada de KPI: {str(e)}")
 
 @app.get("/api/kpi-entries", response_model=List[schemas.KPIEntryWithTemplate])
 def read_kpi_entries(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     kpi_entries = db.query(models.KPIEntry).options(joinedload(models.KPIEntry.template)).offset(skip).limit(limit).all()
-    return [schemas.KPIEntryWithTemplate(
-        entry_id=entry.id,
-        template_id=entry.template_id,
-        template_name=entry.template.name if entry.template else None,
-        cnpj=entry.cnpj,
-        actual_value=entry.actual_value,
-        target_value=entry.target_value,
-        year=entry.year,
-        month=entry.month,
-        status=entry.status,
-        isfavorite=entry.isfavorite,
-        unit=entry.template.unit if entry.template else None,
-        category=entry.template.category if entry.template else None,
-        subcategory=entry.template.subcategory if entry.template else None,
-        description=entry.template.description if entry.template else None,
-        frequency=entry.template.frequency if entry.template else None,
-        collection_method=entry.template.collection_method if entry.template else None,
-        kpicode=entry.template.kpicode if entry.template else None,
-        company_category=entry.template.company_category if entry.template else None,
-        compliance=entry.template.compliance if entry.template else None
-    ) for entry in kpi_entries]
+    # Aqui, garantimos que cada entrada está no formato correto
+    return [
+        schemas.KPIEntryWithTemplate(
+            entry_id=entry.id,
+            template_id=entry.template_id,
+            template_name=entry.template.name if entry.template else None,
+            cnpj=entry.cnpj,
+            actual_value=entry.actual_value,
+            target_value=entry.target_value,
+            year=entry.year,
+            month=entry.month,
+            status=entry.status,
+            isfavorite=entry.isfavorite,
+            unit=entry.template.unit if entry.template else None,
+            category=entry.template.category if entry.template else None,
+            subcategory=entry.template.subcategory if entry.template else None,
+            description=entry.template.description if entry.template else None,
+            frequency=entry.template.frequency if entry.template else None,
+            collection_method=entry.template.collection_method if entry.template else None,
+            kpicode=entry.template.kpicode if entry.template else None,
+            company_category=entry.template.company_category if entry.template else None,
+            compliance=entry.template.compliance if entry.template else [],
+            genero=entry.template.genero if entry.template else None,
+            raca=entry.template.raca if entry.template else None,
+            state=entry.company.state if entry.company else None  # Assume que a empresa está relacionada
+        )
+        for entry in kpi_entries
+    ]
 
 @app.get("/api/kpi-entries/{kpi_entry_id}", response_model=schemas.KPIEntry)
 def read_kpi_entry(kpi_entry_id: int, db: Session = Depends(get_db)):
     db_kpi_entry = db.query(models.KPIEntry).filter(models.KPIEntry.id == kpi_entry_id).first()
     if db_kpi_entry is None:
         raise HTTPException(status_code=404, detail="KPI Entry not found")
-    return db_kpi_entry
+    return schemas.KPIEntry.from_orm(db_kpi_entry)
 
 @app.get("/api/kpi-entries-with-templates", response_model=List[schemas.KPIEntryWithTemplate])
 def read_kpi_entries_with_templates(
@@ -467,83 +482,74 @@ def read_kpi_entries_with_templates(
     limit: int = 1000,  # Aumentado para 1000
     db: Session = Depends(get_db)
 ):
-    query = db.query(models.KPIEntryWithTemplate)
+    query = db.query(models.KPIEntry)
     if category:
-        query = query.filter(models.KPIEntryWithTemplate.category == category)
+        query = query.filter(models.KPIEntry.template.has(category=category))
     entries = query.offset(skip).limit(limit).all()
-    print(f"Total de KPIs retornados: {len(entries)}")
-    return entries
+    logger.info(f"Total de KPIs retornados: {len(entries)}")
+    return [
+        schemas.KPIEntryWithTemplate(
+            entry_id=entry.id,
+            template_id=entry.template_id,
+            template_name=entry.template.name if entry.template else None,
+            cnpj=entry.cnpj,
+            actual_value=entry.actual_value,
+            target_value=entry.target_value,
+            year=entry.year,
+            month=entry.month,
+            status=entry.status,
+            isfavorite=entry.isfavorite,
+            unit=entry.template.unit if entry.template else None,
+            category=entry.template.category if entry.template else None,
+            subcategory=entry.template.subcategory if entry.template else None,
+            description=entry.template.description if entry.template else None,
+            frequency=entry.template.frequency if entry.template else None,
+            collection_method=entry.template.collection_method if entry.template else None,
+            kpicode=entry.template.kpicode if entry.template else None,
+            company_category=entry.template.company_category if entry.template else None,
+            compliance=entry.template.compliance if entry.template else [],
+            genero=entry.template.genero if entry.template else None,
+            raca=entry.template.raca if entry.template else None,
+            state=entry.company.state if entry.company else None
+        )
+        for entry in entries
+    ]
 
-@app.post("/customization", response_model=schemas.Customization)
-def create_customization(customization: schemas.CustomizationCreate, db: Session = Depends(get_db)):
-    print(f"Recebendo requisição POST para /api/customization: {customization.dict()}")
-    try:
-        db_customization = models.Customization(**customization.dict())
-        db.add(db_customization)
-        db.commit()
-        db.refresh(db_customization)
-        print(f"Customização criada com sucesso: {db_customization.id}")
-        return db_customization
-    except Exception as e:
-        print(f"Erro ao criar customização: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+# Rotas para Customização
 
-@app.get("/customization", response_model=schemas.Customization)
-def get_customization(db: Session = Depends(get_db)):
-    customization = db.query(models.Customization).first()
-    if not customization:
-        raise HTTPException(status_code=404, detail="Customization not found")
-    return customization
-
-@app.put("/customization/{customization_id}", response_model=schemas.Customization)
-def update_customization(customization_id: int, customization: schemas.CustomizationCreate, db: Session = Depends(get_db)):
-    db_customization = db.query(models.Customization).filter(models.Customization.id == customization_id).first()
-    if not db_customization:
-        raise HTTPException(status_code=404, detail="Customization not found")
-    for key, value in customization.dict().items():
-        setattr(db_customization, key, value)
-    db.commit()
-    db.refresh(db_customization)
-    return db_customization
-
-# Nova rota para upload de logo
-@app.post("/api/upload-logo")
-async def upload_logo(file: UploadFile = File(...)):
-    try:
-        file_location = f"static/logos/{file.filename}"
-        with open(file_location, "wb+") as file_object:
-            shutil.copyfileobj(file.file, file_object)
-        return {"logo_url": f"{BASE_URL}/static/logos/{file.filename}"}
-    except Exception as e:
-        print(f"Erro ao fazer upload da logo: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Erro ao fazer upload da logo: {str(e)}")
-
-# Atualizar a rota de customização para incluir o upload de logo
-@app.post("/customization", response_model=schemas.Customization)
+@app.post("/api/customization", response_model=schemas.Customization)
 async def create_customization(
     customization: schemas.CustomizationCreate = Depends(),
     logo: UploadFile = File(None),
     db: Session = Depends(get_db)
 ):
-    print(f"Recebendo requisição POST para /api/customization: {customization.dict()}")
+    logger.info(f"Recebendo requisição POST para /api/customization: {customization.dict()}")
     try:
         if logo:
-            file_location = f"static/logos/{logo.filename}"
+            unique_filename = f"{uuid4().hex}_{logo.filename}"
+            file_location = f"static/logos/{unique_filename}"
             with open(file_location, "wb+") as file_object:
                 shutil.copyfileobj(logo.file, file_object)
-            customization.logo_url = f"{BASE_URL}/static/logos/{logo.filename}"
+            customization.logo_url = f"{BASE_URL}/static/logos/{unique_filename}"
 
         db_customization = models.Customization(**customization.dict())
         db.add(db_customization)
         db.commit()
         db.refresh(db_customization)
-        print(f"Customização criada com sucesso: {db_customization.id}")
-        return db_customization
+        logger.info(f"Customização criada com sucesso: {db_customization.id}")
+        return schemas.Customization.from_orm(db_customization)
     except Exception as e:
-        print(f"Erro ao criar customização: {str(e)}")
+        logger.error(f"Erro ao criar customização: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.put("/customization/{customization_id}", response_model=schemas.Customization)
+@app.get("/api/customization", response_model=schemas.Customization)
+def get_customization(db: Session = Depends(get_db)):
+    customization = db.query(models.Customization).first()
+    if not customization:
+        raise HTTPException(status_code=404, detail="Customization not found")
+    return schemas.Customization.from_orm(customization)
+
+@app.put("/api/customization/{customization_id}", response_model=schemas.Customization)
 async def update_customization(
     customization_id: int,
     customization: schemas.CustomizationCreate = Depends(),
@@ -555,17 +561,34 @@ async def update_customization(
         raise HTTPException(status_code=404, detail="Customization not found")
     
     if logo:
-        file_location = f"static/logos/{logo.filename}"
+        unique_filename = f"{uuid4().hex}_{logo.filename}"
+        file_location = f"static/logos/{unique_filename}"
         with open(file_location, "wb+") as file_object:
             shutil.copyfileobj(logo.file, file_object)
-        customization.logo_url = f"{BASE_URL}/static/logos/{logo.filename}"
+        customization.logo_url = f"{BASE_URL}/static/logos/{unique_filename}"
 
     for key, value in customization.dict().items():
         setattr(db_customization, key, value)
     
     db.commit()
     db.refresh(db_customization)
-    return db_customization
+    return schemas.Customization.from_orm(db_customization)
+
+# Rotas para Upload de Logo
+
+@app.post("/api/upload-logo")
+async def upload_logo(file: UploadFile = File(...)):
+    try:
+        unique_filename = f"{uuid4().hex}_{file.filename}"
+        file_location = f"static/logos/{unique_filename}"
+        with open(file_location, "wb+") as file_object:
+            shutil.copyfileobj(file.file, file_object)
+        return {"logo_url": f"{BASE_URL}/static/logos/{unique_filename}"}
+    except Exception as e:
+        logger.error(f"Erro ao fazer upload da logo: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao fazer upload da logo: {str(e)}")
+
+# Autenticação e Usuários
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -581,16 +604,17 @@ class LoginData(BaseModel):
 
 @app.post("/api/login")
 def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
-    print(f"Tentativa de login para o usuário: {user.username}")
+    logger.info(f"Tentativa de login para o usuário: {user.username}")
     db_user = db.query(models.User).filter(models.User.username == user.username).first()
     if not db_user:
         raise HTTPException(status_code=400, detail="Incorrect username or password")
     if not verify_password(user.password, db_user.hashed_password):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
-    return {"message": "Login successful", "username": user.username, "role": db_user.role}
+    return {"message": "Login successful", "username": db_user.username, "role": db_user.role}
 
-# Rotas para usuários
-@app.post("/users/", response_model=schemas.User)
+# Rotas para Usuários
+
+@app.post("/api/users/", response_model=schemas.User)
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.email == user.email).first()
     if db_user:
@@ -600,21 +624,21 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-    return db_user
+    return schemas.User.from_orm(db_user)
 
-@app.get("/users/", response_model=List[schemas.User])
+@app.get("/api/users/", response_model=List[schemas.User])
 def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     users = db.query(models.User).offset(skip).limit(limit).all()
-    return users
+    return [schemas.User.from_orm(user) for user in users]
 
-@app.get("/users/{user_id}", response_model=schemas.User)
+@app.get("/api/users/{user_id}", response_model=schemas.User)
 def read_user(user_id: int, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.id == user_id).first()
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
-    return db_user
+    return schemas.User.from_orm(db_user)
 
-@app.put("/users/{user_id}", response_model=schemas.User)
+@app.put("/api/users/{user_id}", response_model=schemas.User)
 async def update_user(user_id: int, user: schemas.UserUpdate, db: Session = Depends(get_db)):
     logger.info(f"Recebida requisição PUT para atualizar usuário {user_id}")
     logger.info(f"Dados recebidos: {user.dict()}")
@@ -632,16 +656,16 @@ async def update_user(user_id: int, user: schemas.UserUpdate, db: Session = Depe
     
     db.commit()
     db.refresh(db_user)
-    return db_user
+    return schemas.User.from_orm(db_user)
 
-@app.delete("/users/{user_id}", response_model=schemas.User)
+@app.delete("/api/users/{user_id}", response_model=schemas.User)
 def delete_user(user_id: int, db: Session = Depends(get_db)):
     db_user = db.query(models.User).filter(models.User.id == user_id).first()
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
     db.delete(db_user)
     db.commit()
-    return db_user
+    return schemas.User.from_orm(db_user)
 
 # Rotas para Bonds (Títulos)
 
@@ -654,7 +678,7 @@ def create_bond(bond: schemas.BondCreate, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(db_bond)
         logger.info(f"Título criado com sucesso: {db_bond.id}")
-        return db_bond
+        return schemas.Bond.from_orm(db_bond)
     except SQLAlchemyError as e:
         logger.error(f"Erro ao criar título: {str(e)}")
         logger.error(traceback.format_exc())
@@ -672,14 +696,14 @@ def read_bonds(
     if type:
         query = query.filter(models.Bond.type == type)
     bonds = query.offset(skip).limit(limit).all()
-    return bonds
+    return [schemas.Bond.from_orm(bond) for bond in bonds]
 
 @app.get("/api/bonds/{bond_id}", response_model=schemas.Bond)
 def read_bond(bond_id: int, db: Session = Depends(get_db)):
     db_bond = db.query(models.Bond).filter(models.Bond.id == bond_id).first()
     if db_bond is None:
         raise HTTPException(status_code=404, detail="Título não encontrado")
-    return db_bond
+    return schemas.Bond.from_orm(db_bond)
 
 @app.put("/api/bonds/{bond_id}", response_model=schemas.Bond)
 def update_bond(bond_id: int, bond: schemas.BondCreate, db: Session = Depends(get_db)):
@@ -695,7 +719,7 @@ def update_bond(bond_id: int, bond: schemas.BondCreate, db: Session = Depends(ge
         db.commit()
         db.refresh(db_bond)
         logger.info(f"Título atualizado com sucesso: {db_bond.id}")
-        return db_bond
+        return schemas.Bond.from_orm(db_bond)
     except SQLAlchemyError as e:
         logger.error(f"Erro ao atualizar título: {str(e)}")
         db.rollback()
@@ -710,7 +734,7 @@ def delete_bond(bond_id: int, db: Session = Depends(get_db)):
         db.delete(db_bond)
         db.commit()
         logger.info(f"Título deletado com sucesso: {bond_id}")
-        return db_bond
+        return schemas.Bond.from_orm(db_bond)
     except SQLAlchemyError as e:
         logger.error(f"Erro ao deletar título: {str(e)}")
         db.rollback()
@@ -730,16 +754,17 @@ def create_minimal_bond(bond: schemas.BondCreate, db: Session = Depends(get_db))
         db.add(db_bond)
         db.commit()
         db.refresh(db_bond)
-        return db_bond
+        return schemas.Bond.from_orm(db_bond)
     except Exception as e:
         logger.error(f"Erro ao criar título mínimo: {str(e)}")
         logger.error(traceback.format_exc())
         db.rollback()
         raise HTTPException(status_code=400, detail=f"Falha ao criar título mínimo: {str(e)}")
 
-if __name__ == "__main__":
-    print("Iniciando a aplicação...")
-    models.Base.metadata.create_all(bind=engine)
-    print("Tabelas criadas (se não existirem)")
-    print("Rotas definidas em main.py")
+# Inicialização da aplicação
 
+if __name__ == "__main__":
+    logger.info("Iniciando a aplicação...")
+    models.Base.metadata.create_all(bind=engine)
+    logger.info("Tabelas criadas (se não existirem)")
+    logger.info("Rotas definidas em main.py")

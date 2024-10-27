@@ -40,7 +40,7 @@ function KPITracker({ sidebarColor, buttonColor }) {
 
   const fetchKPIEntries = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/kpi-entries?limit=1000000`);
+      const response = await axios.get(`${API_URL}/kpi-entries?limit=1000`);
       console.log('Número de KPIs recebidos:', response.data.length);  // Log para debug
       setKpiEntries(response.data);
     } catch (error) {
@@ -51,7 +51,7 @@ function KPITracker({ sidebarColor, buttonColor }) {
 
   const fetchTemplates = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/kpi-templates?limit=1000`);
+      const response = await axios.get(`${API_URL}/kpi-templates?limit=1000`);
       console.log('Número de templates de KPI recebidos:', response.data.length);
       setTemplates(response.data);
     } catch (error) {
@@ -61,7 +61,7 @@ function KPITracker({ sidebarColor, buttonColor }) {
 
   const fetchCompanies = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/companies`);
+      const response = await axios.get(`${API_URL}/companies`);
       setCompanies(response.data);
     } catch (error) {
       console.error('Erro ao buscar empresas:', error);
@@ -80,10 +80,10 @@ function KPITracker({ sidebarColor, buttonColor }) {
     e.preventDefault();
     try {
       if (editingEntry) {
-        await axios.put(`${API_URL}/api/kpi-entries/${editingEntry.entry_id}`, newEntry);
+        await axios.put(`${API_URL}/kpi-entries/${editingEntry.entry_id}`, newEntry);
         alert('KPI atualizado com sucesso!');
       } else {
-        await axios.post(`${API_URL}/api/kpi-entries`, newEntry);
+        await axios.post(`${API_URL}/kpi-entries`, newEntry);
         alert('Novo KPI adicionado com sucesso!');
       }
       fetchKPIEntries();
@@ -123,7 +123,7 @@ function KPITracker({ sidebarColor, buttonColor }) {
   const handleDelete = async (entryId) => {
     if (window.confirm('Tem certeza que deseja excluir esta entrada?')) {
       try {
-        await axios.delete(`${API_URL}/api/kpi-entries/${entryId}`);
+        await axios.delete(`${API_URL}/kpi-entries/${entryId}`);
         fetchKPIEntries();
         alert('Entrada de KPI excluída com sucesso!');
       } catch (error) {
@@ -136,7 +136,7 @@ function KPITracker({ sidebarColor, buttonColor }) {
   const toggleFavorite = async (entry) => {
     try {
       const updatedEntry = { ...entry, isfavorite: !entry.isfavorite };
-      await axios.put(`${API_URL}/api/kpi-entries/${entry.entry_id}`, updatedEntry);
+      await axios.put(`${API_URL}/kpi-entries/${entry.entry_id}`, updatedEntry);
       fetchKPIEntries();
     } catch (error) {
       console.error('Erro ao atualizar favorito:', error);
@@ -190,7 +190,7 @@ function KPITracker({ sidebarColor, buttonColor }) {
         entry_id: undefined,  // Remova o ID para criar uma nova entrada
         isfavorite: false,    // Reset o status de favorito
       };
-      await axios.post(`${API_URL}/api/kpi-entries`, duplicatedEntry);
+      await axios.post(`${API_URL}/kpi-entries`, duplicatedEntry);
       fetchKPIEntries();
       alert('KPI duplicado com sucesso!');
     } catch (error) {

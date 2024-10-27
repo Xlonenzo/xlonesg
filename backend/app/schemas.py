@@ -1,6 +1,9 @@
+# schemas.py
+
 from pydantic import BaseModel, constr, Field, EmailStr
 from datetime import date
 from typing import Optional, List
+
 
 class KPIBase(BaseModel):
     name: str
@@ -21,14 +24,17 @@ class KPIBase(BaseModel):
     isfavorite: bool  # Novo campo adicionado
     compliance: Optional[List[str]] = []  # Novo campo
 
+
 class KPICreate(KPIBase):
     pass
+
 
 class KPI(KPIBase):
     id: int
 
     class Config:
-        from_attributes = True
+        orm_mode = True
+
 
 class TaskBase(BaseModel):
     description: str
@@ -36,15 +42,18 @@ class TaskBase(BaseModel):
     impact: str
     probability: str
 
+
 class TaskCreate(TaskBase):
     pass
+
 
 class Task(TaskBase):
     id: int
     action_plan_id: Optional[int] = None
 
     class Config:
-        from_attributes = True
+        orm_mode = True
+
 
 class ActionPlanBase(BaseModel):
     objective: str
@@ -52,15 +61,17 @@ class ActionPlanBase(BaseModel):
     end_date: str
     entry_id: Optional[int] = None
 
+
 class ActionPlanCreate(ActionPlanBase):
     pass
+
 
 class ActionPlan(ActionPlanBase):
     id: int
     tasks: List[Task] = []
 
     class Config:
-        from_attributes = True
+        orm_mode = True
 
     @classmethod
     def from_orm(cls, obj):
@@ -73,6 +84,7 @@ class ActionPlan(ActionPlanBase):
             "tasks": [Task.from_orm(task) for task in obj.tasks]
         }
         return cls(**data)
+
 
 class CompanyBase(BaseModel):
     cnpj: str
@@ -91,14 +103,17 @@ class CompanyBase(BaseModel):
     website: Optional[str] = None
     is_active: Optional[bool] = True
 
+
 class CompanyCreate(CompanyBase):
     pass
+
 
 class Company(CompanyBase):
     id: int
 
     class Config:
-        from_attributes = True
+        orm_mode = True
+
 
 class KPITemplateBase(BaseModel):
     name: str
@@ -114,14 +129,17 @@ class KPITemplateBase(BaseModel):
     genero: Optional[str] = None  # Novo campo
     raca: Optional[str] = None  # Novo campo
 
+
 class KPITemplateCreate(KPITemplateBase):
     pass
+
 
 class KPITemplate(KPITemplateBase):
     id: int
 
     class Config:
-        from_attributes = True
+        orm_mode = True
+
 
 class KPIEntryBase(BaseModel):
     template_id: int
@@ -133,19 +151,22 @@ class KPIEntryBase(BaseModel):
     status: str
     isfavorite: bool = False
 
+
 class KPIEntryCreate(KPIEntryBase):
     pass
+
 
 class KPIEntry(KPIEntryBase):
     id: int
 
     class Config:
-        from_attributes = True
+        orm_mode = True
+
 
 class KPIEntryWithTemplate(BaseModel):
     entry_id: int
     template_id: int
-    template_name: str
+    template_name: Optional[str] = None
     cnpj: str
     actual_value: float
     target_value: float
@@ -153,21 +174,22 @@ class KPIEntryWithTemplate(BaseModel):
     month: int
     status: str
     isfavorite: bool
-    unit: str
-    category: str
-    subcategory: str
-    description: str
-    frequency: str
-    collection_method: str
-    kpicode: str
-    company_category: str
+    unit: Optional[str] = None
+    category: Optional[str] = None
+    subcategory: Optional[str] = None
+    description: Optional[str] = None
+    frequency: Optional[str] = None
+    collection_method: Optional[str] = None
+    kpicode: Optional[str] = None
+    company_category: Optional[str] = None
     compliance: Optional[List[str]] = []
     genero: Optional[str] = None  # Novo campo
     raca: Optional[str] = None  # Novo campo
     state: Optional[str] = None  # Torna o campo opcional
 
     class Config:
-        from_attributes = True
+        orm_mode = True
+
 
 class CustomizationBase(BaseModel):
     sidebar_color: str
@@ -175,22 +197,27 @@ class CustomizationBase(BaseModel):
     font_color: str
     logo_url: str
 
+
 class CustomizationCreate(CustomizationBase):
     pass
+
 
 class Customization(CustomizationBase):
     id: int
 
     class Config:
-        from_attributes = True
+        orm_mode = True
+
 
 class UserBase(BaseModel):
     username: str
     email: EmailStr
     role: str
 
+
 class UserCreate(UserBase):
     password: str
+
 
 class UserUpdate(BaseModel):
     username: Optional[str] = None
@@ -198,11 +225,13 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
     role: Optional[str] = None
 
+
 class User(UserBase):
     id: int
 
     class Config:
-        from_attributes = True
+        orm_mode = True
+
 
 class BondBase(BaseModel):
     name: str
@@ -239,14 +268,17 @@ class BondBase(BaseModel):
     financial_institution_cnpj: str
     financial_institution_contact: str
 
+
 class BondCreate(BondBase):
     pass
+
 
 class Bond(BondBase):
     id: int
 
     class Config:
         orm_mode = True
+
 
 class UserLogin(BaseModel):
     username: str

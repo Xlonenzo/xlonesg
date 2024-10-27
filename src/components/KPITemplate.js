@@ -135,7 +135,7 @@ function KPITemplate({ sidebarColor, buttonColor }) {
   const fetchKPIs = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await axios.get(`${API_URL}/api/kpi-templates?limit=1000000`);
+      const response = await axios.get(`${API_URL}/kpi-templates?limit=1000000`);
       console.log('Número de KPIs recebidos:', response.data.length);
       setKpis(response.data);
       setError(null);
@@ -179,7 +179,7 @@ function KPITemplate({ sidebarColor, buttonColor }) {
 
   const handleAddKPI = async () => {
     try {
-      const response = await axios.post(`${API_URL}/api/kpi-templates`, newKPI);
+      const response = await axios.post(`${API_URL}/kpi-templates`, newKPI);
       setKpis([...kpis, response.data]);
       setIsAddingKPI(false);
       setNewKPI({
@@ -204,7 +204,7 @@ function KPITemplate({ sidebarColor, buttonColor }) {
   const handleUpdateKPI = async () => {
     if (editingKPI) {
       try {
-        const response = await axios.put(`${API_URL}/api/kpi-templates/${editingKPI.id}`, editingKPI);
+        const response = await axios.put(`${API_URL}/kpi-templates/${editingKPI.id}`, editingKPI);
         setKpis(prevKPIs => prevKPIs.map(kpi => (kpi.id === editingKPI.id ? response.data : kpi)));
         setEditingKPI(null);
       } catch (error) {
@@ -216,7 +216,7 @@ function KPITemplate({ sidebarColor, buttonColor }) {
   const handleDeleteKPI = async (id) => {
     if (window.confirm('Tem certeza de que deseja excluir este KPI Template?')) {
       try {
-        await axios.delete(`${API_URL}/api/kpi-templates/${id}`);
+        await axios.delete(`${API_URL}/kpi-templates/${id}`);
         setKpis(prevKPIs => prevKPIs.filter(kpi => kpi.id !== id));
       } catch (error) {
         console.error('Erro ao excluir KPI Template:', error);
@@ -233,7 +233,7 @@ function KPITemplate({ sidebarColor, buttonColor }) {
         kpicode: '',
         compliance: [...kpi.compliance]
       };
-      const response = await axios.post(`${API_URL}/api/kpi-templates`, duplicatedKPI);
+      const response = await axios.post(`${API_URL}/kpi-templates`, duplicatedKPI);
       const newKPI = response.data;
       setKpis([...kpis, newKPI]);
       setEditingKPI(newKPI);

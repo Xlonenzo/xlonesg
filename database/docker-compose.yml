@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: xlonesg
+      POSTGRES_PASSWORD: xlon1234
+      POSTGRES_DB: xlonesg
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  pgdata:
+

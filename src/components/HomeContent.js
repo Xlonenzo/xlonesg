@@ -25,7 +25,7 @@ function HomeContent() {
     try {
       setLoading(true);
       console.log('API URL:', API_URL); // Log para debug
-      const response = await axios.get(`${API_URL}/api/kpi-entries-with-templates?limit=1000`);
+      const response = await axios.get(`${API_URL}/kpi-entries-with-templates?limit=1000`);
       console.log('Response:', response); // Log para debug
       setAllKpis(response.data);
       const favorites = response.data.filter(kpi => kpi.isfavorite);

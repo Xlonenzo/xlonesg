@@ -18,7 +18,7 @@ function TaskManagement({ actionPlanId, onClose }) {
 
   const fetchTasks = useCallback(async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/action-plans/${actionPlanId}/tasks`);
+      const response = await axios.get(`${API_URL}/action-plans/${actionPlanId}/tasks`);
       setTasks(response.data);
     } catch (error) {
       console.error('Erro ao buscar tarefas:', error);
@@ -31,7 +31,7 @@ function TaskManagement({ actionPlanId, onClose }) {
 
   const handleAddTask = async () => {
     try {
-      const response = await axios.post(`${API_URL}/api/action-plans/${actionPlanId}/tasks`, newTask);
+      const response = await axios.post(`${API_URL}/action-plans/${actionPlanId}/tasks`, newTask);
       setTasks([...tasks, response.data]);
       setNewTask({ description: '', status: 'Pendente', impact: 'Moderado', probability: 'Moderado' });
     } catch (error) {
@@ -41,7 +41,7 @@ function TaskManagement({ actionPlanId, onClose }) {
 
   const handleUpdateTask = async () => {
     try {
-      const response = await axios.put(`${API_URL}/api/tasks/${editingTask.id}`, editingTask);
+      const response = await axios.put(`${API_URL}/tasks/${editingTask.id}`, editingTask);
       setTasks(tasks.map(task => task.id === editingTask.id ? response.data : task));
       setEditingTask(null);
     } catch (error) {
@@ -52,7 +52,7 @@ function TaskManagement({ actionPlanId, onClose }) {
   const handleDeleteTask = async (id) => {
     if (window.confirm('Tem certeza que deseja excluir esta tarefa?')) {
       try {
-        await axios.delete(`${API_URL}/api/tasks/${id}`);
+        await axios.delete(`${API_URL}/tasks/${id}`);
         setTasks(tasks.filter((task) => task.id !== id));
       } catch (error) {
         console.error('Erro ao deletar tarefa:', error);

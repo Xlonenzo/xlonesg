@@ -17,7 +17,7 @@ const LoginPage = ({ onLogin }) => {
     setError('');
     try {
       console.log('Tentando fazer login com URL:', `${API_URL}/login`);
-      const response = await axios.post(`${API_URL}/login`, { username, password });
+      const response = await axios.post(`/api/login`, { username, password });
       console.log('Response:', response);
       if (response.data.message === 'Login successful') {
         console.log('Login response:', response.data);

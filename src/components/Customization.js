@@ -1,12 +1,25 @@
-// Customization.js
-import React, { useState } from 'react';
+// src/components/Customization.js
+
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_URL } from '../config';
 
-const isDevelopment = process.env.NODE_ENV === 'development';
-
 const Customization = ({ customization, setCustomization }) => {
   const [isLoading, setIsLoading] = useState(false);
+
+  // Carregar a customização inicial
+  useEffect(() => {
+    const fetchCustomization = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/customization`);
+        setCustomization(response.data);
+      } catch (error) {
+        console.error('Erro ao carregar customização:', error);
+      }
+    };
+
+    fetchCustomization();
+  }, [setCustomization]);
 
   const handleColorChange = async (event, type) => {
     const newCustomization = { ...customization, [type]: event.target.value };
@@ -21,7 +34,7 @@ const Customization = ({ customization, setCustomization }) => {
       try {
         const formData = new FormData();
         formData.append('file', file);
-        const response = await axios.post(`${API_URL}/api/upload-logo`, formData, {
+        const response = await axios.post(`${API_URL}/upload-logo`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
@@ -43,9 +56,9 @@ const Customization = ({ customization, setCustomization }) => {
     try {
       setIsLoading(true);
       if (newCustomization.id) {
-        await axios.put(`${API_URL}/api/customization`, newCustomization);
+        await axios.put(`${API_URL}/customization/${newCustomization.id}`, newCustomization);
       } else {
-        const response = await axios.post(`${API_URL}/api/customization`, newCustomization);
+        const response = await axios.post(`${API_URL}/customization`, newCustomization);
         setCustomization(response.data);
       }
     } catch (error) {
@@ -53,15 +66,6 @@ const Customization = ({ customization, setCustomization }) => {
       alert('Erro ao salvar customização');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const updateCustomization = async (newCustomization) => {
-    try {
-      const response = await axios.put(`${API_URL}/api/customization`, newCustomization);
-      setCustomization(response.data);
-    } catch (error) {
-      console.error('Erro ao atualizar customização:', error);
     }
   };
 
