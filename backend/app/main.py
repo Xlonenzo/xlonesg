@@ -530,7 +530,7 @@ async def create_customization(
             file_location = f"static/logos/{unique_filename}"
             with open(file_location, "wb+") as file_object:
                 shutil.copyfileobj(logo.file, file_object)
-            customization.logo_url = f"{BASE_URL}/static/logos/{unique_filename}"
+            customization.logo_url = f"static/logos/{unique_filename}"
 
         db_customization = models.Customization(**customization.dict())
         db.add(db_customization)

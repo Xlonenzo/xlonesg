@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaEdit, FaTrash } from 'react-icons/fa';
+import { API_URL } from '../config';
 
 function CompanyManagement() {
   const [companies, setCompanies] = useState([]);
@@ -29,7 +30,7 @@ function CompanyManagement() {
 
   const fetchCompanies = async () => {
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/companies`);
+      const response = await axios.get(`${API_URL}/companies`);
       setCompanies(response.data);
     } catch (error) {
       console.error('Erro ao buscar empresas:', error);
@@ -39,7 +40,7 @@ function CompanyManagement() {
   const handleAddCompany = async () => {
     console.log('Dados sendo enviados:', newCompany);
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/companies/hierarchy`, {
+      const response = await axios.post(`${API_URL}/companies/hierarchy`, {
         cnpj: newCompany.cnpj,
         name: newCompany.name,
         razao_social: newCompany.razao_social,
@@ -87,7 +88,7 @@ function CompanyManagement() {
 
   const handleUpdateCompany = async () => {
     try {
-      const response = await axios.put(`${process.env.REACT_APP_API_URL}/api/companies/${editingCompany.id}`, {
+      const response = await axios.put(`${API_URL}/companies/${editingCompany.id}`, {
         cnpj: editingCompany.cnpj,
         name: editingCompany.name,
         razao_social: editingCompany.razao_social,
@@ -115,7 +116,7 @@ function CompanyManagement() {
   const handleDeleteCompany = async (id) => {
     if (window.confirm('Tem certeza que deseja excluir esta empresa?')) {
       try {
-        await axios.delete(`${process.env.REACT_APP_API_URL}/api/companies/${id}`);
+        await axios.delete(`${API_URL}/companies/${id}`);
         setCompanies(companies.filter((company) => company.id !== id));
       } catch (error) {
         console.error('Erro ao deletar empresa:', error);

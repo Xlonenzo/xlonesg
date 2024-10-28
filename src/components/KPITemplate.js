@@ -135,7 +135,7 @@ function KPITemplate({ sidebarColor, buttonColor }) {
   const fetchKPIs = useCallback(async () => {
     try {
       setIsLoading(true);
-      const response = await axios.get(`${API_URL}/kpi-templates?limit=1000000`);
+      const response = await axios.get(`${API_URL}/kpi-templates?limit=1000`);
       console.log('Número de KPIs recebidos:', response.data.length);
       setKpis(response.data);
       setError(null);
@@ -149,7 +149,7 @@ function KPITemplate({ sidebarColor, buttonColor }) {
 
   useEffect(() => {
     fetchKPIs();
-  }, [fetchKPIs]);
+  }, []);
 
   // Calcular currentKPIs baseado nos KPIs filtrados e pesquisados
   const indexOfLastKPI = currentPage * kpisPerPage;
