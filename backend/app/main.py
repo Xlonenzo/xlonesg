@@ -40,7 +40,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 os.makedirs("static/logos", exist_ok=True)
 
 # Configuração da base URL  
-BASE_URL = "https://api.xlon.com.br"  # Substitua pela URL pública do seu backend
+BASE_URL = "https://gen.xlon.com.br"  # Substitua pela URL pública do seu backend
 
 # Dependency
 def get_db():
@@ -530,7 +530,7 @@ async def create_customization(
             file_location = f"static/logos/{unique_filename}"
             with open(file_location, "wb+") as file_object:
                 shutil.copyfileobj(logo.file, file_object)
-            customization.logo_url = f"static/logos/{unique_filename}"
+            customization.logo_url = f"{BASE_URL}/static/logos/{unique_filename}"
 
         db_customization = models.Customization(**customization.dict())
         db.add(db_customization)
@@ -552,27 +552,31 @@ def get_customization(db: Session = Depends(get_db)):
 @app.put("/api/customization/{customization_id}", response_model=schemas.Customization)
 async def update_customization(
     customization_id: int,
-    customization: schemas.CustomizationCreate = Depends(),
-    logo: UploadFile = File(None),
+    customization: schemas.CustomizationCreate,
     db: Session = Depends(get_db)
 ):
-    db_customization = db.query(models.Customization).filter(models.Customization.id == customization_id).first()
-    if not db_customization:
-        raise HTTPException(status_code=404, detail="Customization not found")
-    
-    if logo:
-        unique_filename = f"{uuid4().hex}_{logo.filename}"
-        file_location = f"static/logos/{unique_filename}"
-        with open(file_location, "wb+") as file_object:
-            shutil.copyfileobj(logo.file, file_object)
-        customization.logo_url = f"{BASE_URL}/static/logos/{unique_filename}"
+    try:
+        db_customization = db.query(models.Customization).filter(
+            models.Customization.id == customization_id
+        ).first()
+        
+        if db_customization is None:
+            raise HTTPException(status_code=404, detail="Customização não encontrada")
 
-    for key, value in customization.dict().items():
-        setattr(db_customization, key, value)
-    
-    db.commit()
-    db.refresh(db_customization)
-    return schemas.Customization.from_orm(db_customization)
+        # Atualiza os campos
+        for key, value in customization.dict(exclude_unset=True).items():
+            setattr(db_customization, key, value)
+
+        db.commit()
+        db.refresh(db_customization)
+        
+        logger.info(f"Customização {customization_id} atualizada com sucesso")
+        return db_customization
+
+    except SQLAlchemyError as e:
+        logger.error(f"Erro ao atualizar customização: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
 
 # Rotas para Upload de Logo
 
@@ -768,3 +772,5 @@ if __name__ == "__main__":
     models.Base.metadata.create_all(bind=engine)
     logger.info("Tabelas criadas (se não existirem)")
     logger.info("Rotas definidas em main.py")
+
+

@@ -109,18 +109,28 @@ function ActionPlanManagement() {
             placeholder="Objetivo"
             className="w-full p-2 border rounded mb-2"
           />
-          <input
-            type="date"
-            value={newActionPlan.start_date}
-            onChange={(e) => setNewActionPlan({...newActionPlan, start_date: e.target.value})}
-            className="w-full p-2 border rounded mb-2"
-          />
-          <input
-            type="date"
-            value={newActionPlan.end_date}
-            onChange={(e) => setNewActionPlan({...newActionPlan, end_date: e.target.value})}
-            className="w-full p-2 border rounded mb-2"
-          />
+          <div className="mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Data de início
+            </label>
+            <input
+              type="date"
+              value={newActionPlan.start_date}
+              onChange={(e) => setNewActionPlan({...newActionPlan, start_date: e.target.value})}
+              className="w-full p-2 border rounded"
+            />
+          </div>
+          <div className="mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Data de fim
+            </label>
+            <input
+              type="date"
+              value={newActionPlan.end_date}
+              onChange={(e) => setNewActionPlan({...newActionPlan, end_date: e.target.value})}
+              className="w-full p-2 border rounded"
+            />
+          </div>
           <select
             value={newActionPlan.entry_id || ''}
             onChange={(e) => setNewActionPlan({...newActionPlan, entry_id: e.target.value ? parseInt(e.target.value) : null})}
@@ -197,18 +207,28 @@ function ActionPlanManagement() {
             placeholder="Objetivo"
             className="w-full p-2 border rounded mb-2"
           />
-          <input
-            type="date"
-            value={editingPlan.start_date}
-            onChange={(e) => setEditingPlan({...editingPlan, start_date: e.target.value})}
-            className="w-full p-2 border rounded mb-2"
-          />
-          <input
-            type="date"
-            value={editingPlan.end_date}
-            onChange={(e) => setEditingPlan({...editingPlan, end_date: e.target.value})}
-            className="w-full p-2 border rounded mb-2"
-          />
+          <div className="mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Data de início
+            </label>
+            <input
+              type="date"
+              value={editingPlan.start_date}
+              onChange={(e) => setEditingPlan({...editingPlan, start_date: e.target.value})}
+              className="w-full p-2 border rounded"
+            />
+          </div>
+          <div className="mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Data de fim
+            </label>
+            <input
+              type="date"
+              value={editingPlan.end_date}
+              onChange={(e) => setEditingPlan({...editingPlan, end_date: e.target.value})}
+              className="w-full p-2 border rounded"
+            />
+          </div>
           <select
             value={editingPlan.entry_id || ''}
             onChange={(e) => setEditingPlan({...editingPlan, entry_id: e.target.value ? parseInt(e.target.value) : null})}

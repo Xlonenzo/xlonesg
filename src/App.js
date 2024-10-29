@@ -20,6 +20,7 @@ import CompanyManagement from './components/CompanyManagement';
 import KPITemplate from './components/KPITemplate';
 import KPITracker from './components/KPITracker';
 import Register from './components/Register';
+import BondManagement from './components/BondManagement';
 
 // Importar dados e estilos
 import articlesData from './data/articles';
@@ -63,12 +64,19 @@ function App() {
 
   const fetchCustomization = async () => {
     try {
+      console.log('Buscando customização...');
       const response = await axios.get(`${API_URL}/customization`);
+      console.log('Customização recebida:', response.data);
       setCustomization(response.data);
     } catch (error) {
       console.error('Erro ao buscar customização:', error);
     }
   };
+
+  // Adicione um useEffect para monitorar mudanças na customização
+  useEffect(() => {
+    console.log('Customização atualizada:', customization);
+  }, [customization]);
 
   const toggleSidebar = () => {
     setIsSidebarCollapsed(!isSidebarCollapsed);
@@ -147,6 +155,13 @@ function App() {
       case '/kpi-tracker':
         return ['admin', 'editor'].includes(userRole) ? (
           <KPITracker kpiEntries={kpiEntries} setKpiEntries={setKpiEntries} sidebarColor={customization.sidebar_color} buttonColor={customization.button_color} />
+        ) : <UnauthorizedAccess />;
+      case '/bond-management':
+        return ['admin', 'editor'].includes(userRole) ? (
+          <BondManagement 
+            sidebarColor={customization.sidebar_color} 
+            buttonColor={customization.button_color} 
+          />
         ) : <UnauthorizedAccess />;
       default:
         return <div>Selecione uma opção do menu</div>;
