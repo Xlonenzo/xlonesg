@@ -24,13 +24,33 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Configuração CORS
+# Atualizar configuração do CORS
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "https://gen.xlon.com.br"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://gen.xlon.com.br"],  # Ajuste para a URL do seu frontend com HTTPS
-    allow_credentials=True,
-    allow_methods=["*"],  # Isso permite todos os métodos, incluindo PUT
-    allow_headers=["*"],
+    allow_origins=origins,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=[
+        "Content-Type",*
+        "Authorization",
+        "Accept",
+        "Origin",
+        "X-Requested-With",
+        "Access-Control-Allow-Origin",
+        "Access-Control-Allow-Methods",
+        "Access-Control-Allow-Headers",
+        "Access-Control-Allow-Credentials"
+    ],
+    expose_headers=["*"],
+    max_age=3600
 )
 
 # Configuração para servir arquivos estáticos
@@ -70,9 +90,20 @@ def create_action_plan(action_plan: schemas.ActionPlanCreate, db: Session = Depe
     return schemas.ActionPlan.from_orm(db_action_plan)
 
 @app.get("/api/action-plans", response_model=List[schemas.ActionPlan])
-def read_action_plans(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    action_plans = db.query(models.ActionPlan).offset(skip).limit(limit).all()
-    return [schemas.ActionPlan.from_orm(plan) for plan in action_plans]
+def read_action_plans(
+    skip: int = 0, 
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    try:
+        logger.info("Buscando planos de ação")
+        query = db.query(models.ActionPlan)
+        action_plans = query.offset(skip).limit(limit).all()
+        logger.info(f"Encontrados {len(action_plans)} planos de ação")
+        return action_plans
+    except Exception as e:
+        logger.error(f"Erro ao buscar planos de ação: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Nova rota para adicionar tarefa a um plano de ação
 @app.post("/api/action-plans/{action_plan_id}/tasks", response_model=schemas.Task)
@@ -609,12 +640,39 @@ class LoginData(BaseModel):
 @app.post("/api/login")
 def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
     logger.info(f"Tentativa de login para o usuário: {user.username}")
-    db_user = db.query(models.User).filter(models.User.username == user.username).first()
-    if not db_user:
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
-    if not verify_password(user.password, db_user.hashed_password):
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
-    return {"message": "Login successful", "username": db_user.username, "role": db_user.role}
+    
+    try:
+        # Buscar usuário
+        db_user = db.query(models.User).filter(models.User.username == user.username).first()
+        
+        # Verificar se usuário existe e senha está correta
+        if not db_user:
+            logger.warning(f"Usuário não encontrado: {user.username}")
+            raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
+            
+        if not verify_password(user.password, db_user.hashed_password):
+            logger.warning(f"Senha incorreta para usuário: {user.username}")
+            raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
+            
+        # Verificar se usuário está ativo
+        if not db_user.is_active:
+            logger.warning(f"Tentativa de login de usuário inativo: {user.username}")
+            raise HTTPException(status_code=401, detail="Usuário inativo")
+
+        logger.info(f"Login bem sucedido para usuário: {user.username}")
+        
+        return {
+            "message": "Login successful",
+            "username": db_user.username,
+            "role": db_user.role,
+            "id": db_user.id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro no login: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro interno no servidor")
 
 # Rotas para Usuários
 
@@ -632,8 +690,24 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 
 @app.get("/api/users/", response_model=List[schemas.User])
 def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    users = db.query(models.User).offset(skip).limit(limit).all()
-    return [schemas.User.from_orm(user) for user in users]
+    try:
+        users = db.query(models.User).offset(skip).limit(limit).all()
+        logger.info(f"Usuários encontrados: {len(users)}")  # Log para debug
+        
+        # Verificar se há dados
+        if not users:
+            logger.warning("Nenhum usuário encontrado no banco")
+            return []
+            
+        # Log dos dados retornados
+        for user in users:
+            logger.info(f"User: {user.username}, Email: {user.email}, Role: {user.role}")
+            
+        return users
+    except Exception as e:
+        logger.error(f"Erro ao listar usuários: {str(e)}")
+        logger.error(traceback.format_exc())  # Log do stack trace completo
+        raise HTTPException(status_code=400, detail=f"Erro ao listar usuários: {str(e)}")
 
 @app.get("/api/users/{user_id}", response_model=schemas.User)
 def read_user(user_id: int, db: Session = Depends(get_db)):
@@ -696,11 +770,15 @@ def read_bonds(
     type: Optional[str] = Query(None, description="Filtrar por tipo de título"),
     db: Session = Depends(get_db)
 ):
-    query = db.query(models.Bond)
-    if type:
-        query = query.filter(models.Bond.type == type)
-    bonds = query.offset(skip).limit(limit).all()
-    return [schemas.Bond.from_orm(bond) for bond in bonds]
+    try:
+        query = db.query(models.Bond)
+        if type:
+            query = query.filter(models.Bond.type == type)
+        bonds = query.offset(skip).limit(limit).all()
+        return [schemas.Bond.model_validate(bond) for bond in bonds]
+    except Exception as e:
+        logger.error(f"Erro ao buscar títulos: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/bonds/{bond_id}", response_model=schemas.Bond)
 def read_bond(bond_id: int, db: Session = Depends(get_db)):

@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaEdit, FaTrash, FaTasks } from 'react-icons/fa';
 import TaskManagement from './TaskManagement';
-
-// Adicione esta importação no topo do arquivo
 import { API_URL } from '../config';
 
 function ActionPlanManagement() {

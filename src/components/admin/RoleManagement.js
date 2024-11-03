@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_URL } from '../../config';
 
 function RoleManagement() {
   const [roles, setRoles] = useState([]);
@@ -12,7 +13,7 @@ function RoleManagement() {
 
   const fetchRoles = async () => {
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/roles/`);
+      const response = await axios.get(`${API_URL}/roles/`);
       setRoles(response.data);
     } catch (error) {
       console.error('Erro ao buscar perfis:', error);

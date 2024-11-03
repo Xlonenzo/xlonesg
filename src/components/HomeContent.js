@@ -4,12 +4,10 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 import { FaStar } from 'react-icons/fa';
 import { PieChart, Pie } from 'recharts';
 import IEERComparativoChart from './IEERComparativoChart';
+import { API_URL } from '../config';
 
 // Adicione esta linha no topo do arquivo
 const isDevelopment = process.env.NODE_ENV === 'development';
-
-// Modifique a definição de API_URL
-const API_URL = process.env.REACT_APP_API_URL || (isDevelopment ? 'http://localhost:8000' : 'https://gen.xlon.com.br');
 
 function HomeContent() {
   const [allKpis, setAllKpis] = useState([]);

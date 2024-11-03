@@ -2,14 +2,75 @@
 
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { FaEdit, FaTrash, FaSearch, FaFilter } from 'react-icons/fa';
+import { API_URL } from '../../config';
 
 function UserManagement({ buttonColor }) {
   const [users, setUsers] = useState([]);
   const [newUsername, setNewUsername] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [newRole, setNewRole] = useState('viewer'); // Novo estado para role
+  const [newRole, setNewRole] = useState('viewer');
+  const [isActive, setIsActive] = useState(true);
   const [editingUser, setEditingUser] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isAddingUser, setIsAddingUser] = useState(false);
+
+  // Remova full_name dos filtros
+  const [filters, setFilters] = useState({
+    username: '',
+    email: '',
+    role: '',
+    is_active: ''
+  });
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({
+      ...prev,
+      [name]: name === 'is_active' ? value === 'true' : value
+    }));
+  };
+
+  const filteredUsers = users.filter(user => {
+    return Object.keys(filters).every(key => {
+      if (!filters[key]) return true;
+      if (key === 'is_active') {
+        return String(Boolean(user[key])) === filters[key];
+      }
+      return user[key]?.toLowerCase().includes(filters[key].toLowerCase());
+    });
+  });
+
+  const renderColumnFilter = (columnName, options = null) => (
+    <div className="flex items-center">
+      {options ? (
+        <select
+          name={columnName}
+          value={filters[columnName]}
+          onChange={handleFilterChange}
+          className="w-full p-1 text-sm border rounded"
+        >
+          <option value="">Todos</option>
+          {options.map(opt => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      ) : (
+        <input
+          type="text"
+          name={columnName}
+          value={filters[columnName]}
+          onChange={handleFilterChange}
+          className="w-full p-1 text-sm border rounded"
+          placeholder={`Filtrar ${columnName}`}
+        />
+      )}
+      <FaFilter className="ml-1 text-gray-500" />
+    </div>
+  );
 
   useEffect(() => {
     fetchUsers();
@@ -17,36 +78,124 @@ function UserManagement({ buttonColor }) {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/users/`);
-      setUsers(response.data);
+      console.log('Iniciando busca de usuários...');
+      const response = await axios({
+        method: 'get',
+        url: `${API_URL}/users/`,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        withCredentials: false
+      });
+      
+      console.log('Usuários recebidos (raw):', response.data);
+      
+      // Garantir que is_active seja booleano
+      const processedUsers = response.data.map(user => ({
+        ...user,
+        is_active: Boolean(user.is_active)
+      }));
+      
+      console.log('Usuários processados:', processedUsers);
+      setUsers(processedUsers);
+      setError(null);
     } catch (error) {
       console.error('Erro ao buscar usuários:', error);
-      alert('Erro ao carregar usuários. Por favor, tente novamente.');
+      setError('Erro ao carregar usuários');
     }
   };
 
   const handleCreateUser = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    // Criar objeto de dados
+    const userData = {
+      username: newUsername,
+      email: newEmail,
+      password: newPassword,
+      role: newRole,
+      is_active: Boolean(isActive),
+      full_name: newUsername
+    };
+
+    // Validar dados antes do envio
+    const validationErrors = validateUserData(userData);
+    if (validationErrors.length > 0) {
+      setError(validationErrors.join(', '));
+      setLoading(false);
+      return;
+    }
+
+    console.log('Dados a serem enviados:', {
+      ...userData,
+      password: 'REDACTED',
+      is_active: Boolean(userData.is_active)
+    });
+
     try {
-      await axios.post(`${process.env.REACT_APP_API_URL}/users/`, {
-        username: newUsername,
-        email: newEmail,
-        password: newPassword,
-        role: newRole
+      const response = await axios({
+        method: 'post',
+        url: `${API_URL}/users/`,
+        data: userData,
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
+
+      console.log('Resposta do servidor:', response.data);
       alert('Usuário criado com sucesso!');
       resetForm();
       fetchUsers();
     } catch (error) {
-      console.error('Erro ao criar usuário:', error);
-      alert('Erro ao criar usuário. Por favor, tente novamente.');
+      console.error('Erro detalhado:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message,
+        validationError: error.response?.data?.detail
+      });
+      
+      let errorMessage = 'Erro ao criar usuário';
+      if (error.response?.data?.detail) {
+        errorMessage = Array.isArray(error.response.data.detail) 
+          ? error.response.data.detail.map(err => err.msg).join(', ')
+          : error.response.data.detail;
+      }
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  // Função para validar os dados antes do envio
+  const validateUserData = (data) => {
+    const errors = [];
+    
+    if (!data.username || data.username.length < 3) {
+      errors.push('Username deve ter pelo menos 3 caracteres');
+    }
+    
+    if (!data.email || !data.email.includes('@')) {
+      errors.push('Email inválido');
+    }
+    
+    if (!data.password || data.password.length < 6) {
+      errors.push('Senha deve ter pelo menos 6 caracteres');
+    }
+    
+    if (!data.role || !['viewer', 'editor', 'admin'].includes(data.role)) {
+      errors.push('Função inválida');
+    }
+
+    return errors;
   };
 
   const handleDeleteUser = async (userId) => {
     if (window.confirm('Tem certeza que deseja excluir este usuário?')) {
       try {
-        const response = await axios.delete(`${process.env.REACT_APP_API_URL}/users/${userId}`);
+        const response = await axios.delete(`${API_URL}/users/${userId}`);
         if (response.data.message === "User deleted successfully") {
           alert('Usuário excluído com sucesso!');
           fetchUsers();
@@ -70,156 +219,228 @@ function UserManagement({ buttonColor }) {
   };
 
   const handleEditUser = (user) => {
+    console.log('Editando usuário:', user); // Debug
     setEditingUser(user);
     setNewUsername(user.username);
     setNewEmail(user.email);
     setNewRole(user.role);
+    setIsActive(user.is_active); // Usar o valor direto
   };
 
   const handleUpdateUser = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError(null);
     try {
-      const response = await axios.put(`${process.env.REACT_APP_API_URL}/users/${editingUser.id}`, {
+      const userData = {
         username: newUsername,
         email: newEmail,
-        password: newPassword,
-        role: newRole
-      });
-      console.log('Resposta do servidor:', response.data);
+        password: newPassword || undefined,
+        role: newRole,
+        is_active: isActive, // Usar o valor direto
+        full_name: newUsername
+      };
+
+      console.log('Dados de atualização:', userData); // Debug
+
+      await axios.put(`${API_URL}/users/${editingUser.id}`, userData);
       alert('Usuário atualizado com sucesso!');
       resetForm();
       fetchUsers();
     } catch (error) {
       console.error('Erro ao atualizar usuário:', error);
-      let errorMessage = 'Erro ao atualizar usuário. ';
-      if (error.response) {
-        console.error('Dados da resposta de erro:', error.response.data);
-        errorMessage += error.response.data.detail || JSON.stringify(error.response.data);
-      } else if (error.request) {
-        errorMessage += 'Não foi possível se conectar ao servidor.';
-      } else {
-        errorMessage += error.message;
-      }
-      alert(errorMessage);
+      setError(error.response?.data?.detail || 'Erro ao atualizar usuário');
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Atualizar o resetForm para garantir que todos os campos sejam limpos
   const resetForm = () => {
+    setEditingUser(null);
+    setIsAddingUser(false);
+    setNewUsername('');
+    setNewEmail('');
+    setNewPassword('');
+    setNewRole('viewer');
+    setIsActive(true);
+    setError(null);
+  };
+
+  const handleAddNewUser = () => {
+    setIsAddingUser(true);
     setEditingUser(null);
     setNewUsername('');
     setNewEmail('');
     setNewPassword('');
     setNewRole('viewer');
+    setIsActive(true);
   };
 
   return (
-    <div className="p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">Gerenciamento de Usuários</h2>
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold mb-4">Gerenciamento de Usuários</h2>
       
-      {/* Lista de Usuários */}
-      <div className="mb-8">
-        <h3 className="text-xl font-semibold mb-4 text-gray-700">Usuários Existentes</h3>
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white border border-gray-300">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="text-left p-3 font-semibold">Nome de Usuário</th>
-                <th className="text-left p-3 font-semibold">Email</th>
-                <th className="text-left p-3 font-semibold">Role</th>
-                <th className="text-left p-3 font-semibold">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map(user => (
-                <tr key={user.id} className="border-b hover:bg-gray-50">
-                  <td className="p-3">{user.username}</td>
-                  <td className="p-3">{user.email}</td>
-                  <td className="p-3">{user.role}</td>
-                  <td className="p-3">
-                    <button
-                      onClick={() => handleEditUser(user)}
-                      style={{ backgroundColor: buttonColor }}
-                      className="text-white px-2 py-1 rounded mr-2 hover:opacity-80"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => handleDeleteUser(user.id)}
-                      className="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
-                    >
-                      Excluir
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div className="flex justify-between items-center mb-4">
+        <button 
+          onClick={handleAddNewUser}
+          className="text-white px-4 py-2 rounded hover:opacity-80"
+          style={{ backgroundColor: buttonColor }}
+        >
+          Adicionar Novo Usuário
+        </button>
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Pesquisar usuários..."
+            className="p-2 pl-8 border rounded"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <FaSearch className="absolute left-2 top-3 text-gray-400" />
         </div>
       </div>
 
-      {/* Criar/Editar Usuário */}
-      <div className="bg-gray-50 p-6 rounded-lg">
-        <h3 className="text-xl font-semibold mb-4 text-gray-700">
-          {editingUser ? 'Editar Usuário' : 'Criar Novo Usuário'}
-        </h3>
-        <form onSubmit={editingUser ? handleUpdateUser : handleCreateUser} className="space-y-4">
-          <input
-            type="text"
-            placeholder="Nome de usuário"
-            value={newUsername}
-            onChange={(e) => setNewUsername(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
-          <input
-            type="email"
-            placeholder="E-mail"
-            value={newEmail}
-            onChange={(e) => setNewEmail(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
-          <input
-            type="password"
-            placeholder="Senha"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required={!editingUser}
-          />
-          <select
-            value={newRole}
-            onChange={(e) => setNewRole(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          >
-            <option value="viewer">Viewer</option>
-            <option value="editor">Editor</option>
-            <option value="admin">Admin</option>
-          </select>
-          <button
-            type="submit"
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-          >
-            {editingUser ? 'Atualizar Usuário' : 'Criar Usuário'}
-          </button>
-          {editingUser && (
-            <button
-              type="button"
-              onClick={() => {
-                setEditingUser(null);
-                setNewUsername('');
-                setNewEmail('');
-                setNewPassword('');
-                setNewRole('viewer');
-              }}
-              className="ml-2 bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 transition duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
-            >
-              Cancelar Edição
-            </button>
-          )}
-        </form>
+      {error && typeof error === 'string' && (
+        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white border">
+          <thead>
+            <tr>
+              <th className="px-4 py-2 border">{renderColumnFilter('username')}</th>
+              <th className="px-4 py-2 border">{renderColumnFilter('email')}</th>
+              <th className="px-4 py-2 border">
+                {renderColumnFilter('role', [
+                  { value: 'viewer', label: 'Viewer' },
+                  { value: 'editor', label: 'Editor' },
+                  { value: 'admin', label: 'Admin' }
+                ])}
+              </th>
+              <th className="px-4 py-2 border">
+                {renderColumnFilter('is_active', [
+                  { value: 'true', label: 'Ativo' },
+                  { value: 'false', label: 'Inativo' }
+                ])}
+              </th>
+              <th className="px-4 py-2 border">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredUsers.map(user => (
+              <tr key={user.id} className="border-b hover:bg-gray-50">
+                <td className="px-4 py-2 border">{user.username}</td>
+                <td className="px-4 py-2 border">{user.email}</td>
+                <td className="px-4 py-2 border capitalize">{user.role}</td>
+                <td className="px-4 py-2 border">
+                  <span className={`px-2 py-1 rounded ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {user.is_active ? 'Ativo' : 'Inativo'}
+                  </span>
+                </td>
+                <td className="px-4 py-2 border">
+                  <button
+                    onClick={() => handleEditUser(user)}
+                    className="text-blue-500 hover:text-blue-700 mr-2"
+                  >
+                    <FaEdit />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteUser(user.id)}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <FaTrash />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
+
+      {/* Formulário de Edição/Criação */}
+      {(editingUser !== null || isAddingUser) && (
+        <div className="mt-4 p-4 bg-gray-100 rounded">
+          <h3 className="text-lg font-bold mb-2">
+            {editingUser ? 'Editar Usuário' : 'Adicionar Novo Usuário'}
+          </h3>
+          <form onSubmit={editingUser ? handleUpdateUser : handleCreateUser} className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block mb-2">Username</label>
+              <input
+                type="text"
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+                className="w-full p-2 border rounded"
+                required
+              />
+            </div>
+            <div>
+              <label className="block mb-2">Email</label>
+              <input
+                type="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                className="w-full p-2 border rounded"
+                required
+              />
+            </div>
+            <div>
+              <label className="block mb-2">Senha {!editingUser && '(Obrigatória)'}</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full p-2 border rounded"
+                required={!editingUser}
+              />
+            </div>
+            <div>
+              <label className="block mb-2">Função</label>
+              <select
+                value={newRole}
+                onChange={(e) => setNewRole(e.target.value)}
+                className="w-full p-2 border rounded"
+                required
+              >
+                <option value="viewer">Viewer</option>
+                <option value="editor">Editor</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <div>
+              <label className="block mb-2">Status</label>
+              <select
+                value={String(Boolean(isActive))}
+                onChange={(e) => setIsActive(e.target.value === 'true')}
+                className="w-full p-2 border rounded"
+              >
+                <option value="true">Ativo</option>
+                <option value="false">Inativo</option>
+              </select>
+            </div>
+            <div className="mt-4 col-span-2">
+              <button
+                type="submit"
+                disabled={loading}
+                className="text-white px-4 py-2 rounded hover:opacity-80 mr-2"
+                style={{ backgroundColor: buttonColor }}
+              >
+                {loading ? 'Processando...' : (editingUser ? 'Atualizar' : 'Criar')}
+              </button>
+              <button
+                type="button"
+                onClick={resetForm}
+                className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

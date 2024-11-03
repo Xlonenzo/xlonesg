@@ -1,4 +1,12 @@
 # models.py
+from sqlalchemy import (
+    Column, Integer, String, Float, Text, Boolean, Date, 
+    ForeignKey, ARRAY, Enum, UniqueConstraint, DateTime as SQLDateTime
+)
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
+from .database import Base
+from sqlalchemy.dialects import postgresql
 
 from sqlalchemy import Column, Integer, String, Float, Text, Boolean, Date, ForeignKey, ARRAY, Enum, UniqueConstraint
 from sqlalchemy.orm import relationship
@@ -171,12 +179,17 @@ class User(Base):
     __table_args__ = {"schema": "xlonesg"}
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True)
-    email = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
-    role = Column(Enum('admin', 'editor', 'viewer', name='user_roles'), default='viewer')
+    username = Column(String(50), unique=True, nullable=False, index=True)
+    email = Column(String(100), unique=True, nullable=False, index=True)
+    hashed_password = Column(String(100), nullable=False)
+    role = Column(String(20), nullable=False)
+    full_name = Column(String(100), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(SQLDateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(SQLDateTime(timezone=True), server_default=func.now(), nullable=False)
 
-
+def __repr__(self):
+        return f"User(id={self.id}, username={self.username}, email={self.email})"
 class Bond(Base):
     __tablename__ = "bonds"
     __table_args__ = {"schema": "xlonesg"}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { API_URL } from '../config';
 
 function ComparacaoKPI() {
   const [kpis, setKpis] = useState([]);
@@ -14,7 +15,7 @@ function ComparacaoKPI() {
 
   const fetchKPIs = async () => {
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/kpi-entries-with-templates`);
+      const response = await axios.get(`${API_URL}/kpi-entries-with-templates`);
       setKpis(response.data);
     } catch (error) {
       console.error('Erro ao buscar KPIs:', error);

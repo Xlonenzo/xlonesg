@@ -24,16 +24,20 @@ class KPIBase(BaseModel):
     isfavorite: bool  # Novo campo adicionado
     compliance: Optional[List[str]] = []  # Novo campo
 
+    class Config:
+        from_attributes = True
+
 
 class KPICreate(KPIBase):
-    pass
+    class Config:
+        from_attributes = True
 
 
 class KPI(KPIBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class TaskBase(BaseModel):
@@ -60,6 +64,10 @@ class ActionPlanBase(BaseModel):
     start_date: str
     end_date: str
     entry_id: Optional[int] = None
+    cnpj: Optional[str] = None
+
+    class Config:
+        from_attributes = True
 
 
 class ActionPlanCreate(ActionPlanBase):
@@ -123,22 +131,26 @@ class KPITemplateBase(BaseModel):
     description: str
     frequency: str
     collection_method: str
-    kpicode: Optional[str] = Field(default=None)
+    kpicode: Optional[str] = None
     company_category: str
-    compliance: List[str]  # Defina como uma lista de strings
-    genero: Optional[str] = None  # Novo campo
-    raca: Optional[str] = None  # Novo campo
+    compliance: List[str]
+    genero: Optional[str] = None
+    raca: Optional[str] = None
+
+    class Config:
+        from_attributes = True
 
 
 class KPITemplateCreate(KPITemplateBase):
-    pass
+    class Config:
+        from_attributes = True
 
 
 class KPITemplate(KPITemplateBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class KPIEntryBase(BaseModel):
@@ -214,9 +226,15 @@ class UserBase(BaseModel):
     email: EmailStr
     role: str
 
+    class Config:
+        from_attributes = True
+
 
 class UserCreate(UserBase):
     password: str
+
+    class Config:
+        from_attributes = True
 
 
 class UserUpdate(BaseModel):
@@ -225,12 +243,15 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
     role: Optional[str] = None
 
+    class Config:
+        from_attributes = True
+
 
 class User(UserBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class BondBase(BaseModel):
@@ -245,7 +266,7 @@ class BondBase(BaseModel):
     estimated_social_impact: str
     social_report_issued: bool
     project_description: str
-    project_eligibility: str  # Alterado de bool para str
+    project_eligibility: str
     project_selection_date: date
     resource_allocation_approved: bool
     resource_manager: str
@@ -268,18 +289,25 @@ class BondBase(BaseModel):
     financial_institution_cnpj: str
     financial_institution_contact: str
 
+    class Config:
+        from_attributes = True
+
 
 class BondCreate(BondBase):
-    pass
+    class Config:
+        from_attributes = True
 
 
 class Bond(BondBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class UserLogin(BaseModel):
     username: str
     password: str
+
+    class Config:
+        from_attributes = True
