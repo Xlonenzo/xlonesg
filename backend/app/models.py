@@ -75,10 +75,12 @@ class Task(Base):
 
 class Company(Base):
     __tablename__ = "companies"
-    __table_args__ = {"schema": "xlonesg"}
+    __table_args__ = (
+        {"schema": "xlonesg"}
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    cnpj = Column(String(14), unique=True, nullable=False)
+    cnpj = Column(String(14), unique=True, nullable=False, index=True)
     name = Column(String(255), nullable=False)
     razao_social = Column(String(255))
     endereco = Column(Text)
@@ -93,6 +95,9 @@ class Company(Base):
     email = Column(String(100))
     website = Column(String(100))
     is_active = Column(Boolean, default=True)
+
+    # Adicionar relacionamento bidirecional
+    kpi_entries = relationship("KPIEntry", back_populates="company", cascade="all, delete-orphan")
 
 
 class KPITemplate(Base):
@@ -123,7 +128,7 @@ class KPIEntry(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     template_id = Column(Integer, ForeignKey('xlonesg.kpi_templates.id'))
-    cnpj = Column(String(14), ForeignKey('xlonesg.companies.cnpj'))
+    cnpj = Column(String(14), ForeignKey('xlonesg.companies.cnpj', onupdate="CASCADE"), index=True)
     actual_value = Column(Float)
     target_value = Column(Float)
     year = Column(Integer)

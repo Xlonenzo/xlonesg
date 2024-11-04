@@ -46,9 +46,13 @@ class TaskBase(BaseModel):
     impact: str
     probability: str
 
+    class Config:
+        from_attributes = True
+
 
 class TaskCreate(TaskBase):
-    pass
+    class Config:
+        from_attributes = True
 
 
 class Task(TaskBase):
@@ -56,7 +60,7 @@ class Task(TaskBase):
     action_plan_id: Optional[int] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ActionPlanBase(BaseModel):
@@ -111,16 +115,20 @@ class CompanyBase(BaseModel):
     website: Optional[str] = None
     is_active: Optional[bool] = True
 
+    class Config:
+        from_attributes = True
+
 
 class CompanyCreate(CompanyBase):
-    pass
+    class Config:
+        from_attributes = True
 
 
 class Company(CompanyBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class KPITemplateBase(BaseModel):

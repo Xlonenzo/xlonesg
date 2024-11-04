@@ -298,22 +298,109 @@ def read_company(company_id: int, db: Session = Depends(get_db)):
 
 @app.put("/api/companies/{company_id}", response_model=schemas.Company)
 def update_company(company_id: int, company: schemas.CompanyCreate, db: Session = Depends(get_db)):
-    db_company = db.query(models.Company).filter(models.Company.id == company_id).first()
-    if db_company is None:
-        raise HTTPException(status_code=404, detail="Empresa não encontrada")
-    
-    # Atualizar todos os campos
-    for key, value in company.dict().items():
-        setattr(db_company, key, value)
-    
     try:
-        db.commit()
-        db.refresh(db_company)
-    except SQLAlchemyError as e:
+        logger.info(f"Tentando atualizar empresa ID {company_id}")
+        logger.info(f"Dados recebidos: {company.dict()}")
+        
+        # Inicia uma transação
+        db_company = db.query(models.Company).filter(models.Company.id == company_id).first()
+        if db_company is None:
+            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+        
+        old_cnpj = db_company.cnpj
+        new_cnpj = company.cnpj
+        
+        logger.info(f"CNPJ antigo: {old_cnpj}")
+        logger.info(f"CNPJ novo: {new_cnpj}")
+        
+        if old_cnpj != new_cnpj:
+            # Verifica se o novo CNPJ já existe
+            existing = db.query(models.Company).filter(
+                models.Company.cnpj == new_cnpj,
+                models.Company.id != company_id
+            ).first()
+            if existing:
+                raise HTTPException(
+                    status_code=400,
+                    detail="CNPJ já está em uso por outra empresa"
+                )
+            
+            try:
+                # 1. Primeiro, busca todos os registros relacionados
+                kpi_entries = db.query(models.KPIEntry).filter(
+                    models.KPIEntry.cnpj == old_cnpj
+                ).all()
+                
+                action_plans = db.query(models.ActionPlan).filter(
+                    models.ActionPlan.cnpj == old_cnpj
+                ).all()
+                
+                logger.info(f"Encontrados {len(kpi_entries)} registros KPI")
+                logger.info(f"Encontrados {len(action_plans)} planos de ação")
+                
+                # 2. Atualiza cada registro individualmente
+                for entry in kpi_entries:
+                    entry.cnpj = new_cnpj
+                    logger.info(f"Atualizando KPI Entry ID {entry.id}")
+                
+                for plan in action_plans:
+                    plan.cnpj = new_cnpj
+                    logger.info(f"Atualizando Action Plan ID {plan.id}")
+                
+                # 3. Atualiza a empresa
+                for key, value in company.dict(exclude_unset=True).items():
+                    setattr(db_company, key, value)
+                
+                # 4. Commit de todas as alterações
+                db.commit()
+                logger.info("Commit realizado com sucesso")
+                
+                # 5. Refresh nos objetos
+                db.refresh(db_company)
+                for entry in kpi_entries:
+                    db.refresh(entry)
+                for plan in action_plans:
+                    db.refresh(plan)
+                
+                logger.info("Todos os registros atualizados com sucesso")
+                return schemas.Company.from_orm(db_company)
+                
+            except Exception as e:
+                db.rollback()
+                logger.error(f"Erro durante a atualização: {str(e)}")
+                logger.error(f"Traceback completo: {traceback.format_exc()}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Erro ao atualizar registros: {str(e)}"
+                )
+        else:
+            # Se o CNPJ não mudou, apenas atualiza os outros campos
+            for key, value in company.dict(exclude_unset=True).items():
+                setattr(db_company, key, value)
+            
+            try:
+                db.commit()
+                db.refresh(db_company)
+                logger.info("Empresa atualizada com sucesso (sem mudança de CNPJ)")
+                return schemas.Company.from_orm(db_company)
+            except Exception as e:
+                db.rollback()
+                logger.error(f"Erro ao atualizar empresa: {str(e)}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Erro ao atualizar empresa: {str(e)}"
+                )
+                
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro inesperado: {str(e)}")
+        logger.error(f"Traceback completo: {traceback.format_exc()}")
         db.rollback()
-        logger.error(f"Erro ao atualizar empresa: {str(e)}")
-        raise HTTPException(status_code=400, detail="Erro ao atualizar empresa")
-    return schemas.Company.from_orm(db_company)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro interno do servidor: {str(e)}"
+        )
 
 @app.delete("/api/companies/{company_id}", response_model=schemas.Company)
 def delete_company(company_id: int, db: Session = Depends(get_db)):
