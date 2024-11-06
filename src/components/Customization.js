@@ -1,111 +1,55 @@
 // src/components/Customization.js
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { API_URL } from '../config';
 
 function Customization({ customization: globalCustomization, setCustomization: setGlobalCustomization }) {
-  // Estados
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [localCustomization, setLocalCustomization] = useState(globalCustomization);
 
+  const fetchCustomization = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_URL}/customization`);
+      setLocalCustomization(response.data);
+      setGlobalCustomization(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar customização:', error);
+      setError('Falha ao carregar as configurações');
+    }
+  }, [setGlobalCustomization]);
+
   useEffect(() => {
     fetchCustomization();
-  }, []);
+  }, [fetchCustomization]);
 
   useEffect(() => {
     setLocalCustomization(globalCustomization);
   }, [globalCustomization]);
 
-  const fetchCustomization = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/customization/1`);
-      setLocalCustomization(response.data);
-      setGlobalCustomization(response.data); // Atualiza o estado global
-      if (response.data.logo_url) {
-        setPreviewUrl(response.data.logo_url);
-      }
-    } catch (error) {
-      console.error('Erro ao buscar customização:', error);
-      setError('Falha ao carregar as configurações');
-    }
-  };
-
-  const handleFileUpload = async (file) => {
-    try {
-      setIsLoading(true);
-      const formData = new FormData();
-      formData.append('logo', file);
-
-      const response = await axios.post(`${API_URL}/customization/upload-logo`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-
-      const newCustomization = {
-        ...localCustomization,
-        logo_url: response.data.logo_url
-      };
-
-      setLocalCustomization(newCustomization);
-      setGlobalCustomization(newCustomization); // Atualiza o estado global
-
-      return response.data.logo_url;
-    } catch (error) {
-      console.error('Erro ao fazer upload do logo:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleFileSelect = async (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      try {
-        if (!file.type.match('image.*')) {
-          setError('Por favor, selecione apenas arquivos de imagem');
-          return;
-        }
-        if (file.size > 5 * 1024 * 1024) {
-          setError('O arquivo deve ter no máximo 5MB');
-          return;
-        }
-
-        setError('');
-        setSelectedFile(file);
-        const logoUrl = await handleFileUpload(file);
-        setPreviewUrl(logoUrl);
-      } catch (error) {
-        setError('Falha ao fazer upload da imagem');
-      }
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setIsLoading(true);
 
     try {
-      const response = await axios.put(`${API_URL}/customization/1`, {
-        sidebar_color: localCustomization.sidebar_color,
-        button_color: localCustomization.button_color,
-        font_color: localCustomization.font_color,
-        logo_url: localCustomization.logo_url
+      const response = await axios.put(`${API_URL}/customization`, {
+        sidebar_color: localCustomization.sidebar_color || '#1a73e8',
+        button_color: localCustomization.button_color || '#1a73e8',
+        font_color: localCustomization.font_color || '#000000'
       });
 
       setLocalCustomization(response.data);
-      setGlobalCustomization(response.data); // Atualiza o estado global
+      setGlobalCustomization(response.data);
       setSuccess('Customização salva com sucesso!');
     } catch (error) {
       console.error('Erro ao salvar customização:', error);
       setError('Falha ao salvar as configurações. Por favor, tente novamente.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -126,14 +70,13 @@ function Customization({ customization: globalCustomization, setCustomization: s
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Cores */}
         <div>
           <label className="block text-sm font-medium text-gray-700">
             Cor da Barra Lateral
           </label>
           <input
             type="color"
-            value={localCustomization.sidebar_color}
+            value={localCustomization.sidebar_color || '#1a73e8'}
             onChange={(e) => setLocalCustomization({...localCustomization, sidebar_color: e.target.value})}
             className="mt-1 block w-full"
           />
@@ -145,7 +88,7 @@ function Customization({ customization: globalCustomization, setCustomization: s
           </label>
           <input
             type="color"
-            value={localCustomization.button_color}
+            value={localCustomization.button_color || '#1a73e8'}
             onChange={(e) => setLocalCustomization({...localCustomization, button_color: e.target.value})}
             className="mt-1 block w-full"
           />
@@ -157,49 +100,12 @@ function Customization({ customization: globalCustomization, setCustomization: s
           </label>
           <input
             type="color"
-            value={localCustomization.font_color}
+            value={localCustomization.font_color || '#000000'}
             onChange={(e) => setLocalCustomization({...localCustomization, font_color: e.target.value})}
             className="mt-1 block w-full"
           />
         </div>
 
-        {/* Upload de Logo */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Logo da Empresa
-          </label>
-          <div className="mt-1 flex items-center space-x-4">
-            <input
-              type="file"
-              onChange={handleFileSelect}
-              accept="image/*"
-              className="block w-full text-sm text-gray-500
-                file:mr-4 file:py-2 file:px-4
-                file:rounded-full file:border-0
-                file:text-sm file:font-semibold
-                file:bg-blue-50 file:text-blue-700
-                hover:file:bg-blue-100"
-            />
-            {isLoading && <span>Carregando...</span>}
-            {previewUrl && (
-              <img 
-                src={previewUrl} 
-                alt="Preview" 
-                className="h-20 w-20 object-contain"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = '/placeholder-image.png';
-                  setError('Não foi possível carregar a imagem');
-                }}
-              />
-            )}
-          </div>
-          <p className="mt-2 text-sm text-gray-500">
-            Formatos aceitos: PNG, JPG, SVG. Tamanho máximo: 5MB
-          </p>
-        </div>
-
-        {/* Botão Submit */}
         <button
           type="submit"
           disabled={isLoading}

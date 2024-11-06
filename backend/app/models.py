@@ -176,7 +176,6 @@ class Customization(Base):
     sidebar_color = Column(String)
     button_color = Column(String)
     font_color = Column(String)
-    logo_url = Column(String)
 
 
 class User(Base):

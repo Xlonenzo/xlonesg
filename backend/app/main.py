@@ -628,25 +628,15 @@ def read_kpi_entries_with_templates(
 
 @app.post("/api/customization", response_model=schemas.Customization)
 async def create_customization(
-    customization: schemas.CustomizationCreate = Depends(),
-    logo: UploadFile = File(None),
+    customization: schemas.CustomizationCreate,
     db: Session = Depends(get_db)
 ):
-    logger.info(f"Recebendo requisição POST para /api/customization: {customization.dict()}")
     try:
-        if logo:
-            unique_filename = f"{uuid4().hex}_{logo.filename}"
-            file_location = f"static/logos/{unique_filename}"
-            with open(file_location, "wb+") as file_object:
-                shutil.copyfileobj(logo.file, file_object)
-            customization.logo_url = f"/static/logos/{unique_filename}"
-
         db_customization = models.Customization(**customization.dict())
         db.add(db_customization)
         db.commit()
         db.refresh(db_customization)
-        logger.info(f"Customização criada com sucesso: {db_customization.id}")
-        return schemas.Customization.from_orm(db_customization)
+        return db_customization
     except Exception as e:
         logger.error(f"Erro ao criar customização: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -657,36 +647,34 @@ def get_customization(db: Session = Depends(get_db)):
         customization = db.query(models.Customization).first()
         if not customization:
             customization = models.Customization(
-                primary_color="#1a73e8",
-                logo_url=f"/static/logos/{DEFAULT_LOGO}"
+                sidebar_color="#1a73e8",
+                button_color="#1a73e8",
+                font_color="#000000"
             )
             db.add(customization)
             db.commit()
             db.refresh(customization)
-        
-        if not customization.logo_url or not customization.logo_url.startswith("/static/"):
-            customization.logo_url = f"/static/logos/{DEFAULT_LOGO}"
-            db.commit()
-        
         return customization
     except Exception as e:
         logger.error(f"Erro ao buscar customização: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.put("/api/customization/{customization_id}", response_model=schemas.Customization)
+@app.put("/api/customization", response_model=schemas.Customization)
 async def update_customization(
-    customization_id: int,
     customization: schemas.CustomizationCreate,
     db: Session = Depends(get_db)
 ):
     try:
-        db_customization = db.query(models.Customization).filter(
-            models.Customization.id == customization_id
-        ).first()
+        # Busca a primeira customização ou cria uma nova
+        db_customization = db.query(models.Customization).first()
+        if not db_customization:
+            db_customization = models.Customization(
+                sidebar_color="#1a73e8",
+                button_color="#1a73e8",
+                font_color="#000000"
+            )
+            db.add(db_customization)
         
-        if db_customization is None:
-            raise HTTPException(status_code=404, detail="Customização não encontrada")
-
         # Atualiza os campos
         for key, value in customization.dict(exclude_unset=True).items():
             setattr(db_customization, key, value)
@@ -694,7 +682,7 @@ async def update_customization(
         db.commit()
         db.refresh(db_customization)
         
-        logger.info(f"Customização {customization_id} atualizada com sucesso")
+        logger.info("Customização atualizada com sucesso")
         return db_customization
 
     except SQLAlchemyError as e:

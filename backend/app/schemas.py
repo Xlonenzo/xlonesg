@@ -215,7 +215,6 @@ class CustomizationBase(BaseModel):
     sidebar_color: str
     button_color: str
     font_color: str
-    logo_url: str
 
 
 class CustomizationCreate(CustomizationBase):
