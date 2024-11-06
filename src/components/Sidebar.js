@@ -1,8 +1,6 @@
 // Sidebar.js
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { ChevronDown, ChevronRight, Menu } from 'lucide-react';
-import axios from 'axios';
-import { API_URL } from '../config';
 
 function Sidebar({
   menuItems,
@@ -15,28 +13,9 @@ function Sidebar({
   isSidebarCollapsed,
   toggleSidebar,
   sidebarColor,
-  logo,
   buttonColor,
   fontColor
 }) {
-  const [customization, setCustomization] = useState({
-    primary_color: '#1a73e8',
-    logo_url: '/static/logos/logo.png'
-  });
-
-  useEffect(() => {
-    const fetchCustomization = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/customization`);
-        setCustomization(response.data);
-      } catch (error) {
-        console.error('Erro ao buscar customização:', error);
-      }
-    };
-
-    fetchCustomization();
-  }, []);
-
   // Função para renderizar cada item do menu
   const renderMenuItem = (item, isSubItem = false) => (
     <li key={item.path}>
@@ -103,9 +82,13 @@ function Sidebar({
             {/* Logo */}
             <div className="flex items-center justify-center p-4">
               <img 
-                src={`${API_URL}${customization.logo_url}`} 
+                src="/logo.png"
                 alt="Logo" 
-                className="h-12 w-auto"  // Ajuste o tamanho conforme necessário
+                className="h-12 w-auto"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "/logo.svg";
+                }}
               />
             </div>
             {/* Título */}

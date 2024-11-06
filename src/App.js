@@ -164,7 +164,9 @@ function App() {
           />
         );
       case '/admin/company-management':
-        return userRole === 'admin' ? <CompanyManagement /> : <UnauthorizedAccess />;
+        return userRole === 'admin' ? (
+          <CompanyManagement buttonColor={customization.button_color} />
+        ) : <UnauthorizedAccess />;
       case '/kpi-tracker':
         return ['admin', 'editor'].includes(userRole) ? (
           <KPITracker kpiEntries={kpiEntries} setKpiEntries={setKpiEntries} sidebarColor={customization.sidebar_color} buttonColor={customization.button_color} />

@@ -27,7 +27,7 @@ const menuItemsData = [
       { name: 'Fonte de Dados', icon: <Database size={20} />, path: '/admin/data-source' },
       { name: 'Perfis e Usuários', icon: <User size={20} />, path: '/admin/user-management' },
       { name: 'Personalização', icon: <Settings size={20} />, path: '/admin/customization' },
-      { name: 'Gerenciamento de Empresas', icon: <Building size={20} />, path: '/admin/company-management' },
+      { name: 'Empresas', icon: <Building size={20} />, path: '/admin/company-management' },
     ]
   },
   {

@@ -31,8 +31,15 @@ const LoginPage = ({ onLogin }) => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          {/* Use o caminho relativo à pasta public para o logotipo */}
-          <img className="mx-auto h-24 w-auto" src={process.env.PUBLIC_URL + '/logo.png'} alt="Logo" />
+          <img 
+            className="mx-auto h-24 w-auto" 
+            src="/login.png" 
+            alt="Logo" 
+            onError={(e) => {
+              e.target.onerror = null; // Previne loop infinito
+              e.target.src = "/logo.png"; // Fallback para o logo padrão se login.png não existir
+            }}
+          />
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Faça login na sua conta
           </h2>
