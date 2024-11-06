@@ -12,6 +12,7 @@ function UserManagement({ buttonColor }) {
   const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState('viewer');
   const [isActive, setIsActive] = useState(true);
+  const [newFullName, setNewFullName] = useState('');
   const [editingUser, setEditingUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -30,16 +31,19 @@ function UserManagement({ buttonColor }) {
     const { name, value } = e.target;
     setFilters(prev => ({
       ...prev,
-      [name]: name === 'is_active' ? value === 'true' : value
+      [name]: name === 'is_active' ? value : value
     }));
   };
 
   const filteredUsers = users.filter(user => {
     return Object.keys(filters).every(key => {
       if (!filters[key]) return true;
+      
       if (key === 'is_active') {
-        return String(Boolean(user[key])) === filters[key];
+        const userStatus = user[key] === true ? 'true' : 'false';
+        return userStatus === filters[key];
       }
+      
       return user[key]?.toLowerCase().includes(filters[key].toLowerCase());
     });
   });
@@ -91,10 +95,10 @@ function UserManagement({ buttonColor }) {
       
       console.log('Usuários recebidos (raw):', response.data);
       
-      // Garantir que is_active seja booleano
+      // Garantir que is_active seja sempre booleano
       const processedUsers = response.data.map(user => ({
         ...user,
-        is_active: Boolean(user.is_active)
+        is_active: user.is_active === true
       }));
       
       console.log('Usuários processados:', processedUsers);
@@ -102,7 +106,8 @@ function UserManagement({ buttonColor }) {
       setError(null);
     } catch (error) {
       console.error('Erro ao buscar usuários:', error);
-      setError('Erro ao carregar usuários');
+      const errorMessage = error.response?.data?.detail || 'Erro ao carregar usuários';
+      setError(errorMessage);
     }
   };
 
@@ -118,7 +123,7 @@ function UserManagement({ buttonColor }) {
       password: newPassword,
       role: newRole,
       is_active: Boolean(isActive),
-      full_name: newUsername
+      full_name: newFullName
     };
 
     // Validar dados antes do envio
@@ -189,6 +194,10 @@ function UserManagement({ buttonColor }) {
       errors.push('Função inválida');
     }
 
+    if (!data.full_name || data.full_name.length < 3) {
+      errors.push('Nome completo deve ter pelo menos 3 caracteres');
+    }
+
     return errors;
   };
 
@@ -219,12 +228,16 @@ function UserManagement({ buttonColor }) {
   };
 
   const handleEditUser = (user) => {
-    console.log('Editando usuário:', user); // Debug
+    console.log('Editando usuário (dados originais):', user);
     setEditingUser(user);
     setNewUsername(user.username);
     setNewEmail(user.email);
     setNewRole(user.role);
-    setIsActive(user.is_active); // Usar o valor direto
+    setNewFullName(user.full_name);
+    // Garantir valor booleano para is_active
+    const activeStatus = user.is_active === true;
+    console.log('Status ativo definido para:', activeStatus);
+    setIsActive(activeStatus);
   };
 
   const handleUpdateUser = async (e) => {
@@ -232,21 +245,27 @@ function UserManagement({ buttonColor }) {
     setLoading(true);
     setError(null);
     try {
+      // Garantir que is_active seja booleano
+      const isActiveValue = isActive === true;
+      console.log('Valor de is_active a ser enviado:', isActiveValue);
+      
       const userData = {
         username: newUsername,
         email: newEmail,
         password: newPassword || undefined,
         role: newRole,
-        is_active: isActive, // Usar o valor direto
-        full_name: newUsername
+        is_active: isActiveValue,
+        full_name: newFullName
       };
 
-      console.log('Dados de atualização:', userData); // Debug
+      console.log('Dados de atualização:', userData);
 
-      await axios.put(`${API_URL}/users/${editingUser.id}`, userData);
+      const response = await axios.put(`${API_URL}/users/${editingUser.id}`, userData);
+      console.log('Resposta da atualização:', response.data);
+      
       alert('Usuário atualizado com sucesso!');
       resetForm();
-      fetchUsers();
+      await fetchUsers(); // Usar await aqui
     } catch (error) {
       console.error('Erro ao atualizar usuário:', error);
       setError(error.response?.data?.detail || 'Erro ao atualizar usuário');
@@ -264,6 +283,7 @@ function UserManagement({ buttonColor }) {
     setNewPassword('');
     setNewRole('viewer');
     setIsActive(true);
+    setNewFullName('');
     setError(null);
   };
 
@@ -275,6 +295,7 @@ function UserManagement({ buttonColor }) {
     setNewPassword('');
     setNewRole('viewer');
     setIsActive(true);
+    setNewFullName('');
   };
 
   return (
@@ -336,8 +357,12 @@ function UserManagement({ buttonColor }) {
                 <td className="px-4 py-2 border">{user.email}</td>
                 <td className="px-4 py-2 border capitalize">{user.role}</td>
                 <td className="px-4 py-2 border">
-                  <span className={`px-2 py-1 rounded ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                    {user.is_active ? 'Ativo' : 'Inativo'}
+                  <span 
+                    className={`px-2 py-1 rounded ${
+                      user.is_active === true ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {user.is_active === true ? 'Ativo' : 'Inativo'}
                   </span>
                 </td>
                 <td className="px-4 py-2 border">
@@ -388,6 +413,16 @@ function UserManagement({ buttonColor }) {
               />
             </div>
             <div>
+              <label className="block mb-2">Nome Completo</label>
+              <input
+                type="text"
+                value={newFullName}
+                onChange={(e) => setNewFullName(e.target.value)}
+                className="w-full p-2 border rounded"
+                required
+              />
+            </div>
+            <div>
               <label className="block mb-2">Senha {!editingUser && '(Obrigatória)'}</label>
               <input
                 type="password"
@@ -413,8 +448,12 @@ function UserManagement({ buttonColor }) {
             <div>
               <label className="block mb-2">Status</label>
               <select
-                value={String(Boolean(isActive))}
-                onChange={(e) => setIsActive(e.target.value === 'true')}
+                value={isActive === true ? 'true' : 'false'}
+                onChange={(e) => {
+                  const newValue = e.target.value === 'true';
+                  console.log('Novo valor de is_active:', newValue);
+                  setIsActive(newValue);
+                }}
                 className="w-full p-2 border rounded"
               >
                 <option value="true">Ativo</option>

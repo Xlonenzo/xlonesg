@@ -64,12 +64,25 @@ function App() {
 
   const fetchCustomization = async () => {
     try {
-      console.log('Buscando customização...');
-      const response = await axios.get(`${API_URL}/customization`);
-      console.log('Customização recebida:', response.data);
+      console.log('Iniciando busca de customização...');
+      const response = await axios.get(`${API_URL}/customization`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        withCredentials: true
+      });
+      
+      console.log('Resposta da customização:', response.data);
       setCustomization(response.data);
     } catch (error) {
-      console.error('Erro ao buscar customização:', error);
+      console.error('Erro completo:', error);
+      console.error('Detalhes do erro:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        headers: error.response?.headers
+      });
     }
   };
 

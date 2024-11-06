@@ -1,6 +1,6 @@
 # main.py
 
-from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session, joinedload
@@ -15,6 +15,7 @@ from pydantic import BaseModel
 import logging
 from datetime import date, datetime
 import traceback
+from fastapi.responses import JSONResponse
 
 from . import models, schemas  # Certifique-se de que o caminho está correto
 from .database import SessionLocal, engine
@@ -24,33 +25,13 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Atualizar configuração do CORS
-origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    "https://gen.xlon.com.br"
-]
-
+# Configuração do CORS - deve vir ANTES de todas as rotas
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=False,
+    allow_origins=["*"],  # Permite todas as origens em desenvolvimento
+    allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=[
-        "Content-Type",*
-        "Authorization",
-        "Accept",
-        "Origin",
-        "X-Requested-With",
-        "Access-Control-Allow-Origin",
-        "Access-Control-Allow-Methods",
-        "Access-Control-Allow-Headers",
-        "Access-Control-Allow-Credentials"
-    ],
-    expose_headers=["*"],
-    max_age=3600
+    allow_headers=["*"],
 )
 
 # Configuração para servir arquivos estáticos
@@ -60,7 +41,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 os.makedirs("static/logos", exist_ok=True)
 
 # Configuração da base URL  
-BASE_URL = "https://gen.xlon.com.br"  # Substitua pela URL pública do seu backend
+BASE_URL = ""  # Substitua pela URL pública do seu backend
 
 # Dependency
 def get_db():
@@ -286,8 +267,12 @@ def add_company_to_hierarchy(company: schemas.CompanyCreate, db: Session = Depen
 
 @app.get("/api/companies", response_model=List[schemas.Company])
 def read_companies(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    companies = db.query(models.Company).offset(skip).limit(limit).all()
-    return [schemas.Company.from_orm(company) for company in companies]
+    try:
+        companies = db.query(models.Company).offset(skip).limit(limit).all()
+        return companies
+    except Exception as e:
+        logger.error(f"Erro ao buscar empresas: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/companies/{company_id}", response_model=schemas.Company)
 def read_company(company_id: int, db: Session = Depends(get_db)):
@@ -596,15 +581,21 @@ def read_kpi_entry(kpi_entry_id: int, db: Session = Depends(get_db)):
 @app.get("/api/kpi-entries-with-templates", response_model=List[schemas.KPIEntryWithTemplate])
 def read_kpi_entries_with_templates(
     category: Optional[str] = Query(None),
+    company_id: Optional[int] = Query(None),
     skip: int = 0,
-    limit: int = 1000,  # Aumentado para 1000
+    limit: int = 1000,
     db: Session = Depends(get_db)
 ):
     query = db.query(models.KPIEntry)
+    
     if category:
         query = query.filter(models.KPIEntry.template.has(category=category))
+    
+    if company_id:
+        query = query.filter(models.KPIEntry.company_id == company_id)
+    
     entries = query.offset(skip).limit(limit).all()
-    logger.info(f"Total de KPIs retornados: {len(entries)}")
+    
     return [
         schemas.KPIEntryWithTemplate(
             entry_id=entry.id,
@@ -648,7 +639,7 @@ async def create_customization(
             file_location = f"static/logos/{unique_filename}"
             with open(file_location, "wb+") as file_object:
                 shutil.copyfileobj(logo.file, file_object)
-            customization.logo_url = f"{BASE_URL}/static/logos/{unique_filename}"
+            customization.logo_url = f"/static/logos/{unique_filename}"
 
         db_customization = models.Customization(**customization.dict())
         db.add(db_customization)
@@ -660,12 +651,27 @@ async def create_customization(
         logger.error(f"Erro ao criar customização: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/customization", response_model=schemas.Customization)
+@app.get("/api/customization")
 def get_customization(db: Session = Depends(get_db)):
-    customization = db.query(models.Customization).first()
-    if not customization:
-        raise HTTPException(status_code=404, detail="Customization not found")
-    return schemas.Customization.from_orm(customization)
+    try:
+        customization = db.query(models.Customization).first()
+        if not customization:
+            customization = models.Customization(
+                primary_color="#1a73e8",
+                logo_url=f"/static/logos/{DEFAULT_LOGO}"
+            )
+            db.add(customization)
+            db.commit()
+            db.refresh(customization)
+        
+        if not customization.logo_url or not customization.logo_url.startswith("/static/"):
+            customization.logo_url = f"/static/logos/{DEFAULT_LOGO}"
+            db.commit()
+        
+        return customization
+    except Exception as e:
+        logger.error(f"Erro ao buscar customização: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/customization/{customization_id}", response_model=schemas.Customization)
 async def update_customization(
@@ -776,52 +782,88 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     return schemas.User.from_orm(db_user)
 
 @app.get("/api/users/", response_model=List[schemas.User])
-def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def list_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     try:
+        logger.info("Iniciando busca de usuários")
         users = db.query(models.User).offset(skip).limit(limit).all()
-        logger.info(f"Usuários encontrados: {len(users)}")  # Log para debug
+        logger.info(f"Encontrados {len(users)} usuários")
         
-        # Verificar se há dados
-        if not users:
-            logger.warning("Nenhum usuário encontrado no banco")
-            return []
-            
-        # Log dos dados retornados
-        for user in users:
-            logger.info(f"User: {user.username}, Email: {user.email}, Role: {user.role}")
-            
+        # Converter para dicionário para debug
+        users_dict = [
+            {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "role": user.role,
+                "is_active": user.is_active,
+                "full_name": user.full_name
+            } for user in users
+        ]
+        logger.info(f"Usuários encontrados: {users_dict}")
+        
         return users
+        
     except Exception as e:
         logger.error(f"Erro ao listar usuários: {str(e)}")
         logger.error(traceback.format_exc())  # Log do stack trace completo
-        raise HTTPException(status_code=400, detail=f"Erro ao listar usuários: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Erro interno ao buscar usuários: {str(e)}"
+        )
 
 @app.get("/api/users/{user_id}", response_model=schemas.User)
-def read_user(user_id: int, db: Session = Depends(get_db)):
-    db_user = db.query(models.User).filter(models.User.id == user_id).first()
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return schemas.User.from_orm(db_user)
+def get_user(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        if user is None:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+            
+        return user
+        
+    except Exception as e:
+        logger.error(f"Erro ao buscar usuário: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/users/{user_id}", response_model=schemas.User)
-async def update_user(user_id: int, user: schemas.UserUpdate, db: Session = Depends(get_db)):
-    logger.info(f"Recebida requisição PUT para atualizar usuário {user_id}")
-    logger.info(f"Dados recebidos: {user.dict()}")
-    db_user = db.query(models.User).filter(models.User.id == user_id).first()
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    update_data = user.dict(exclude_unset=True)
-    if 'password' in update_data:
-        update_data['hashed_password'] = get_password_hash(update_data['password'])
-        del update_data['password']
-    
-    for key, value in update_data.items():
-        setattr(db_user, key, value)
-    
-    db.commit()
-    db.refresh(db_user)
-    return schemas.User.from_orm(db_user)
+def update_user(
+    user_id: int,
+    user_update: schemas.UserUpdate,
+    db: Session = Depends(get_db)
+):
+    try:
+        logger.info(f"Atualizando usuário {user_id}")
+        logger.info(f"Dados recebidos: {user_update.dict(exclude_unset=True)}")
+        
+        db_user = db.query(models.User).filter(models.User.id == user_id).first()
+        if not db_user:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+        update_data = user_update.dict(exclude_unset=True)
+        
+        # Se houver nova senha, fazer hash
+        if "password" in update_data:
+            update_data["hashed_password"] = get_password_hash(update_data.pop("password"))
+        
+        # Atualizar campos
+        for field, value in update_data.items():
+            if field != "password":  # Ignorar password pois já tratamos acima
+                setattr(db_user, field, value)
+        
+        # Atualizar timestamp
+        db_user.updated_at = datetime.utcnow()
+        
+        db.commit()
+        db.refresh(db_user)
+        
+        return db_user
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao atualizar usuário: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/users/{user_id}", response_model=schemas.User)
 def delete_user(user_id: int, db: Session = Depends(get_db)):
@@ -937,5 +979,47 @@ if __name__ == "__main__":
     models.Base.metadata.create_all(bind=engine)
     logger.info("Tabelas criadas (se não existirem)")
     logger.info("Rotas definidas em main.py")
+
+@app.get("/api/kpis/company/{company_id}", response_model=List[schemas.KPI])
+def read_kpis_by_company(company_id: int, db: Session = Depends(get_db)):
+    try:
+        kpis = db.query(models.KPI).filter(models.KPI.company_id == company_id).all()
+        return kpis
+    except Exception as e:
+        logger.error(f"Erro ao buscar KPIs da empresa: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Rota de teste para verificar CORS
+@app.get("/api/test-cors")
+async def test_cors():
+    return {"message": "CORS está funcionando!"}
+
+# Função para verificar headers
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"=== Nova requisição ===")
+    logger.info(f"Método: {request.method}")
+    logger.info(f"URL: {request.url}")
+    logger.info(f"Headers: {request.headers}")
+    
+    response = await call_next(request)
+    
+    logger.info(f"=== Resposta ===")
+    logger.info(f"Status: {response.status_code}")
+    return response
+
+@app.get("/api/users", response_model=List[schemas.User])
+def list_users(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    try:
+        users = db.query(models.User).offset(skip).limit(limit).all()
+        return users
+        
+    except Exception as e:
+        logger.error(f"Erro ao listar usuários: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 

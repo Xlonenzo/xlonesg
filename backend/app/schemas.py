@@ -1,7 +1,7 @@
 # schemas.py
 
 from pydantic import BaseModel, constr, Field, EmailStr
-from datetime import date
+from datetime import date, datetime
 from typing import Optional, List
 
 
@@ -233,6 +233,7 @@ class UserBase(BaseModel):
     username: str
     email: EmailStr
     role: str
+    is_active: bool
 
     class Config:
         from_attributes = True
@@ -250,6 +251,8 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     password: Optional[str] = None
     role: Optional[str] = None
+    full_name: Optional[str] = None
+    is_active: Optional[bool] = None
 
     class Config:
         from_attributes = True
@@ -257,6 +260,11 @@ class UserUpdate(BaseModel):
 
 class User(UserBase):
     id: int
+    username: str
+    email: str
+    role: str
+    is_active: bool = True
+    full_name: str
 
     class Config:
         from_attributes = True

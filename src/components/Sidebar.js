@@ -1,6 +1,8 @@
 // Sidebar.js
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronRight, Menu } from 'lucide-react';
+import axios from 'axios';
+import { API_URL } from '../config';
 
 function Sidebar({
   menuItems,
@@ -17,6 +19,24 @@ function Sidebar({
   buttonColor,
   fontColor
 }) {
+  const [customization, setCustomization] = useState({
+    primary_color: '#1a73e8',
+    logo_url: '/static/logos/logo.png'
+  });
+
+  useEffect(() => {
+    const fetchCustomization = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/customization`);
+        setCustomization(response.data);
+      } catch (error) {
+        console.error('Erro ao buscar customização:', error);
+      }
+    };
+
+    fetchCustomization();
+  }, []);
+
   // Função para renderizar cada item do menu
   const renderMenuItem = (item, isSubItem = false) => (
     <li key={item.path}>
@@ -81,7 +101,13 @@ function Sidebar({
         {!isSidebarCollapsed && (
           <div className="flex items-center">
             {/* Logo */}
-            <img src={logo} alt="Logo" className="h-10 w-auto" />
+            <div className="flex items-center justify-center p-4">
+              <img 
+                src={`${API_URL}${customization.logo_url}`} 
+                alt="Logo" 
+                className="h-12 w-auto"  // Ajuste o tamanho conforme necessário
+              />
+            </div>
             {/* Título */}
             <span style={{ color: fontColor }} className="font-bold text-lg ml-2">ESG Dashboard</span>
           </div>
