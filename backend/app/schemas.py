@@ -324,3 +324,22 @@ class UserLogin(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class DocumentBase(BaseModel):
+    title: str
+    original_filename: str
+    file_type: str
+
+
+class DocumentCreate(DocumentBase):
+    file_path: str
+
+
+class Document(DocumentBase):
+    id: int
+    file_path: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

@@ -7,6 +7,8 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.types import DateTime
+from datetime import datetime
 
 from sqlalchemy import Column, Integer, String, Float, Text, Boolean, Date, ForeignKey, ARRAY, Enum, UniqueConstraint
 from sqlalchemy.orm import relationship
@@ -230,3 +232,14 @@ class Bond(Base):
     financial_institution_name = Column(String, nullable=False)
     financial_institution_cnpj = Column(String, nullable=False)
     financial_institution_contact = Column(String, nullable=False)
+
+class Document(Base):
+    __tablename__ = "documents"
+    __table_args__ = {"schema": "xlonesg"}
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    file_path = Column(String, nullable=False)
+    original_filename = Column(String, nullable=False)
+    file_type = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
