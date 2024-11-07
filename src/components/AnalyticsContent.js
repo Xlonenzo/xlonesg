@@ -13,7 +13,6 @@ function AnalyticsContent({ pageTitle }) {
   const [error, setError] = useState(null);
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedState, setSelectedState] = useState('');
   const [selectedUnit, setSelectedUnit] = useState('');
 
@@ -26,7 +25,6 @@ function AnalyticsContent({ pageTitle }) {
   // Definindo as opções de filtro usando useMemo
   const years = useMemo(() => [...new Set(kpis.map(kpi => kpi.year))].sort((a, b) => b - a), [kpis]);
   const months = useMemo(() => [...new Set(kpis.map(kpi => kpi.month))].sort((a, b) => a - b), [kpis]);
-  const statuses = useMemo(() => [...new Set(kpis.map(kpi => kpi.status))], [kpis]);
   const states = useMemo(() => [...new Set(kpis.map(kpi => kpi.state))], [kpis]);
   const units = useMemo(() => [...new Set(kpis.map(kpi => kpi.unit))], [kpis]);
 
@@ -65,9 +63,6 @@ function AnalyticsContent({ pageTitle }) {
     if (selectedMonth) {
       filtered = filtered.filter(kpi => kpi.month === parseInt(selectedMonth));
     }
-    if (selectedStatus) {
-      filtered = filtered.filter(kpi => kpi.status === selectedStatus);
-    }
     if (selectedState) {
       filtered = filtered.filter(kpi => kpi.state === selectedState);
     }
@@ -75,7 +70,7 @@ function AnalyticsContent({ pageTitle }) {
       filtered = filtered.filter(kpi => kpi.unit === selectedUnit);
     }
     setFilteredKpis(filtered);
-  }, [kpis, selectedYear, selectedMonth, selectedStatus, selectedState, selectedUnit]);
+  }, [kpis, selectedYear, selectedMonth, selectedState, selectedUnit]);
 
   if (loading) return <div>Carregando...</div>;
   if (error) return <div>Erro: {error}</div>;
@@ -83,7 +78,7 @@ function AnalyticsContent({ pageTitle }) {
   return (
     <div>
       <h2 className="text-2xl font-bold mb-4">Análise de {pageTitle}</h2>
-      <div className="mb-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2">
+      <div className="mb-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
         <select 
           value={selectedYear} 
           onChange={(e) => setSelectedYear(e.target.value)}
@@ -102,16 +97,6 @@ function AnalyticsContent({ pageTitle }) {
           <option value="">Todos os meses</option>
           {months.map(month => (
             <option key={month} value={month}>{month}</option>
-          ))}
-        </select>
-        <select 
-          value={selectedStatus} 
-          onChange={(e) => setSelectedStatus(e.target.value)}
-          className="p-2 border rounded"
-        >
-          <option value="">Todos os status</option>
-          {statuses.map(status => (
-            <option key={status} value={status}>{status}</option>
           ))}
         </select>
         <select 

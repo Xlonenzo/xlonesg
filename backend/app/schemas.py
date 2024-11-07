@@ -168,7 +168,6 @@ class KPIEntryBase(BaseModel):
     target_value: float
     year: int
     month: int
-    status: str
     isfavorite: bool = False
 
 
@@ -192,7 +191,6 @@ class KPIEntryWithTemplate(BaseModel):
     target_value: float
     year: int
     month: int
-    status: str
     isfavorite: bool
     unit: Optional[str] = None
     category: Optional[str] = None
@@ -203,9 +201,9 @@ class KPIEntryWithTemplate(BaseModel):
     kpicode: Optional[str] = None
     company_category: Optional[str] = None
     compliance: Optional[List[str]] = []
-    genero: Optional[str] = None  # Novo campo
-    raca: Optional[str] = None  # Novo campo
-    state: Optional[str] = None  # Torna o campo opcional
+    genero: Optional[str] = None
+    raca: Optional[str] = None
+    state: Optional[str] = None
 
     class Config:
         orm_mode = True

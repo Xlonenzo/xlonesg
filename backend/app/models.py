@@ -133,7 +133,6 @@ class KPIEntry(Base):
     target_value = Column(Float)
     year = Column(Integer)
     month = Column(Integer)
-    status = Column(String)
     isfavorite = Column(Boolean, default=False)
 
     template = relationship("KPITemplate")
@@ -149,7 +148,6 @@ class KPIEntryWithTemplate(Base):
     target_value = Column(Float)
     year = Column(Integer)
     month = Column(Integer)
-    status = Column(String)
     cnpj = Column(String)
     isfavorite = Column(Boolean)
     template_id = Column(Integer)
@@ -163,9 +161,9 @@ class KPIEntryWithTemplate(Base):
     kpicode = Column(String)
     company_category = Column(String)
     compliance = Column(ARRAY(String))
-    genero = Column(String)  # Novo campo
-    raca = Column(String)  # Novo campo
-    state = Column(String, nullable=True)  # Permite que o campo seja nulo
+    genero = Column(String)
+    raca = Column(String)
+    state = Column(String, nullable=True)
 
 
 class Customization(Base):

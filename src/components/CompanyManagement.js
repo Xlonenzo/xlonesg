@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaFilter } from 'react-icons/fa';
 import { API_URL } from '../config';
 
 function CompanyManagement({ buttonColor }) {
@@ -24,6 +24,85 @@ function CompanyManagement({ buttonColor }) {
     is_active: true
   });
   const [editingCompany, setEditingCompany] = useState(null);
+  const [filters, setFilters] = useState({
+    cnpj: '',
+    name: '',
+    trade_name: '',
+    city: '',
+    state: '',
+    is_active: ''
+  });
+
+  // Adicionar opções de tamanho
+  const sizeOptions = ['Micro', 'Pequena', 'Média', 'Grande'];
+
+  // Adicionar opções de setores
+  const sectorOptions = [
+    'Tecnologia da Informação (TI)',
+    'Saúde',
+    'Bens de Capital',
+    'Consumo Cíclico',
+    'Consumo Não-Cíclico',
+    'Energia',
+    'Financeiro',
+    'Materiais Básicos',
+    'Imobiliário',
+    'Serviços',
+    'Utilidades Públicas',
+    'Telecomunicações',
+    'Transporte e Logística',
+    'Setor Público'
+  ];
+
+  // Adicionar estados para mensagens de erro
+  const [errors, setErrors] = useState({
+    email: '',
+    website: ''
+  });
+
+  // Função para validar email
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Função para validar website
+  const validateWebsite = (website) => {
+    const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
+    return urlRegex.test(website);
+  };
+
+  // Função para lidar com mudança no email
+  const handleEmailChange = (e, isEditing) => {
+    const email = e.target.value;
+    if (email && !validateEmail(email)) {
+      setErrors(prev => ({ ...prev, email: 'Email inválido' }));
+    } else {
+      setErrors(prev => ({ ...prev, email: '' }));
+    }
+
+    if (isEditing) {
+      setEditingCompany({ ...editingCompany, email });
+    } else {
+      setNewCompany({ ...newCompany, email });
+    }
+  };
+
+  // Função para lidar com mudança no website
+  const handleWebsiteChange = (e, isEditing) => {
+    const website = e.target.value;
+    if (website && !validateWebsite(website)) {
+      setErrors(prev => ({ ...prev, website: 'Website inválido' }));
+    } else {
+      setErrors(prev => ({ ...prev, website: '' }));
+    }
+
+    if (isEditing) {
+      setEditingCompany({ ...editingCompany, website });
+    } else {
+      setNewCompany({ ...newCompany, website });
+    }
+  };
 
   useEffect(() => {
     fetchCompanies();
@@ -39,6 +118,16 @@ function CompanyManagement({ buttonColor }) {
   };
 
   const handleAddCompany = async () => {
+    // Validar antes de enviar
+    if (newCompany.email && !validateEmail(newCompany.email)) {
+      setErrors(prev => ({ ...prev, email: 'Email inválido' }));
+      return;
+    }
+    if (newCompany.website && !validateWebsite(newCompany.website)) {
+      setErrors(prev => ({ ...prev, website: 'Website inválido' }));
+      return;
+    }
+
     try {
       const response = await axios.post(`${API_URL}/companies/hierarchy`, {
         cnpj: newCompany.cnpj,
@@ -121,6 +210,37 @@ function CompanyManagement({ buttonColor }) {
     }
   };
 
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const renderColumnFilter = (columnName, placeholder) => (
+    <div className="flex items-center">
+      <input
+        type="text"
+        name={columnName}
+        value={filters[columnName]}
+        onChange={handleFilterChange}
+        className="w-full p-1 text-sm border rounded"
+        placeholder={`Filtrar ${placeholder}`}
+      />
+      <FaFilter className="ml-1 text-gray-500" />
+    </div>
+  );
+
+  const filteredCompanies = companies.filter(company => {
+    return Object.keys(filters).every(key => {
+      if (!filters[key]) return true;
+      if (key === 'is_active') {
+        const filterValue = filters[key].toLowerCase();
+        const isActive = company[key] ? 'sim' : 'não';
+        return isActive.includes(filterValue);
+      }
+      return company[key]?.toString().toLowerCase().includes(filters[key].toLowerCase());
+    });
+  });
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">Gerenciamento de Empresas</h2>
@@ -196,24 +316,34 @@ function CompanyManagement({ buttonColor }) {
               placeholder="Data de Registro"
               className="w-full p-2 border rounded-lg"
             />
-            <input
-              type="text"
-              value={editingCompany ? editingCompany.size : newCompany.size}
-              onChange={(e) => editingCompany
-                ? setEditingCompany({...editingCompany, size: e.target.value})
-                : setNewCompany({...newCompany, size: e.target.value})}
-              placeholder="Tamanho"
-              className="w-full p-2 border rounded-lg"
-            />
-            <input
-              type="text"
+            <select
               value={editingCompany ? editingCompany.sector : newCompany.sector}
               onChange={(e) => editingCompany
                 ? setEditingCompany({...editingCompany, sector: e.target.value})
                 : setNewCompany({...newCompany, sector: e.target.value})}
-              placeholder="Setor"
-              className="w-full p-2 border rounded-lg"
-            />
+              className="w-full p-2 border rounded-lg bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="">Selecione o Setor</option>
+              {sectorOptions.map((sector) => (
+                <option key={sector} value={sector}>
+                  {sector}
+                </option>
+              ))}
+            </select>
+            <select
+              value={editingCompany ? editingCompany.size : newCompany.size}
+              onChange={(e) => editingCompany
+                ? setEditingCompany({...editingCompany, size: e.target.value})
+                : setNewCompany({...newCompany, size: e.target.value})}
+              className="w-full p-2 border rounded-lg bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="">Selecione o Tamanho</option>
+              {sizeOptions.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
             <input
               type="text"
               value={editingCompany ? editingCompany.city : newCompany.city}
@@ -250,24 +380,38 @@ function CompanyManagement({ buttonColor }) {
               placeholder="Telefone"
               className="w-full p-2 border rounded-lg"
             />
-            <input
-              type="email"
-              value={editingCompany ? editingCompany.email : newCompany.email}
-              onChange={(e) => editingCompany
-                ? setEditingCompany({...editingCompany, email: e.target.value})
-                : setNewCompany({...newCompany, email: e.target.value})}
-              placeholder="E-mail"
-              className="w-full p-2 border rounded-lg"
-            />
-            <input
-              type="text"
-              value={editingCompany ? editingCompany.website : newCompany.website}
-              onChange={(e) => editingCompany
-                ? setEditingCompany({...editingCompany, website: e.target.value})
-                : setNewCompany({...newCompany, website: e.target.value})}
-              placeholder="Website"
-              className="w-full p-2 border rounded-lg"
-            />
+            <div className="relative">
+              <input
+                type="email"
+                value={editingCompany ? editingCompany.email : newCompany.email}
+                onChange={(e) => handleEmailChange(e, !!editingCompany)}
+                placeholder="Email"
+                className={`w-full p-2 border rounded-lg ${
+                  errors.email ? 'border-red-500' : 'border-gray-300'
+                } focus:border-blue-500 focus:ring-1 focus:ring-blue-500`}
+              />
+              {errors.email && (
+                <span className="text-red-500 text-sm absolute -bottom-5 left-0">
+                  {errors.email}
+                </span>
+              )}
+            </div>
+            <div className="relative">
+              <input
+                type="url"
+                value={editingCompany ? editingCompany.website : newCompany.website}
+                onChange={(e) => handleWebsiteChange(e, !!editingCompany)}
+                placeholder="Website"
+                className={`w-full p-2 border rounded-lg ${
+                  errors.website ? 'border-red-500' : 'border-gray-300'
+                } focus:border-blue-500 focus:ring-1 focus:ring-blue-500`}
+              />
+              {errors.website && (
+                <span className="text-red-500 text-sm absolute -bottom-5 left-0">
+                  {errors.website}
+                </span>
+              )}
+            </div>
             <div className="mb-2">
               <label className="inline-flex items-center">
                 <input
@@ -312,17 +456,17 @@ function CompanyManagement({ buttonColor }) {
         <table className="min-w-full bg-white border rounded-lg">
           <thead>
             <tr>
-              <th className="px-4 py-2 border">CNPJ</th>
-              <th className="px-4 py-2 border">Nome</th>
-              <th className="px-4 py-2 border">Nome Fantasia</th>
-              <th className="px-4 py-2 border">Cidade</th>
-              <th className="px-4 py-2 border">Estado</th>
-              <th className="px-4 py-2 border">Ativo</th>
+              <th className="px-4 py-2 border">{renderColumnFilter('cnpj', 'CNPJ')}</th>
+              <th className="px-4 py-2 border">{renderColumnFilter('name', 'Nome')}</th>
+              <th className="px-4 py-2 border">{renderColumnFilter('trade_name', 'Nome Fantasia')}</th>
+              <th className="px-4 py-2 border">{renderColumnFilter('city', 'Cidade')}</th>
+              <th className="px-4 py-2 border">{renderColumnFilter('state', 'Estado')}</th>
+              <th className="px-4 py-2 border">{renderColumnFilter('is_active', 'Ativo')}</th>
               <th className="px-4 py-2 border">Ações</th>
             </tr>
           </thead>
           <tbody>
-            {companies.map((company) => (
+            {filteredCompanies.map((company) => (
               <tr key={company.id} className="hover:bg-gray-50">
                 <td className="px-4 py-2 border">{company.cnpj}</td>
                 <td className="px-4 py-2 border">{company.name}</td>
