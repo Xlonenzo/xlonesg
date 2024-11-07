@@ -1430,4 +1430,176 @@ async def get_chroma_metrics(db: Session = Depends(get_db)):
     """Endpoint para verificar métricas do Chroma"""
     return monitor_chroma_metrics()
 
+# Rotas para Projetos ESG
+@app.post("/api/esg-projects", response_model=schemas.ESGProject)
+async def create_esg_project(
+    project: schemas.ESGProjectCreate,
+    db: Session = Depends(get_db)
+):
+    try:
+        # Verificar se a empresa existe
+        company = db.query(models.Company).filter(models.Company.id == project.company_id).first()
+        if not company:
+            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+
+        db_project = models.ESGProject(**project.dict())
+        db.add(db_project)
+        db.commit()
+        db.refresh(db_project)
+        return db_project
+    except Exception as e:
+        logger.error(f"Erro ao criar projeto ESG: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/esg-projects", response_model=List[schemas.ESGProject])
+async def list_esg_projects(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    try:
+        projects = db.query(models.ESGProject).offset(skip).limit(limit).all()
+        return projects
+    except Exception as e:
+        logger.error(f"Erro ao listar projetos ESG: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/esg-projects/{project_id}", response_model=schemas.ESGProject)
+async def get_esg_project(
+    project_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        project = db.query(models.ESGProject).filter(models.ESGProject.id == project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Projeto não encontrado")
+        return project
+    except Exception as e:
+        logger.error(f"Erro ao buscar projeto ESG: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/esg-projects/{project_id}", response_model=schemas.ESGProject)
+async def update_esg_project(
+    project_id: int,
+    project: schemas.ESGProjectCreate,
+    db: Session = Depends(get_db)
+):
+    try:
+        db_project = db.query(models.ESGProject).filter(models.ESGProject.id == project_id).first()
+        if not db_project:
+            raise HTTPException(status_code=404, detail="Projeto não encontrado")
+
+        for key, value in project.dict().items():
+            setattr(db_project, key, value)
+
+        db.commit()
+        db.refresh(db_project)
+        return db_project
+    except Exception as e:
+        logger.error(f"Erro ao atualizar projeto ESG: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/esg-projects/{project_id}")
+async def delete_esg_project(
+    project_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        db_project = db.query(models.ESGProject).filter(models.ESGProject.id == project_id).first()
+        if not db_project:
+            raise HTTPException(status_code=404, detail="Projeto não encontrado")
+
+        db.delete(db_project)
+        db.commit()
+        return {"message": "Projeto excluído com sucesso"}
+    except Exception as e:
+        logger.error(f"Erro ao excluir projeto ESG: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Rotas para Project Tracking
+@app.post("/api/project-tracking", response_model=schemas.ProjectTracking)
+async def create_project_tracking(
+    project: schemas.ProjectTrackingCreate,
+    db: Session = Depends(get_db)
+):
+    try:
+        # Verificar se a empresa existe
+        company = db.query(models.Company).filter(models.Company.id == project.company_id).first()
+        if not company:
+            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+
+        db_project = models.ProjectTracking(**project.dict())
+        db.add(db_project)
+        db.commit()
+        db.refresh(db_project)
+        return db_project
+    except Exception as e:
+        logger.error(f"Erro ao criar projeto: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/project-tracking", response_model=List[schemas.ProjectTracking])
+async def list_project_tracking(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    try:
+        projects = db.query(models.ProjectTracking).offset(skip).limit(limit).all()
+        return projects
+    except Exception as e:
+        logger.error(f"Erro ao listar projetos: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/project-tracking/{project_id}", response_model=schemas.ProjectTracking)
+async def get_project_tracking(
+    project_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        project = db.query(models.ProjectTracking).filter(models.ProjectTracking.id == project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Projeto não encontrado")
+        return project
+    except Exception as e:
+        logger.error(f"Erro ao buscar projeto: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/project-tracking/{project_id}", response_model=schemas.ProjectTracking)
+async def update_project_tracking(
+    project_id: int,
+    project: schemas.ProjectTrackingCreate,
+    db: Session = Depends(get_db)
+):
+    try:
+        db_project = db.query(models.ProjectTracking).filter(models.ProjectTracking.id == project_id).first()
+        if not db_project:
+            raise HTTPException(status_code=404, detail="Projeto não encontrado")
+
+        for key, value in project.dict().items():
+            setattr(db_project, key, value)
+
+        db.commit()
+        db.refresh(db_project)
+        return db_project
+    except Exception as e:
+        logger.error(f"Erro ao atualizar projeto: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/project-tracking/{project_id}")
+async def delete_project_tracking(
+    project_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        db_project = db.query(models.ProjectTracking).filter(models.ProjectTracking.id == project_id).first()
+        if not db_project:
+            raise HTTPException(status_code=404, detail="Projeto não encontrado")
+
+        db.delete(db_project)
+        db.commit()
+        return {"message": "Projeto excluído com sucesso"}
+    except Exception as e:
+        logger.error(f"Erro ao excluir projeto: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 

@@ -21,6 +21,7 @@ import KPITemplate from './components/KPITemplate';
 import KPITracker from './components/KPITracker';
 import Register from './components/Register';
 import BondManagement from './components/BondManagement';
+import ESGProjects from './components/ESGProjects';
 
 // Importar dados e estilos
 import articlesData from './data/articles';
@@ -57,6 +58,7 @@ function App() {
   const [kpiTemplates, setKpiTemplates] = useState([]);
   const [kpiEntries, setKpiEntries] = useState([]);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isESGTrackerOpen, setIsESGTrackerOpen] = useState(false);
 
   useEffect(() => {
     fetchCustomization();
@@ -178,6 +180,13 @@ function App() {
             buttonColor={customization.button_color} 
           />
         ) : <UnauthorizedAccess />;
+      case '/esg-tracker/projects':
+        return ['admin', 'editor'].includes(userRole) ? (
+          <ESGProjects 
+            sidebarColor={customization.sidebar_color} 
+            buttonColor={customization.button_color} 
+          />
+        ) : <UnauthorizedAccess />;
       default:
         return <div>Selecione uma opção do menu</div>;
     }
@@ -217,6 +226,8 @@ function App() {
             logo={customization.logo_url}
             buttonColor={customization.button_color}
             fontColor={customization.font_color}
+            isESGTrackerOpen={isESGTrackerOpen}
+            setIsESGTrackerOpen={setIsESGTrackerOpen}
           />
 
           <main className="flex-1 overflow-y-auto p-8">

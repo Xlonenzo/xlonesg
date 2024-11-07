@@ -343,3 +343,65 @@ class Document(DocumentBase):
 
     class Config:
         from_attributes = True
+
+
+class ESGProjectBase(BaseModel):
+    name: str
+    company_id: int
+    project_type: str
+    start_date: date
+    end_date: date
+    budget_allocated: float
+    currency: str = "BRL"
+    status: str
+    progress_percentage: float = 0
+    expected_impact: Optional[str] = None
+    actual_impact: Optional[str] = None
+    last_audit_date: Optional[date] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ESGProjectCreate(ESGProjectBase):
+    pass
+
+
+class ESGProject(ESGProjectBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ProjectTrackingBase(BaseModel):
+    name: str
+    company_id: int
+    project_type: str
+    start_date: date
+    end_date: date
+    budget_allocated: float
+    currency: str = "BRL"
+    status: str
+    progress_percentage: float = 0
+    expected_impact: Optional[str] = None
+    actual_impact: Optional[str] = None
+    last_audit_date: Optional[date] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ProjectTrackingCreate(ProjectTrackingBase):
+    pass
+
+
+class ProjectTracking(ProjectTrackingBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

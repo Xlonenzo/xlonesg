@@ -100,6 +100,8 @@ class Company(Base):
 
     # Adicionar relacionamento bidirecional
     kpi_entries = relationship("KPIEntry", back_populates="company", cascade="all, delete-orphan")
+    esg_projects = relationship("ESGProject", back_populates="company")
+    project_tracking = relationship("ProjectTracking", back_populates="company", cascade="all, delete-orphan")
 
 
 class KPITemplate(Base):
@@ -243,3 +245,49 @@ class Document(Base):
     original_filename = Column(String, nullable=False)
     file_type = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class ESGProject(Base):
+    __tablename__ = "esg_projects"
+    __table_args__ = {"schema": "xlonesg"}
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    company_id = Column(Integer, ForeignKey("xlonesg.companies.id"), nullable=False)
+    project_type = Column(String, nullable=False)  # Environmental, Social ou Governance
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    budget_allocated = Column(Float, nullable=False)
+    currency = Column(String, default="BRL")
+    status = Column(String, nullable=False)  # Em andamento, Concluído, Cancelado, etc
+    progress_percentage = Column(Float, default=0)
+    expected_impact = Column(Text)
+    actual_impact = Column(Text)
+    last_audit_date = Column(Date)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relacionamentos
+    company = relationship("Company", back_populates="esg_projects")
+
+class ProjectTracking(Base):
+    __tablename__ = "project_tracking"
+    __table_args__ = {"schema": "xlonesg"}
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    company_id = Column(Integer, ForeignKey("xlonesg.companies.id"), nullable=False)
+    project_type = Column(String, nullable=False)  # Environmental, Social ou Governance
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    budget_allocated = Column(Float, nullable=False)
+    currency = Column(String, default="BRL")
+    status = Column(String, nullable=False)  # Em andamento, Concluído, Cancelado, etc
+    progress_percentage = Column(Float, default=0)
+    expected_impact = Column(Text)
+    actual_impact = Column(Text)
+    last_audit_date = Column(Date)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relacionamentos
+    company = relationship("Company", back_populates="project_tracking")

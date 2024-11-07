@@ -9,7 +9,6 @@ function ESGProjects({ sidebarColor, buttonColor }) {
   const [loading, setLoading] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
-
   const [newProject, setNewProject] = useState({
     name: '',
     company_id: '',
@@ -30,15 +29,6 @@ function ESGProjects({ sidebarColor, buttonColor }) {
     fetchCompanies();
   }, []);
 
-  const fetchProjects = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/esg-projects`);
-      setProjects(response.data);
-    } catch (error) {
-      console.error('Erro ao buscar projetos:', error);
-    }
-  };
-
   const fetchCompanies = async () => {
     try {
       const response = await axios.get(`${API_URL}/companies`);
@@ -48,63 +38,35 @@ function ESGProjects({ sidebarColor, buttonColor }) {
     }
   };
 
-  const handleEdit = (project) => {
-    setEditingProject(project);
-    setNewProject({
-      name: project.name,
-      company_id: project.company_id,
-      project_type: project.project_type,
-      start_date: project.start_date,
-      end_date: project.end_date,
-      budget_allocated: project.budget_allocated,
-      currency: project.currency,
-      status: project.status,
-      progress_percentage: project.progress_percentage,
-      expected_impact: project.expected_impact,
-      actual_impact: project.actual_impact || '',
-      last_audit_date: project.last_audit_date || ''
-    });
-    setIsFormOpen(true);
-  };
-
-  const handleDelete = async (projectId) => {
-    if (window.confirm('Tem certeza que deseja excluir este projeto?')) {
-      try {
-        setLoading(true);
-        await axios.delete(`${API_URL}/esg-projects/${projectId}`);
-        setProjects(projects.filter(project => project.id !== projectId));
-        alert('Projeto excluído com sucesso!');
-      } catch (error) {
-        console.error('Erro ao excluir projeto:', error);
-        alert('Erro ao excluir projeto. Por favor, tente novamente.');
-      } finally {
-        setLoading(false);
-      }
+  const fetchProjects = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/project-tracking`);
+      setProjects(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar projetos:', error);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     try {
-      setLoading(true);
+      const formData = {
+        ...newProject,
+        company_id: parseInt(newProject.company_id),
+        budget_allocated: parseFloat(newProject.budget_allocated),
+        progress_percentage: parseFloat(newProject.progress_percentage),
+        last_audit_date: newProject.last_audit_date || null
+      };
+
       if (editingProject) {
-        // Atualizar projeto existente
-        const response = await axios.put(
-          `${API_URL}/esg-projects/${editingProject.id}`, 
-          newProject
-        );
-        setProjects(projects.map(project => 
-          project.id === editingProject.id ? response.data : project
-        ));
-        alert('Projeto atualizado com sucesso!');
+        await axios.put(`${API_URL}/project-tracking/${editingProject.id}`, formData);
       } else {
-        // Criar novo projeto
-        const response = await axios.post(`${API_URL}/esg-projects`, newProject);
-        setProjects([...projects, response.data]);
-        alert('Projeto criado com sucesso!');
+        await axios.post(`${API_URL}/project-tracking`, formData);
       }
+      
+      fetchProjects();
       setIsFormOpen(false);
-      setEditingProject(null);
       setNewProject({
         name: '',
         company_id: '',
@@ -119,6 +81,7 @@ function ESGProjects({ sidebarColor, buttonColor }) {
         actual_impact: '',
         last_audit_date: ''
       });
+      setEditingProject(null);
     } catch (error) {
       console.error('Erro ao salvar projeto:', error);
       alert('Erro ao salvar projeto. Por favor, tente novamente.');
@@ -172,14 +135,18 @@ function ESGProjects({ sidebarColor, buttonColor }) {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Tipo de Projeto
             </label>
-            <input
-              type="text"
+            <select
               name="project_type"
               value={newProject.project_type}
               onChange={handleInputChange}
               className="p-2 border rounded w-full"
               required
-            />
+            >
+              <option value="">Selecione o Tipo</option>
+              <option value="Environmental">Ambiental</option>
+              <option value="Social">Social</option>
+              <option value="Governance">Governança</option>
+            </select>
           </div>
 
           <div>
@@ -194,10 +161,10 @@ function ESGProjects({ sidebarColor, buttonColor }) {
               required
             >
               <option value="">Selecione o Status</option>
-              <option value="Em Planejamento">Em Planejamento</option>
-              <option value="Em Progresso">Em Progresso</option>
+              <option value="Em Andamento">Em Andamento</option>
               <option value="Concluído">Concluído</option>
-              <option value="Suspenso">Suspenso</option>
+              <option value="Cancelado">Cancelado</option>
+              <option value="Planejado">Planejado</option>
             </select>
           </div>
 
@@ -256,9 +223,9 @@ function ESGProjects({ sidebarColor, buttonColor }) {
               className="p-2 border rounded w-full"
               required
             >
-              <option value="BRL">BRL</option>
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
+              <option value="BRL">Real (BRL)</option>
+              <option value="USD">Dólar (USD)</option>
+              <option value="EUR">Euro (EUR)</option>
             </select>
           </div>
 
@@ -277,43 +244,55 @@ function ESGProjects({ sidebarColor, buttonColor }) {
               max="100"
             />
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Data da Última Auditoria
+            </label>
+            <input
+              type="date"
+              name="last_audit_date"
+              value={newProject.last_audit_date}
+              onChange={handleInputChange}
+              className="p-2 border rounded w-full"
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Impacto Esperado
+            </label>
+            <textarea
+              name="expected_impact"
+              value={newProject.expected_impact}
+              onChange={handleInputChange}
+              className="p-2 border rounded w-full"
+              rows="3"
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Impacto Real
+            </label>
+            <textarea
+              name="actual_impact"
+              value={newProject.actual_impact}
+              onChange={handleInputChange}
+              className="p-2 border rounded w-full"
+              rows="3"
+            />
+          </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Impacto Esperado
-          </label>
-          <textarea
-            name="expected_impact"
-            value={newProject.expected_impact}
-            onChange={handleInputChange}
-            className="p-2 border rounded w-full"
-            required
-            rows="3"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Impacto Real
-          </label>
-          <textarea
-            name="actual_impact"
-            value={newProject.actual_impact}
-            onChange={handleInputChange}
-            className="p-2 border rounded w-full"
-            rows="3"
-          />
-        </div>
-
-        <div className="flex justify-end space-x-2">
+        <div className="flex justify-end space-x-2 mt-4">
           <button
             type="submit"
+            disabled={loading}
             className="px-4 py-2 text-white rounded"
             style={{ backgroundColor: buttonColor }}
-            disabled={loading}
           >
-            {loading ? 'Salvando...' : (editingProject ? 'Atualizar' : 'Criar')}
+            {loading ? 'Salvando...' : 'Salvar'}
           </button>
           <button
             type="button"
@@ -352,6 +331,43 @@ function ESGProjects({ sidebarColor, buttonColor }) {
     }));
   };
 
+  const handleEdit = (project) => {
+    setEditingProject(project);
+    setNewProject({
+      name: project.name,
+      company_id: project.company_id,
+      project_type: project.project_type,
+      start_date: project.start_date,
+      end_date: project.end_date,
+      budget_allocated: project.budget_allocated,
+      currency: project.currency,
+      status: project.status,
+      progress_percentage: project.progress_percentage,
+      expected_impact: project.expected_impact || '',
+      actual_impact: project.actual_impact || '',
+      last_audit_date: project.last_audit_date || ''
+    });
+    setIsFormOpen(true);
+  };
+
+  const handleDelete = async (projectId) => {
+    if (!window.confirm('Tem certeza que deseja excluir este projeto?')) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await axios.delete(`${API_URL}/project-tracking/${projectId}`);
+      fetchProjects();
+      alert('Projeto excluído com sucesso!');
+    } catch (error) {
+      console.error('Erro ao excluir projeto:', error);
+      alert('Erro ao excluir projeto. Por favor, tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="container mx-auto px-4">
       <div className="flex justify-between items-center mb-6">
@@ -380,58 +396,58 @@ function ESGProjects({ sidebarColor, buttonColor }) {
               <th className="px-4 py-2 border">Orçamento</th>
               <th className="px-4 py-2 border">Data Início</th>
               <th className="px-4 py-2 border">Data Fim</th>
+              <th className="px-4 py-2 border">Impacto Esperado</th>
+              <th className="px-4 py-2 border">Impacto Real</th>
+              <th className="px-4 py-2 border">Última Auditoria</th>
               <th className="px-4 py-2 border">Ações</th>
             </tr>
           </thead>
           <tbody>
-            {projects.map(project => {
-              const company = companies.find(c => c.id === project.company_id);
-              return (
-                <tr key={project.id}>
-                  <td className="px-4 py-2 border">{project.name}</td>
-                  <td className="px-4 py-2 border">{company?.name || 'N/A'}</td>
-                  <td className="px-4 py-2 border">{project.project_type}</td>
-                  <td className="px-4 py-2 border">
-                    <span className={`px-2 py-1 rounded text-sm text-white ${
-                      project.status === "Em Planejamento" ? "bg-yellow-500" :
-                      project.status === "Em Progresso" ? "bg-blue-500" :
-                      project.status === "Concluído" ? "bg-green-500" :
-                      project.status === "Suspenso" ? "bg-red-500" :
-                      "bg-gray-500"
-                    }`}>
-                      {project.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 border">{project.progress_percentage}%</td>
-                  <td className="px-4 py-2 border">
-                    {new Intl.NumberFormat('pt-BR', { 
-                      style: 'currency', 
-                      currency: project.currency 
-                    }).format(project.budget_allocated)}
-                  </td>
-                  <td className="px-4 py-2 border">
-                    {new Date(project.start_date).toLocaleDateString('pt-BR')}
-                  </td>
-                  <td className="px-4 py-2 border">
-                    {new Date(project.end_date).toLocaleDateString('pt-BR')}
-                  </td>
-                  <td className="px-4 py-2 border">
-                    <button
-                      onClick={() => handleEdit(project)}
-                      className="text-blue-500 hover:text-blue-700 mr-2"
-                    >
-                      <FaEdit />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(project.id)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <FaTrash />
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
+            {projects.map((project) => (
+              <tr key={project.id}>
+                <td className="px-4 py-2 border">{project.name}</td>
+                <td className="px-4 py-2 border">
+                  {companies.find(c => c.id === project.company_id)?.name}
+                </td>
+                <td className="px-4 py-2 border">{project.project_type}</td>
+                <td className="px-4 py-2 border">{project.status}</td>
+                <td className="px-4 py-2 border">{project.progress_percentage}%</td>
+                <td className="px-4 py-2 border">
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: project.currency
+                  }).format(project.budget_allocated)}
+                </td>
+                <td className="px-4 py-2 border">
+                  {new Date(project.start_date).toLocaleDateString('pt-BR')}
+                </td>
+                <td className="px-4 py-2 border">
+                  {new Date(project.end_date).toLocaleDateString('pt-BR')}
+                </td>
+                <td className="px-4 py-2 border">{project.expected_impact || '-'}</td>
+                <td className="px-4 py-2 border">{project.actual_impact || '-'}</td>
+                <td className="px-4 py-2 border">
+                  {project.last_audit_date 
+                    ? new Date(project.last_audit_date).toLocaleDateString('pt-BR')
+                    : '-'
+                  }
+                </td>
+                <td className="px-4 py-2 border">
+                  <button
+                    onClick={() => handleEdit(project)}
+                    className="text-blue-500 hover:text-blue-700 mr-2"
+                  >
+                    <FaEdit />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(project.id)}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <FaTrash />
+                  </button>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>

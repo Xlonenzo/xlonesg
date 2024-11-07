@@ -14,17 +14,21 @@ function Sidebar({
   toggleSidebar,
   sidebarColor,
   buttonColor,
-  fontColor
+  fontColor,
+  isESGTrackerOpen,
+  setIsESGTrackerOpen,
 }) {
   // Função para renderizar cada item do menu
   const renderMenuItem = (item, isSubItem = false) => (
-    <li key={item.path}>
+    <li key={item.path || item.name}>
       <button
         onClick={() => {
           if (item.name === 'Análises') {
             setIsAnalyticsOpen(!isAnalyticsOpen);
           } else if (item.name === 'Painel de Administração') {
             setIsAdminOpen(!isAdminOpen);
+          } else if (item.name === 'Rastreador ESG') {
+            setIsESGTrackerOpen(!isESGTrackerOpen);
           } else {
             setActiveMenuItem(item.path);
           }
@@ -44,7 +48,8 @@ function Sidebar({
             {item.subItems && (
               <span className="ml-auto">
                 {(item.name === 'Análises' && isAnalyticsOpen) ||
-                (item.name === 'Painel de Administração' && isAdminOpen) ? (
+                (item.name === 'Painel de Administração' && isAdminOpen) ||
+                (item.name === 'Rastreador ESG' && isESGTrackerOpen) ? (
                   <ChevronDown size={16} />
                 ) : (
                   <ChevronRight size={16} />
@@ -59,7 +64,8 @@ function Sidebar({
       {!isSidebarCollapsed &&
         item.subItems &&
         ((item.name === 'Análises' && isAnalyticsOpen) ||
-          (item.name === 'Painel de Administração' && isAdminOpen)) && (
+         (item.name === 'Painel de Administração' && isAdminOpen) ||
+         (item.name === 'Rastreador ESG' && isESGTrackerOpen)) && (
           <ul className="mt-1 space-y-1">
             {item.subItems.map((subItem) => renderMenuItem(subItem, true))}
           </ul>

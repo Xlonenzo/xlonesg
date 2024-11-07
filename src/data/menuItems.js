@@ -13,7 +13,8 @@ import {
   Sliders,
   Building,
   FileText,
-  Activity,
+  Target,
+  TreePine
 } from 'lucide-react';
 
 const menuItemsData = [
@@ -42,7 +43,14 @@ const menuItemsData = [
   },
   { name: 'KPIs', icon: <FileText size={20} />, path: '/kpi-templates' },
   { name: 'Gerenciador de Títulos', icon: <FileText size={20} />, path: '/bond-management' },
-  { name: 'Rastreador de KPIs', icon: <Activity size={20} />, path: '/kpi-tracker' },
+  { 
+    name: 'Rastreador ESG', 
+    icon: <Target size={20} />, 
+    path: '/esg-tracker',
+    subItems: [
+      { name: 'Projetos ESG', icon: <TreePine size={20} />, path: '/esg-tracker/projects' }
+    ] 
+  },
   { name: 'Biblioteca de Informações', icon: <Book size={20} />, path: '/info-library' },
   { name: 'Plano de Ação', icon: <ClipboardList size={20} />, path: '/action-plan' },
 ];
