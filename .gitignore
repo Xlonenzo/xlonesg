@@ -28,3 +28,5 @@ yarn-error.log*
 uploads/
 __pycache__/
 *.pyc
+.env.production
+.env.development
