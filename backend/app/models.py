@@ -306,7 +306,7 @@ class EmissionData(Base):
     id = Column(Integer, primary_key=True, index=True)
     company_id = Column(Integer, ForeignKey("xlonesg.companies.id"), nullable=False)
     scope = Column(String(20), nullable=False, index=True)
-    emission_type = Column(String(20), nullable=False)
+    emission_type = Column(String(50), nullable=False)
     value = Column(Numeric(20, 6), nullable=False)
     unit = Column(String(20), nullable=False)
     source = Column(String(200), nullable=False)

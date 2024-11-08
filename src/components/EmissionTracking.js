@@ -21,8 +21,8 @@ function EmissionTracking({ sidebarColor, buttonColor }) {
     unit: '',
     source: '',
     calculation_method: '',
-    uncertainty_level: 0,
-    timestamp: new Date().toISOString().slice(0, 16),
+    uncertainty_level: null,
+    timestamp: new Date().toISOString(),
     calculated_emission: false,
     reporting_standard: ''
   });
@@ -72,8 +72,8 @@ function EmissionTracking({ sidebarColor, buttonColor }) {
       unit: '',
       source: '',
       calculation_method: '',
-      uncertainty_level: 0,
-      timestamp: new Date().toISOString().slice(0, 16),
+      uncertainty_level: null,
+      timestamp: new Date().toISOString(),
       calculated_emission: false,
       reporting_standard: ''
     });
@@ -434,8 +434,8 @@ function EmissionTracking({ sidebarColor, buttonColor }) {
                 unit: '',
                 source: '',
                 calculation_method: '',
-                uncertainty_level: 0,
-                timestamp: new Date().toISOString().slice(0, 16),
+                uncertainty_level: null,
+                timestamp: new Date().toISOString(),
                 calculated_emission: false,
                 reporting_standard: ''
               });

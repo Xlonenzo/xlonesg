@@ -410,16 +410,16 @@ class ProjectTracking(ProjectTrackingBase):
 
 class EmissionDataBase(BaseModel):
     company_id: int
-    scope: constr(max_length=20)
-    emission_type: int
-    value: condecimal(ge=0, max_digits=20, decimal_places=6)
-    unit: constr(max_length=20)
-    source: constr(max_length=200)
-    calculation_method: constr(max_length=200)
-    uncertainty_level: Optional[condecimal(max_digits=5, decimal_places=2)]
+    scope: str
+    emission_type: str
+    value: float
+    unit: str
+    source: str
+    calculation_method: str
+    uncertainty_level: Optional[float] = None
     timestamp: datetime
-    calculated_emission: bool = False
-    reporting_standard: constr(max_length=20)
+    calculated_emission: Optional[bool] = False
+    reporting_standard: str
 
     class Config:
         from_attributes = True
@@ -431,8 +431,9 @@ class EmissionDataCreate(EmissionDataBase):
 
 class EmissionData(EmissionDataBase):
     id: int
-    created_at: Optional[datetime]
-    updated_at: Optional[datetime]
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    company: Optional[CompanyBase] = None
 
     class Config:
         from_attributes = True

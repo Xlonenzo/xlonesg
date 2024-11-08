@@ -1642,12 +1642,14 @@ def create_emission(emission: schemas.EmissionDataCreate, db: Session = Depends(
 @app.get("/api/emissions", response_model=List[schemas.EmissionData])
 def read_emissions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     try:
-        emissions = db.query(models.EmissionData).offset(skip).limit(limit).all()
-        logger.info(f"Buscando emissões: encontradas {len(emissions)} registros")
+        emissions = db.query(models.EmissionData)\
+            .options(joinedload(models.EmissionData.company))\
+            .offset(skip)\
+            .limit(limit)\
+            .all()
         return emissions
     except Exception as e:
         logger.error(f"Erro ao buscar emissões: {str(e)}")
-        logger.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/emissions/{emission_id}", response_model=schemas.EmissionData)
