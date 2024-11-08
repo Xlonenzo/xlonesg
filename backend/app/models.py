@@ -106,6 +106,7 @@ class Company(Base):
     emission_data = relationship("EmissionData", back_populates="company")
     suppliers = relationship("Supplier", back_populates="company", cascade="all, delete-orphan")
     materiality_assessments = relationship("MaterialityAssessment", back_populates="company", cascade="all, delete-orphan")  # Novo relacionamento
+    investments = relationship("Investment", back_populates="company", cascade="all, delete-orphan")
 
 
 class KPITemplate(Base):
@@ -356,3 +357,22 @@ class MaterialityAssessment(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     company = relationship("Company", back_populates="materiality_assessments")
+
+class Investment(Base):
+    __tablename__ = "investment"
+    __table_args__ = {"schema": "xlonesg"}
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("xlonesg.companies.id"), nullable=False)
+    investment_type = Column(String, nullable=False)
+    amount_invested = Column(Float, nullable=False)
+    currency = Column(String(3), nullable=False)
+    investment_date = Column(Date, nullable=False)
+    expected_roi = Column(Float)
+    actual_roi = Column(Float)
+    impact_measured = Column(Text)
+    last_assessment_date = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    company = relationship("Company", back_populates="investments")

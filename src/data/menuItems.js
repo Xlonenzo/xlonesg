@@ -15,7 +15,8 @@ import {
   FileText,
   Target,
   TreePine,
-  TruckIcon
+  TruckIcon,
+  Wallet
 } from 'lucide-react';
 
 const menuItemsData = [
@@ -52,7 +53,8 @@ const menuItemsData = [
       { name: 'Projetos ESG', icon: <TreePine size={20} />, path: '/esg-tracker/projects' },
       { name: 'Dados de Emissão', icon: <Leaf size={20} />, path: '/esg-tracker/emissions' },
       { name: 'Fornecedores', icon: <TruckIcon size={20} />, path: '/esg-tracker/suppliers' },
-      { name: 'Materialidade', icon: <BarChart2 size={20} />, path: '/esg-tracker/materiality' }
+      { name: 'Materialidade', icon: <BarChart2 size={20} />, path: '/esg-tracker/materiality' },
+      { name: 'Investimentos', icon: <Wallet size={20} />, path: '/esg-tracker/investments' }
     ] 
   },
   { name: 'Biblioteca de Informações', icon: <Book size={20} />, path: '/info-library' },

@@ -25,6 +25,7 @@ import EmissionTracking from './components/EmissionTracking';
 import ESGProjects from './components/ESGProjects';
 import Suppliers from './components/Suppliers';
 import Materiality from './components/Materiality';
+import Investment from './components/Investment';
 
 // Importar dados e estilos
 import articlesData from './data/articles';
@@ -207,6 +208,13 @@ function App() {
       case '/esg-tracker/materiality':
         return ['admin', 'editor'].includes(userRole) ? (
           <Materiality 
+            sidebarColor={customization.sidebar_color} 
+            buttonColor={customization.button_color} 
+          />
+        ) : <UnauthorizedAccess />;
+      case '/esg-tracker/investments':
+        return ['admin', 'editor'].includes(userRole) ? (
+          <Investment 
             sidebarColor={customization.sidebar_color} 
             buttonColor={customization.button_color} 
           />

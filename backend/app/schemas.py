@@ -286,10 +286,10 @@ class BondBase(BaseModel):
     resource_manager: str
     separate_account: bool
     social_impact_achieved: str
-    social_impact_measured_date: Optional[date]
+    social_impact_measured_date: Optional[date] = None
     audit_completed: bool
-    audit_result: Optional[str]
-    report_frequency: Optional[str]
+    audit_result: Optional[str] = None
+    report_frequency: Optional[str] = None
     interest_rate: float
     guarantee_value: float
     issuer_name: str
@@ -503,6 +503,35 @@ class MaterialityAssessment(MaterialityAssessmentBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     company: CompanyBase
+
+    class Config:
+        from_attributes = True
+
+
+class InvestmentBase(BaseModel):
+    company_id: int
+    investment_type: str
+    amount_invested: float
+    currency: str
+    investment_date: date
+    expected_roi: Optional[float] = None
+    actual_roi: Optional[float] = None
+    impact_measured: Optional[str] = None
+    last_assessment_date: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class InvestmentCreate(InvestmentBase):
+    pass
+
+
+class Investment(InvestmentBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    company: Optional[CompanyBase] = None
 
     class Config:
         from_attributes = True

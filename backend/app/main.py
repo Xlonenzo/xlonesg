@@ -33,15 +33,19 @@ from sqlalchemy import func
 from . import models, schemas  # Certifique-se de que o caminho está correto
 from .database import SessionLocal, engine
 
-logging.basicConfig(level=logging.INFO)
+# Configuração de logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Configuração do CORS - deve vir ANTES de todas as rotas
+# Configuração CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Permite todas as origens em desenvolvimento
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -1923,5 +1927,96 @@ def delete_materiality(materiality_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Erro inesperado ao deletar avaliação de materialidade: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# Rotas para Investimentos
+@app.post("/api/investments", response_model=schemas.Investment)
+async def create_investment(investment: schemas.InvestmentCreate, db: Session = Depends(get_db)):
+    logger.info("=== Criando novo investimento ===")
+    logger.info(f"Dados recebidos: {investment.dict()}")
+    
+    try:
+        # Verificar se a empresa existe
+        company = db.query(models.Company).filter(models.Company.id == investment.company_id).first()
+        if not company:
+            logger.error(f"Empresa {investment.company_id} não encontrada")
+            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+        
+        db_investment = models.Investment(**investment.dict())
+        db.add(db_investment)
+        db.commit()
+        db.refresh(db_investment)
+        
+        logger.info(f"Investimento criado com sucesso: ID {db_investment.id}")
+        return db_investment
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao criar investimento: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/investments", response_model=List[schemas.Investment])
+async def read_investments(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    try:
+        investments = db.query(models.Investment)\
+            .options(joinedload(models.Investment.company))\
+            .offset(skip)\
+            .limit(limit)\
+            .all()
+        return investments
+    except Exception as e:
+        logger.error(f"Erro ao buscar investimentos: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/investments/{investment_id}", response_model=schemas.Investment)
+async def read_investment(investment_id: int, db: Session = Depends(get_db)):
+    try:
+        investment = db.query(models.Investment)\
+            .options(joinedload(models.Investment.company))\
+            .filter(models.Investment.id == investment_id)\
+            .first()
+        if not investment:
+            raise HTTPException(status_code=404, detail="Investimento não encontrado")
+        return investment
+    except Exception as e:
+        logger.error(f"Erro ao buscar investimento: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/investments/{investment_id}", response_model=schemas.Investment)
+async def update_investment(investment_id: int, investment: schemas.InvestmentCreate, db: Session = Depends(get_db)):
+    try:
+        db_investment = db.query(models.Investment).filter(models.Investment.id == investment_id).first()
+        if not db_investment:
+            raise HTTPException(status_code=404, detail="Investimento não encontrado")
+            
+        for key, value in investment.dict().items():
+            setattr(db_investment, key, value)
+            
+        db.commit()
+        db.refresh(db_investment)
+        return db_investment
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao atualizar investimento: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/api/investments/{investment_id}")
+async def delete_investment(investment_id: int, db: Session = Depends(get_db)):
+    try:
+        db_investment = db.query(models.Investment).filter(models.Investment.id == investment_id).first()
+        if not db_investment:
+            raise HTTPException(status_code=404, detail="Investimento não encontrado")
+            
+        db.delete(db_investment)
+        db.commit()
+        return {"message": f"Investimento {investment_id} deletado com sucesso"}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao deletar investimento: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/test")
+async def test_endpoint():
+    logger.info("Teste endpoint chamado")
+    return {"message": "API está funcionando"}
 
 
