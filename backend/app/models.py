@@ -104,6 +104,8 @@ class Company(Base):
     esg_projects = relationship("ESGProject", back_populates="company")
     project_tracking = relationship("ProjectTracking", back_populates="company", cascade="all, delete-orphan")
     emission_data = relationship("EmissionData", back_populates="company")
+    suppliers = relationship("Supplier", back_populates="company", cascade="all, delete-orphan")
+    materiality_assessments = relationship("MaterialityAssessment", back_populates="company", cascade="all, delete-orphan")  # Novo relacionamento
 
 
 class KPITemplate(Base):
@@ -318,3 +320,39 @@ class EmissionData(Base):
 
     # Relacionamento
     company = relationship("Company", back_populates="emission_data")
+
+class Supplier(Base):
+    __tablename__ = "supplier"
+    __table_args__ = {"schema": "xlonesg"}
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("xlonesg.companies.id"), nullable=False)
+    name = Column(String, nullable=False)
+    risk_level = Column(String, nullable=False)
+    esg_score = Column(Float, nullable=False)
+    location = Column(String, nullable=False)
+    compliance_status = Column(String, nullable=False)
+    esg_reporting = Column(Boolean, default=False)
+    impact_assessment = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    company = relationship("Company", back_populates="suppliers")
+
+class MaterialityAssessment(Base):
+    __tablename__ = "materiality_assessment"
+    __table_args__ = {"schema": "xlonesg"}
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("xlonesg.companies.id"), nullable=False)
+    topic = Column(String, nullable=False)
+    business_impact = Column(Float, nullable=False)
+    external_impact = Column(Float, nullable=False)
+    stakeholder_importance = Column(Float, nullable=False)
+    priority_level = Column(String, nullable=False)  # Alto, Médio, Baixo
+    regulatory_alignment = Column(Boolean, default=False)
+    last_updated = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    company = relationship("Company", back_populates="materiality_assessments")

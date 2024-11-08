@@ -13,7 +13,7 @@ from uuid import uuid4
 from passlib.context import CryptContext
 from pydantic import BaseModel
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 import traceback
 from fastapi.responses import JSONResponse
 from langchain_openai import OpenAIEmbeddings
@@ -28,6 +28,7 @@ import threading
 from pathlib import Path
 from chromadb.api import EmbeddingFunction
 import psutil
+from sqlalchemy import func
 
 from . import models, schemas  # Certifique-se de que o caminho está correto
 from .database import SessionLocal, engine
@@ -1696,5 +1697,229 @@ def delete_emission(emission_id: int, db: Session = Depends(get_db)):
         db.rollback()
         logger.error(f"Erro ao deletar emissão: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
+
+# Rotas para Fornecedores
+
+@app.post("/api/suppliers", response_model=schemas.Supplier)
+async def create_supplier(supplier: schemas.SupplierCreate, db: Session = Depends(get_db)):
+    logger.info("Iniciando criaço de fornecedor")
+    logger.info(f"Dados recebidos: {supplier.dict()}")
+    
+    try:
+        # Verifica se a empresa existe
+        company = db.query(models.Company).filter(models.Company.id == supplier.company_id).first()
+        if not company:
+            logger.error(f"Empresa {supplier.company_id} não encontrada")
+            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+
+        db_supplier = models.Supplier(**supplier.dict())
+        db.add(db_supplier)
+        db.commit()
+        db.refresh(db_supplier)
+        
+        logger.info(f"Fornecedor criado com sucesso: ID {db_supplier.id}")
+        return db_supplier
+        
+    except SQLAlchemyError as e:
+        logger.error(f"Erro SQL ao criar fornecedor: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Erro ao criar fornecedor: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/suppliers", response_model=List[schemas.Supplier])
+def read_suppliers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    try:
+        suppliers = db.query(models.Supplier).offset(skip).limit(limit).all()
+        return suppliers
+    except Exception as e:
+        logger.error(f"Erro ao buscar fornecedores: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/suppliers/{supplier_id}", response_model=schemas.Supplier)
+def read_supplier(supplier_id: int, db: Session = Depends(get_db)):
+    db_supplier = db.query(models.Supplier).filter(models.Supplier.id == supplier_id).first()
+    if db_supplier is None:
+        raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
+    return schemas.Supplier.from_orm(db_supplier)
+
+@app.put("/api/suppliers/{supplier_id}", response_model=schemas.Supplier)
+def update_supplier(supplier_id: int, supplier: schemas.SupplierCreate, db: Session = Depends(get_db)):
+    db_supplier = db.query(models.Supplier).filter(models.Supplier.id == supplier_id).first()
+    if db_supplier is None:
+        raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
+    
+    supplier_data = supplier.dict(exclude_unset=True)
+    for key, value in supplier_data.items():
+        setattr(db_supplier, key, value)
+    
+    try:
+        db.commit()
+        db.refresh(db_supplier)
+        logger.info(f"Fornecedor atualizado com sucesso: {db_supplier.id}")
+        return schemas.Supplier.from_orm(db_supplier)
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao atualizar fornecedor: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Erro ao atualizar fornecedor: {str(e)}"
+        )
+
+@app.delete("/api/suppliers/{supplier_id}", response_model=schemas.Supplier)
+def delete_supplier(supplier_id: int, db: Session = Depends(get_db)):
+    db_supplier = db.query(models.Supplier).filter(models.Supplier.id == supplier_id).first()
+    if db_supplier is None:
+        raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
+    try:
+        db.delete(db_supplier)
+        db.commit()
+        logger.info(f"Fornecedor deletado com sucesso: {supplier_id}")
+        return schemas.Supplier.from_orm(db_supplier)
+    except SQLAlchemyError as e:
+        logger.error(f"Erro ao deletar fornecedor: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Falha ao deletar fornecedor: {str(e)}")
+
+@app.get("/")
+async def root():
+    return {"message": "API is running"}
+
+@app.get("/api/suppliers/test")
+async def test_suppliers():
+    return {"message": "Suppliers endpoint is working"}
+
+@app.post("/api/suppliers", response_model=schemas.Supplier)
+async def create_supplier(
+    supplier: schemas.SupplierCreate, 
+    db: Session = Depends(get_db)
+):
+    logger.info(f"Recebendo requisição POST /api/suppliers: {supplier.dict()}")
+    try:
+        company = db.query(models.Company).filter(models.Company.id == supplier.company_id).first()
+        if not company:
+            logger.error(f"Empresa {supplier.company_id} não encontrada")
+            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+
+        db_supplier = models.Supplier(**supplier.dict())
+        db.add(db_supplier)
+        db.commit()
+        db.refresh(db_supplier)
+        
+        logger.info(f"Fornecedor criado com sucesso: ID {db_supplier.id}")
+        return db_supplier
+        
+    except Exception as e:
+        logger.error(f"Erro ao criar fornecedor: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Rotas para Avaliação de Materialidade
+@app.post("/api/materiality", response_model=schemas.MaterialityAssessment)
+def create_materiality(materiality: schemas.MaterialityAssessmentCreate, db: Session = Depends(get_db)):
+    try:
+        logger.info(f"Criando nova avaliação de materialidade: {materiality.dict()}")
+        
+        db_materiality = models.MaterialityAssessment(**materiality.dict())
+        db_materiality.last_updated = datetime.now(timezone.utc)  # Definir timezone
+        
+        db.add(db_materiality)
+        db.commit()
+        db.refresh(db_materiality)
+        
+        logger.info(f"Avaliação de materialidade criada com sucesso: ID {db_materiality.id}")
+        return db_materiality
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao criar avaliação de materialidade: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/materiality", response_model=List[schemas.MaterialityAssessment])
+def read_materiality(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    try:
+        materiality_list = db.query(models.MaterialityAssessment)\
+            .options(joinedload(models.MaterialityAssessment.company))\
+            .offset(skip)\
+            .limit(limit)\
+            .all()
+        return materiality_list
+    except Exception as e:
+        logger.error(f"Erro ao buscar avaliações de materialidade: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/materiality/{materiality_id}", response_model=schemas.MaterialityAssessment)
+def read_materiality_by_id(materiality_id: int, db: Session = Depends(get_db)):
+    db_materiality = db.query(models.MaterialityAssessment)\
+        .options(joinedload(models.MaterialityAssessment.company))\
+        .filter(models.MaterialityAssessment.id == materiality_id)\
+        .first()
+    
+    if db_materiality is None:
+        raise HTTPException(status_code=404, detail="Avaliação de materialidade não encontrada")
+    return db_materiality
+
+@app.put("/api/materiality/{materiality_id}", response_model=schemas.MaterialityAssessment)
+def update_materiality(
+    materiality_id: int, 
+    materiality: schemas.MaterialityAssessmentUpdate, 
+    db: Session = Depends(get_db)
+):
+    db_materiality = db.query(models.MaterialityAssessment).filter(
+        models.MaterialityAssessment.id == materiality_id
+    ).first()
+    
+    if db_materiality is None:
+        raise HTTPException(status_code=404, detail="Avaliação de materialidade não encontrada")
+    
+    try:
+        for key, value in materiality.dict(exclude_unset=True).items():
+            setattr(db_materiality, key, value)
+        
+        db_materiality.updated_at = func.now()
+        db.commit()
+        db.refresh(db_materiality)
+        return db_materiality
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao atualizar avaliação de materialidade: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/api/materiality/{materiality_id}")
+def delete_materiality(materiality_id: int, db: Session = Depends(get_db)):
+    try:
+        # Primeiro, verificamos se o registro existe
+        db_materiality = db.query(models.MaterialityAssessment).filter(
+            models.MaterialityAssessment.id == materiality_id
+        ).first()
+        
+        if db_materiality is None:
+            logger.error(f"Avaliação de materialidade não encontrada: ID {materiality_id}")
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Avaliação de materialidade com ID {materiality_id} não encontrada"
+            )
+        
+        # Se existe, deletamos
+        try:
+            db.delete(db_materiality)
+            db.commit()
+            logger.info(f"Avaliação de materialidade deletada com sucesso: ID {materiality_id}")
+            return {"message": f"Avaliação de materialidade {materiality_id} deletada com sucesso"}
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Erro ao deletar avaliação de materialidade: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+            
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Erro inesperado ao deletar avaliação de materialidade: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 

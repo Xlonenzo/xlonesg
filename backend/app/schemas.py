@@ -436,3 +436,72 @@ class EmissionData(EmissionDataBase):
 
     class Config:
         from_attributes = True
+
+
+class SupplierBase(BaseModel):
+    company_id: int
+    name: str
+    risk_level: str
+    esg_score: float
+    location: str
+    compliance_status: str
+    esg_reporting: bool
+    impact_assessment: str
+
+    class Config:
+        from_attributes = True
+
+
+class SupplierCreate(SupplierBase):
+    pass
+
+
+class Supplier(SupplierBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class MaterialityAssessmentBase(BaseModel):
+    company_id: int
+    topic: str
+    business_impact: float
+    external_impact: float
+    stakeholder_importance: float
+    priority_level: str
+    regulatory_alignment: bool
+    last_updated: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class MaterialityAssessmentCreate(MaterialityAssessmentBase):
+    pass
+
+
+class MaterialityAssessmentUpdate(BaseModel):
+    company_id: Optional[int] = None
+    topic: Optional[str] = None
+    business_impact: Optional[float] = None
+    external_impact: Optional[float] = None
+    stakeholder_importance: Optional[float] = None
+    priority_level: Optional[str] = None
+    regulatory_alignment: Optional[bool] = None
+    last_updated: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class MaterialityAssessment(MaterialityAssessmentBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    company: CompanyBase
+
+    class Config:
+        from_attributes = True
