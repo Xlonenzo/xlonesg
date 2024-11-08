@@ -107,6 +107,7 @@ class Company(Base):
     suppliers = relationship("Supplier", back_populates="company", cascade="all, delete-orphan")
     materiality_assessments = relationship("MaterialityAssessment", back_populates="company", cascade="all, delete-orphan")  # Novo relacionamento
     investments = relationship("Investment", back_populates="company", cascade="all, delete-orphan")
+    compliance_audits = relationship("ComplianceAudit", back_populates="company", cascade="all, delete-orphan")
 
 
 class KPITemplate(Base):
@@ -376,3 +377,21 @@ class Investment(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     company = relationship("Company", back_populates="investments")
+
+class ComplianceAudit(Base):
+    __tablename__ = "compliance_audit"
+    __table_args__ = {"schema": "xlonesg"}
+
+    id = Column(Integer, primary_key=True)
+    company_id = Column(Integer, ForeignKey("xlonesg.companies.id"))
+    entity_type = Column(String)
+    audit_date = Column(Date)
+    auditor_name = Column(String)
+    compliance_status = Column(String)
+    findings = Column(Text)
+    corrective_action_plan = Column(Text)
+    follow_up_date = Column(Date)
+    created_at = Column(DateTime(timezone=True))
+    updated_at = Column(DateTime(timezone=True))
+
+    company = relationship("Company", back_populates="compliance_audits")

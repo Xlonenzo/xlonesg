@@ -29,6 +29,7 @@ from pathlib import Path
 from chromadb.api import EmbeddingFunction
 import psutil
 from sqlalchemy import func
+from sqlalchemy import text
 
 from . import models, schemas  # Certifique-se de que o caminho está correto
 from .database import SessionLocal, engine
@@ -2018,5 +2019,138 @@ async def delete_investment(investment_id: int, db: Session = Depends(get_db)):
 async def test_endpoint():
     logger.info("Teste endpoint chamado")
     return {"message": "API está funcionando"}
+
+# Rotas para Compliance Audit
+@app.post("/api/compliance", response_model=schemas.ComplianceAudit)
+def create_compliance_audit(
+    compliance: schemas.ComplianceAuditCreate,
+    db: Session = Depends(get_db)
+):
+    logger.info("=== Criando nova auditoria de compliance ===")
+    
+    try:
+        # Verificar se a empresa existe
+        company = db.query(models.Company).filter(models.Company.id == compliance.company_id).first()
+        if not company:
+            logger.error(f"Empresa {compliance.company_id} não encontrada")
+            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+        
+        # Criar SQL direto usando a sequência correta
+        sql = text("""
+            INSERT INTO xlonesg.compliance_audit
+            (id, company_id, entity_type, audit_date, auditor_name, compliance_status,
+             findings, corrective_action_plan, follow_up_date, created_at, updated_at)
+            VALUES
+            (nextval('xlonesg.compliance_audit_id_seq'), :company_id, :entity_type, :audit_date, 
+             :auditor_name, :compliance_status, :findings, :corrective_action_plan, 
+             :follow_up_date, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            RETURNING id, created_at, updated_at
+        """)
+        
+        result = db.execute(
+            sql,
+            {
+                "company_id": compliance.company_id,
+                "entity_type": compliance.entity_type,
+                "audit_date": compliance.audit_date,
+                "auditor_name": compliance.auditor_name,
+                "compliance_status": compliance.compliance_status,
+                "findings": compliance.findings,
+                "corrective_action_plan": compliance.corrective_action_plan,
+                "follow_up_date": compliance.follow_up_date
+            }
+        )
+        
+        db.commit()
+        
+        # Buscar o registro criado
+        row = result.fetchone()
+        if row:
+            return {
+                "id": row[0],
+                "company_id": compliance.company_id,
+                "entity_type": compliance.entity_type,
+                "audit_date": compliance.audit_date,
+                "auditor_name": compliance.auditor_name,
+                "compliance_status": compliance.compliance_status,
+                "findings": compliance.findings,
+                "corrective_action_plan": compliance.corrective_action_plan,
+                "follow_up_date": compliance.follow_up_date,
+                "created_at": row[1],
+                "updated_at": row[2]
+            }
+            
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao criar auditoria de compliance: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/compliance", response_model=List[schemas.ComplianceAudit])
+def read_compliance_audits(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    try:
+        compliance_audits = db.query(models.ComplianceAudit)\
+            .options(joinedload(models.ComplianceAudit.company))\
+            .offset(skip)\
+            .limit(limit)\
+            .all()
+        return compliance_audits
+    except Exception as e:
+        logger.error(f"Erro ao buscar auditorias de compliance: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/compliance/{compliance_id}", response_model=schemas.ComplianceAudit)
+def read_compliance_audit(compliance_id: int, db: Session = Depends(get_db)):
+    try:
+        compliance = db.query(models.ComplianceAudit)\
+            .options(joinedload(models.ComplianceAudit.company))\
+            .filter(models.ComplianceAudit.id == compliance_id)\
+            .first()
+        if not compliance:
+            raise HTTPException(status_code=404, detail="Auditoria de compliance não encontrada")
+        return compliance
+    except Exception as e:
+        logger.error(f"Erro ao buscar auditoria de compliance: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/compliance/{compliance_id}", response_model=schemas.ComplianceAudit)
+def update_compliance_audit(
+    compliance_id: int,
+    compliance: schemas.ComplianceAuditCreate,
+    db: Session = Depends(get_db)
+):
+    try:
+        db_compliance = db.query(models.ComplianceAudit)\
+            .filter(models.ComplianceAudit.id == compliance_id)\
+            .first()
+        if not db_compliance:
+            raise HTTPException(status_code=404, detail="Auditoria de compliance não encontrada")
+            
+        for key, value in compliance.dict().items():
+            setattr(db_compliance, key, value)
+            
+        db.commit()
+        db.refresh(db_compliance)
+        return db_compliance
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao atualizar auditoria de compliance: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/api/compliance/{compliance_id}")
+def delete_compliance_audit(compliance_id: int, db: Session = Depends(get_db)):
+    try:
+        db_compliance = db.query(models.ComplianceAudit)\
+            .filter(models.ComplianceAudit.id == compliance_id)\
+            .first()
+        if not db_compliance:
+            raise HTTPException(status_code=404, detail="Auditoria de compliance não encontrada")
+            
+        db.delete(db_compliance)
+        db.commit()
+        return {"message": f"Auditoria de compliance {compliance_id} deletada com sucesso"}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao deletar auditoria de compliance: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 

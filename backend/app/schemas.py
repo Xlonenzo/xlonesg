@@ -535,3 +535,45 @@ class Investment(InvestmentBase):
 
     class Config:
         from_attributes = True
+
+
+class ComplianceAuditBase(BaseModel):
+    company_id: int
+    entity_type: str
+    audit_date: date
+    auditor_name: str
+    compliance_status: str
+    findings: Optional[str] = None
+    corrective_action_plan: Optional[str] = None
+    follow_up_date: Optional[date] = None
+
+    @validator('compliance_status')
+    def validate_status(cls, v):
+        valid_status = ["Conforme", "Não Conforme", "Parcialmente Conforme"]
+        if v not in valid_status:
+            raise ValueError(f"Status inválido. Deve ser um dos seguintes: {', '.join(valid_status)}")
+        return v
+
+    @validator('entity_type')
+    def validate_entity_type(cls, v):
+        valid_types = ["Projeto", "Investimento", "Emissão"]
+        if v not in valid_types:
+            raise ValueError(f"Tipo de entidade inválido. Deve ser um dos seguintes: {', '.join(valid_types)}")
+        return v
+
+    class Config:
+        from_attributes = True
+
+
+class ComplianceAuditCreate(ComplianceAuditBase):
+    pass
+
+
+class ComplianceAudit(ComplianceAuditBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    company: Optional[CompanyBase] = None
+
+    class Config:
+        from_attributes = True
