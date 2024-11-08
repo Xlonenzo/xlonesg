@@ -45,6 +45,7 @@ const menuItemsData = [
     ],
   },
   { name: 'KPIs', icon: <FileText size={20} />, path: '/kpi-templates' },
+  { name: 'Rastreador de KPI', icon: <Target size={20} />, path: '/kpi-tracker' },
   { name: 'Gerenciador de Títulos', icon: <FileText size={20} />, path: '/bond-management' },
   { 
     name: 'Rastreador ESG', 
