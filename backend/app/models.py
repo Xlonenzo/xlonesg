@@ -9,6 +9,7 @@ from .database import Base
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.types import DateTime
 from datetime import datetime
+from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, ForeignKey, CheckConstraint
 
 from sqlalchemy import Column, Integer, String, Float, Text, Boolean, Date, ForeignKey, ARRAY, Enum, UniqueConstraint
 from sqlalchemy.orm import relationship
@@ -102,6 +103,7 @@ class Company(Base):
     kpi_entries = relationship("KPIEntry", back_populates="company", cascade="all, delete-orphan")
     esg_projects = relationship("ESGProject", back_populates="company")
     project_tracking = relationship("ProjectTracking", back_populates="company", cascade="all, delete-orphan")
+    emission_data = relationship("EmissionData", back_populates="company")
 
 
 class KPITemplate(Base):
@@ -291,3 +293,28 @@ class ProjectTracking(Base):
 
     # Relacionamentos
     company = relationship("Company", back_populates="project_tracking")
+
+class EmissionData(Base):
+    __tablename__ = "emission_data"
+    __table_args__ = (
+        CheckConstraint('value >= 0', name='emission_data_value_check'),
+        {'schema': 'xlonesg'}
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_id = Column(Integer, ForeignKey("xlonesg.companies.id"), nullable=False)
+    scope = Column(String(20), nullable=False, index=True)
+    emission_type = Column(String(20), nullable=False)
+    value = Column(Numeric(20, 6), nullable=False)
+    unit = Column(String(20), nullable=False)
+    source = Column(String(200), nullable=False)
+    calculation_method = Column(String(200), nullable=False)
+    uncertainty_level = Column(Numeric(5, 2), nullable=True)
+    timestamp = Column(DateTime(timezone=True), nullable=False, index=True)
+    calculated_emission = Column(Boolean, default=False, nullable=True)
+    reporting_standard = Column(String(20), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.current_timestamp(), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.current_timestamp(), nullable=True)
+
+    # Relacionamento
+    company = relationship("Company", back_populates="emission_data")

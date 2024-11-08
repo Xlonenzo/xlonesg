@@ -48,7 +48,8 @@ const menuItemsData = [
     icon: <Target size={20} />, 
     path: '/esg-tracker',
     subItems: [
-      { name: 'Projetos ESG', icon: <TreePine size={20} />, path: '/esg-tracker/projects' }
+      { name: 'Projetos ESG', icon: <TreePine size={20} />, path: '/esg-tracker/projects' },
+      { name: 'Dados de Emissão', icon: <Leaf size={20} />, path: '/esg-tracker/emissions' }
     ] 
   },
   { name: 'Biblioteca de Informações', icon: <Book size={20} />, path: '/info-library' },

@@ -1602,4 +1602,99 @@ async def delete_project_tracking(
         logger.error(f"Erro ao excluir projeto: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Rotas para Dados de Emissão
+@app.post("/api/emissions", response_model=schemas.EmissionData)
+def create_emission(emission: schemas.EmissionDataCreate, db: Session = Depends(get_db)):
+    try:
+        logger.info(f"Criando nova emissão: {emission.dict()}")
+        
+        # Criar o objeto com apenas os campos necessários
+        emission_dict = {
+            'company_id': emission.company_id,
+            'scope': emission.scope,
+            'emission_type': emission.emission_type,
+            'value': emission.value,
+            'unit': emission.unit,
+            'source': emission.source,
+            'calculation_method': emission.calculation_method,
+            'uncertainty_level': emission.uncertainty_level,
+            'timestamp': emission.timestamp,
+            'calculated_emission': emission.calculated_emission,
+            'reporting_standard': emission.reporting_standard
+        }
+        
+        db_emission = models.EmissionData(**emission_dict)
+        
+        db.add(db_emission)
+        db.commit()
+        db.refresh(db_emission)
+        
+        logger.info(f"Emissão criada com sucesso: ID {db_emission.id}")
+        return db_emission
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao criar emissão: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/emissions", response_model=List[schemas.EmissionData])
+def read_emissions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    try:
+        emissions = db.query(models.EmissionData).offset(skip).limit(limit).all()
+        logger.info(f"Buscando emissões: encontradas {len(emissions)} registros")
+        return emissions
+    except Exception as e:
+        logger.error(f"Erro ao buscar emissões: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/emissions/{emission_id}", response_model=schemas.EmissionData)
+def read_emission(emission_id: int, db: Session = Depends(get_db)):
+    try:
+        db_emission = db.query(models.EmissionData).filter(models.EmissionData.id == emission_id).first()
+        if db_emission is None:
+            raise HTTPException(status_code=404, detail="Registro de emissão não encontrado")
+        return db_emission
+    except Exception as e:
+        logger.error(f"Erro ao buscar emissão: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/emissions/{emission_id}", response_model=schemas.EmissionData)
+def update_emission(emission_id: int, emission: schemas.EmissionDataCreate, db: Session = Depends(get_db)):
+    try:
+        db_emission = db.query(models.EmissionData).filter(models.EmissionData.id == emission_id).first()
+        if db_emission is None:
+            raise HTTPException(status_code=404, detail="Registro de emissão não encontrado")
+        
+        # Atualiza os campos
+        for key, value in emission.dict(exclude_unset=True).items():
+            if hasattr(db_emission, key):
+                setattr(db_emission, key, value)
+        
+        # O updated_at será atualizado automaticamente pelo onupdate
+        db.commit()
+        db.refresh(db_emission)
+        return db_emission
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao atualizar emissão: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/api/emissions/{emission_id}", response_model=schemas.EmissionData)
+def delete_emission(emission_id: int, db: Session = Depends(get_db)):
+    try:
+        db_emission = db.query(models.EmissionData).filter(models.EmissionData.id == emission_id).first()
+        if db_emission is None:
+            raise HTTPException(status_code=404, detail="Registro de emissão não encontrado")
+        
+        db.delete(db_emission)
+        db.commit()
+        return db_emission
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao deletar emissão: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
 
