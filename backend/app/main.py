@@ -1,6 +1,6 @@
 # main.py
 
-from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session, joinedload
@@ -13,54 +13,91 @@ from uuid import uuid4
 from passlib.context import CryptContext
 from pydantic import BaseModel
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 import traceback
+from fastapi.responses import JSONResponse
+from langchain_openai import OpenAIEmbeddings
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader
+import chromadb
+from dotenv import load_dotenv
+from chromadb.config import Settings
+import schedule
+import time
+import threading
+from pathlib import Path
+from chromadb.api import EmbeddingFunction
+import psutil
+from sqlalchemy import func
+from sqlalchemy import text
 
 from . import models, schemas  # Certifique-se de que o caminho está correto
 from .database import SessionLocal, engine
 
-logging.basicConfig(level=logging.INFO)
+# Configuração de logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-# Atualizar configuração do CORS
-origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-    "https://gen.xlon.com.br"
-]
-
+# Configuração CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=False,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=[
-        "Content-Type",*
-        "Authorization",
-        "Accept",
-        "Origin",
-        "X-Requested-With",
-        "Access-Control-Allow-Origin",
-        "Access-Control-Allow-Methods",
-        "Access-Control-Allow-Headers",
-        "Access-Control-Allow-Credentials"
-    ],
-    expose_headers=["*"],
-    max_age=3600
+    allow_headers=["*"],
 )
 
 # Configuração para servir arquivos estáticos
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Certifique-se de que o diretório para logos existe
+# Configurar diretórios
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs("static/logos", exist_ok=True)
 
 # Configuração da base URL  
-BASE_URL = "https://gen.xlon.com.br"  # Substitua pela URL pública do seu backend
+BASE_URL = ""  # Substitua pela URL pública do seu backend
+
+# Configuração do Chroma DB
+CHROMA_PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", "chroma_db")
+os.makedirs(CHROMA_PERSIST_DIR, exist_ok=True)
+
+# Inicializar cliente Chroma com persistência
+chroma_client = chromadb.PersistentClient(
+    path=CHROMA_PERSIST_DIR,
+    settings=Settings(
+        allow_reset=True,
+        is_persistent=True
+    )
+)
+
+# Criar ou obter a collection
+try:
+    collection = chroma_client.get_collection("documents")
+except:
+    collection = chroma_client.create_collection(
+        name="documents",
+        metadata={"hnsw:space": "cosine"}
+    )
+
+# Configuração do OpenAI Embeddings
+# Carrega o .env do diretório backend
+BASE_DIR = Path(__file__).resolve().parent.parent
+env_path = BASE_DIR / '.env'
+load_dotenv(env_path)
+
+# Pega a chave e verifica se está disponível
+api_key = os.getenv('OPENAI_API_KEY')
+if not api_key:
+    raise ValueError("OPENAI_API_KEY não encontrada no arquivo .env")
+
+# Usa a chave explicitamente
+embeddings = OpenAIEmbeddings(openai_api_key=api_key)
 
 # Dependency
 def get_db():
@@ -286,8 +323,12 @@ def add_company_to_hierarchy(company: schemas.CompanyCreate, db: Session = Depen
 
 @app.get("/api/companies", response_model=List[schemas.Company])
 def read_companies(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    companies = db.query(models.Company).offset(skip).limit(limit).all()
-    return [schemas.Company.from_orm(company) for company in companies]
+    try:
+        companies = db.query(models.Company).offset(skip).limit(limit).all()
+        return companies
+    except Exception as e:
+        logger.error(f"Erro ao buscar empresas: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/companies/{company_id}", response_model=schemas.Company)
 def read_company(company_id: int, db: Session = Depends(get_db)):
@@ -298,22 +339,109 @@ def read_company(company_id: int, db: Session = Depends(get_db)):
 
 @app.put("/api/companies/{company_id}", response_model=schemas.Company)
 def update_company(company_id: int, company: schemas.CompanyCreate, db: Session = Depends(get_db)):
-    db_company = db.query(models.Company).filter(models.Company.id == company_id).first()
-    if db_company is None:
-        raise HTTPException(status_code=404, detail="Empresa não encontrada")
-    
-    # Atualizar todos os campos
-    for key, value in company.dict().items():
-        setattr(db_company, key, value)
-    
     try:
-        db.commit()
-        db.refresh(db_company)
-    except SQLAlchemyError as e:
+        logger.info(f"Tentando atualizar empresa ID {company_id}")
+        logger.info(f"Dados recebidos: {company.dict()}")
+        
+        # Inicia uma transação
+        db_company = db.query(models.Company).filter(models.Company.id == company_id).first()
+        if db_company is None:
+            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+        
+        old_cnpj = db_company.cnpj
+        new_cnpj = company.cnpj
+        
+        logger.info(f"CNPJ antigo: {old_cnpj}")
+        logger.info(f"CNPJ novo: {new_cnpj}")
+        
+        if old_cnpj != new_cnpj:
+            # Verifica se o novo CNPJ já existe
+            existing = db.query(models.Company).filter(
+                models.Company.cnpj == new_cnpj,
+                models.Company.id != company_id
+            ).first()
+            if existing:
+                raise HTTPException(
+                    status_code=400,
+                    detail="CNPJ já está em uso por outra empresa"
+                )
+            
+            try:
+                # 1. Primeiro, busca todos os registros relacionados
+                kpi_entries = db.query(models.KPIEntry).filter(
+                    models.KPIEntry.cnpj == old_cnpj
+                ).all()
+                
+                action_plans = db.query(models.ActionPlan).filter(
+                    models.ActionPlan.cnpj == old_cnpj
+                ).all()
+                
+                logger.info(f"Encontrados {len(kpi_entries)} registros KPI")
+                logger.info(f"Encontrados {len(action_plans)} planos de ação")
+                
+                # 2. Atualiza cada registro individualmente
+                for entry in kpi_entries:
+                    entry.cnpj = new_cnpj
+                    logger.info(f"Atualizando KPI Entry ID {entry.id}")
+                
+                for plan in action_plans:
+                    plan.cnpj = new_cnpj
+                    logger.info(f"Atualizando Action Plan ID {plan.id}")
+                
+                # 3. Atualiza a empresa
+                for key, value in company.dict(exclude_unset=True).items():
+                    setattr(db_company, key, value)
+                
+                # 4. Commit de todas as alterações
+                db.commit()
+                logger.info("Commit realizado com sucesso")
+                
+                # 5. Refresh nos objetos
+                db.refresh(db_company)
+                for entry in kpi_entries:
+                    db.refresh(entry)
+                for plan in action_plans:
+                    db.refresh(plan)
+                
+                logger.info("Todos os registros atualizados com sucesso")
+                return schemas.Company.from_orm(db_company)
+                
+            except Exception as e:
+                db.rollback()
+                logger.error(f"Erro durante a atualização: {str(e)}")
+                logger.error(f"Traceback completo: {traceback.format_exc()}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Erro ao atualizar registros: {str(e)}"
+                )
+        else:
+            # Se o CNPJ não mudou, apenas atualiza os outros campos
+            for key, value in company.dict(exclude_unset=True).items():
+                setattr(db_company, key, value)
+            
+            try:
+                db.commit()
+                db.refresh(db_company)
+                logger.info("Empresa atualizada com sucesso (sem mudança de CNPJ)")
+                return schemas.Company.from_orm(db_company)
+            except Exception as e:
+                db.rollback()
+                logger.error(f"Erro ao atualizar empresa: {str(e)}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Erro ao atualizar empresa: {str(e)}"
+                )
+                
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erro inesperado: {str(e)}")
+        logger.error(f"Traceback completo: {traceback.format_exc()}")
         db.rollback()
-        logger.error(f"Erro ao atualizar empresa: {str(e)}")
-        raise HTTPException(status_code=400, detail="Erro ao atualizar empresa")
-    return schemas.Company.from_orm(db_company)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro interno do servidor: {str(e)}"
+        )
 
 @app.delete("/api/companies/{company_id}", response_model=schemas.Company)
 def delete_company(company_id: int, db: Session = Depends(get_db)):
@@ -481,7 +609,6 @@ def read_kpi_entries(skip: int = 0, limit: int = 100, db: Session = Depends(get_
             target_value=entry.target_value,
             year=entry.year,
             month=entry.month,
-            status=entry.status,
             isfavorite=entry.isfavorite,
             unit=entry.template.unit if entry.template else None,
             category=entry.template.category if entry.template else None,
@@ -509,15 +636,21 @@ def read_kpi_entry(kpi_entry_id: int, db: Session = Depends(get_db)):
 @app.get("/api/kpi-entries-with-templates", response_model=List[schemas.KPIEntryWithTemplate])
 def read_kpi_entries_with_templates(
     category: Optional[str] = Query(None),
+    company_id: Optional[int] = Query(None),
     skip: int = 0,
-    limit: int = 1000,  # Aumentado para 1000
+    limit: int = 1000,
     db: Session = Depends(get_db)
 ):
     query = db.query(models.KPIEntry)
+    
     if category:
         query = query.filter(models.KPIEntry.template.has(category=category))
+    
+    if company_id:
+        query = query.filter(models.KPIEntry.company_id == company_id)
+    
     entries = query.offset(skip).limit(limit).all()
-    logger.info(f"Total de KPIs retornados: {len(entries)}")
+    
     return [
         schemas.KPIEntryWithTemplate(
             entry_id=entry.id,
@@ -528,7 +661,6 @@ def read_kpi_entries_with_templates(
             target_value=entry.target_value,
             year=entry.year,
             month=entry.month,
-            status=entry.status,
             isfavorite=entry.isfavorite,
             unit=entry.template.unit if entry.template else None,
             category=entry.template.category if entry.template else None,
@@ -550,50 +682,53 @@ def read_kpi_entries_with_templates(
 
 @app.post("/api/customization", response_model=schemas.Customization)
 async def create_customization(
-    customization: schemas.CustomizationCreate = Depends(),
-    logo: UploadFile = File(None),
-    db: Session = Depends(get_db)
-):
-    logger.info(f"Recebendo requisição POST para /api/customization: {customization.dict()}")
-    try:
-        if logo:
-            unique_filename = f"{uuid4().hex}_{logo.filename}"
-            file_location = f"static/logos/{unique_filename}"
-            with open(file_location, "wb+") as file_object:
-                shutil.copyfileobj(logo.file, file_object)
-            customization.logo_url = f"{BASE_URL}/static/logos/{unique_filename}"
-
-        db_customization = models.Customization(**customization.dict())
-        db.add(db_customization)
-        db.commit()
-        db.refresh(db_customization)
-        logger.info(f"Customização criada com sucesso: {db_customization.id}")
-        return schemas.Customization.from_orm(db_customization)
-    except Exception as e:
-        logger.error(f"Erro ao criar customização: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/customization", response_model=schemas.Customization)
-def get_customization(db: Session = Depends(get_db)):
-    customization = db.query(models.Customization).first()
-    if not customization:
-        raise HTTPException(status_code=404, detail="Customization not found")
-    return schemas.Customization.from_orm(customization)
-
-@app.put("/api/customization/{customization_id}", response_model=schemas.Customization)
-async def update_customization(
-    customization_id: int,
     customization: schemas.CustomizationCreate,
     db: Session = Depends(get_db)
 ):
     try:
-        db_customization = db.query(models.Customization).filter(
-            models.Customization.id == customization_id
-        ).first()
-        
-        if db_customization is None:
-            raise HTTPException(status_code=404, detail="Customização não encontrada")
+        db_customization = models.Customization(**customization.dict())
+        db.add(db_customization)
+        db.commit()
+        db.refresh(db_customization)
+        return db_customization
+    except Exception as e:
+        logger.error(f"Erro ao criar customização: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/customization")
+def get_customization(db: Session = Depends(get_db)):
+    try:
+        customization = db.query(models.Customization).first()
+        if not customization:
+            customization = models.Customization(
+                sidebar_color="#1a73e8",
+                button_color="#1a73e8",
+                font_color="#000000"
+            )
+            db.add(customization)
+            db.commit()
+            db.refresh(customization)
+        return customization
+    except Exception as e:
+        logger.error(f"Erro ao buscar customização: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/customization", response_model=schemas.Customization)
+async def update_customization(
+    customization: schemas.CustomizationCreate,
+    db: Session = Depends(get_db)
+):
+    try:
+        # Busca a primeira customização ou cria uma nova
+        db_customization = db.query(models.Customization).first()
+        if not db_customization:
+            db_customization = models.Customization(
+                sidebar_color="#1a73e8",
+                button_color="#1a73e8",
+                font_color="#000000"
+            )
+            db.add(db_customization)
+        
         # Atualiza os campos
         for key, value in customization.dict(exclude_unset=True).items():
             setattr(db_customization, key, value)
@@ -601,7 +736,7 @@ async def update_customization(
         db.commit()
         db.refresh(db_customization)
         
-        logger.info(f"Customização {customization_id} atualizada com sucesso")
+        logger.info("Customização atualizada com sucesso")
         return db_customization
 
     except SQLAlchemyError as e:
@@ -689,52 +824,88 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     return schemas.User.from_orm(db_user)
 
 @app.get("/api/users/", response_model=List[schemas.User])
-def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def list_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     try:
+        logger.info("Iniciando busca de usuários")
         users = db.query(models.User).offset(skip).limit(limit).all()
-        logger.info(f"Usuários encontrados: {len(users)}")  # Log para debug
+        logger.info(f"Encontrados {len(users)} usuários")
         
-        # Verificar se há dados
-        if not users:
-            logger.warning("Nenhum usuário encontrado no banco")
-            return []
-            
-        # Log dos dados retornados
-        for user in users:
-            logger.info(f"User: {user.username}, Email: {user.email}, Role: {user.role}")
-            
+        # Converter para dicionário para debug
+        users_dict = [
+            {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "role": user.role,
+                "is_active": user.is_active,
+                "full_name": user.full_name
+            } for user in users
+        ]
+        logger.info(f"Usuários encontrados: {users_dict}")
+        
         return users
+        
     except Exception as e:
         logger.error(f"Erro ao listar usuários: {str(e)}")
         logger.error(traceback.format_exc())  # Log do stack trace completo
-        raise HTTPException(status_code=400, detail=f"Erro ao listar usuários: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Erro interno ao buscar usuários: {str(e)}"
+        )
 
 @app.get("/api/users/{user_id}", response_model=schemas.User)
-def read_user(user_id: int, db: Session = Depends(get_db)):
-    db_user = db.query(models.User).filter(models.User.id == user_id).first()
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return schemas.User.from_orm(db_user)
+def get_user(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        if user is None:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+            
+        return user
+        
+    except Exception as e:
+        logger.error(f"Erro ao buscar usuário: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/users/{user_id}", response_model=schemas.User)
-async def update_user(user_id: int, user: schemas.UserUpdate, db: Session = Depends(get_db)):
-    logger.info(f"Recebida requisição PUT para atualizar usuário {user_id}")
-    logger.info(f"Dados recebidos: {user.dict()}")
-    db_user = db.query(models.User).filter(models.User.id == user_id).first()
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    update_data = user.dict(exclude_unset=True)
-    if 'password' in update_data:
-        update_data['hashed_password'] = get_password_hash(update_data['password'])
-        del update_data['password']
-    
-    for key, value in update_data.items():
-        setattr(db_user, key, value)
-    
-    db.commit()
-    db.refresh(db_user)
-    return schemas.User.from_orm(db_user)
+def update_user(
+    user_id: int,
+    user_update: schemas.UserUpdate,
+    db: Session = Depends(get_db)
+):
+    try:
+        logger.info(f"Atualizando usuário {user_id}")
+        logger.info(f"Dados recebidos: {user_update.dict(exclude_unset=True)}")
+        
+        db_user = db.query(models.User).filter(models.User.id == user_id).first()
+        if not db_user:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+        update_data = user_update.dict(exclude_unset=True)
+        
+        # Se houver nova senha, fazer hash
+        if "password" in update_data:
+            update_data["hashed_password"] = get_password_hash(update_data.pop("password"))
+        
+        # Atualizar campos
+        for field, value in update_data.items():
+            if field != "password":  # Ignorar password pois já tratamos acima
+                setattr(db_user, field, value)
+        
+        # Atualizar timestamp
+        db_user.updated_at = datetime.utcnow()
+        
+        db.commit()
+        db.refresh(db_user)
+        
+        return db_user
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao atualizar usuário: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/users/{user_id}", response_model=schemas.User)
 def delete_user(user_id: int, db: Session = Depends(get_db)):
@@ -850,5 +1021,1136 @@ if __name__ == "__main__":
     models.Base.metadata.create_all(bind=engine)
     logger.info("Tabelas criadas (se não existirem)")
     logger.info("Rotas definidas em main.py")
+
+@app.get("/api/kpis/company/{company_id}", response_model=List[schemas.KPI])
+def read_kpis_by_company(company_id: int, db: Session = Depends(get_db)):
+    try:
+        kpis = db.query(models.KPI).filter(models.KPI.company_id == company_id).all()
+        return kpis
+    except Exception as e:
+        logger.error(f"Erro ao buscar KPIs da empresa: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Rota de teste para verificar CORS
+@app.get("/api/test-cors")
+async def test_cors():
+    return {"message": "CORS está funcionando!"}
+
+# Função para verificar headers
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"=== Nova requisição ===")
+    logger.info(f"Método: {request.method}")
+    logger.info(f"URL: {request.url}")
+    logger.info(f"Headers: {request.headers}")
+    
+    response = await call_next(request)
+    
+    logger.info(f"=== Resposta ===")
+    logger.info(f"Status: {response.status_code}")
+    return response
+
+@app.get("/api/users", response_model=List[schemas.User])
+def list_users(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    try:
+        users = db.query(models.User).offset(skip).limit(limit).all()
+        return users
+        
+    except Exception as e:
+        logger.error(f"Erro ao listar usuários: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Configurar Chroma e OpenAI Embeddings
+client = chromadb.Client()
+collection = client.create_collection("documents")
+embeddings = OpenAIEmbeddings(
+    openai_api_key=os.getenv("OPENAI_API_KEY"),
+    model="text-embedding-ada-002"  # Especificar o modelo
+)
+
+# Rota para upload de documentos com processamento
+@app.post("/api/documents/upload")
+async def upload_document(
+    file: UploadFile = File(...),
+    title: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    try:
+        logger.info(f"Iniciando upload do arquivo: {file.filename}")
+        
+        # Validar arquivo
+        validate_file(file)
+        
+        # Gerar nome único para o arquivo
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        safe_filename = f"{uuid4().hex}{file_ext}"
+        file_path = os.path.join(UPLOAD_DIR, safe_filename)
+        
+        # Salvar arquivo
+        with open(file_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+        
+        logger.info(f"Arquivo salvo em: {file_path}")
+        
+        try:
+            # Carregar documento baseado na extensão
+            if file_ext == '.pdf':
+                loader = PyPDFLoader(file_path)
+            elif file_ext == '.docx':
+                loader = Docx2txtLoader(file_path)
+            else:
+                loader = TextLoader(file_path)
+
+            documents = loader.load()
+            
+            # Dividir texto em chunks
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=1000,
+                chunk_overlap=200
+            )
+            texts = text_splitter.split_documents(documents)
+
+            # Gerar embeddings e adicionar ao Chroma
+            for i, text in enumerate(texts):
+                embedding = embeddings.embed_query(text.page_content)
+                collection.add(
+                    embeddings=[embedding],
+                    documents=[text.page_content],
+                    metadatas=[{
+                        "source": file.filename,
+                        "chunk": i,
+                        "title": title
+                    }],
+                    ids=[f"{safe_filename}-{i}"]
+                )
+
+            # Salvar metadados no banco
+            db_document = models.Document(
+                title=title,
+                file_path=file_path,
+                original_filename=file.filename,
+                file_type=file_ext.replace('.', '')
+            )
+            db.add(db_document)
+            db.commit()
+            db.refresh(db_document)
+
+            logger.info("Documento processado com sucesso")
+            return {
+                "id": db_document.id,
+                "title": db_document.title,
+                "filename": db_document.original_filename,
+                "created_at": db_document.created_at
+            }
+
+        except Exception as e:
+            logger.error(f"Erro no processamento: {str(e)}")
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro no processamento do documento: {str(e)}"
+            )
+
+    except Exception as e:
+        logger.error(f"Erro no upload: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro no upload: {str(e)}"
+        )
+
+@app.get("/api/documents/search")
+async def search_documents(
+    query: str,
+    limit: int = 5,
+    db: Session = Depends(get_db)
+):
+    try:
+        # Gerar embedding para a busca
+        query_embedding = embeddings.embed_query(query)
+        
+        # Buscar no Chroma
+        results = collection.query(
+            query_embeddings=[query_embedding],
+            n_results=limit,
+            include=["documents", "metadatas", "distances"]
+        )
+
+        # Formatar resultados
+        formatted_results = []
+        if results and results['ids']:
+            for i in range(len(results['ids'][0])):
+                doc = results['documents'][0][i]
+                metadata = results['metadatas'][0][i]
+                distance = results['distances'][0][i]
+
+                # Buscar informações do documento no banco
+            doc_info = db.query(models.Document).filter(
+                    models.Document.title == metadata.get('title')
+            ).first()
+
+            formatted_results.append({
+                "content": doc,
+                    "title": metadata.get('title', 'Sem título'),
+                    "source": metadata.get('source', 'Fonte desconhecida'),
+                "similarity": round((1 - distance) * 100, 2),
+                    "created_at": doc_info.created_at.isoformat() if doc_info else None,
+                    "document_id": doc_info.id if doc_info else None
+            })
+
+        return formatted_results
+
+    except Exception as e:
+        logger.error(f"Erro na busca: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao realizar a busca: {str(e)}"
+        )
+
+# Rota para listar documentos
+@app.get("/api/documents")
+async def list_documents(db: Session = Depends(get_db)):
+    documents = db.query(models.Document).all()
+    return documents
+
+# Rota para download de documentos
+@app.get("/api/documents/{document_id}/download")
+async def download_document(document_id: int, db: Session = Depends(get_db)):
+    document = db.query(models.Document).filter(models.Document.id == document_id).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+    return FileResponse(document.file_path)
+
+def validate_file(file: UploadFile) -> bool:
+    # Lista de extensões permitidas
+    ALLOWED_EXTENSIONS = {'.pdf', '.doc', '.docx', '.txt'}
+    
+    # Verificar extensão
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail="Tipo de arquivo não permitido"
+        )
+    
+    # Verificar tamanho (exemplo: máximo 10MB)
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB em bytes
+    file_size = len(file.file.read())
+    file.file.seek(0)  # Resetar o ponteiro do arquivo
+    
+    if file_size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail="Arquivo muito grande (máximo 10MB)"
+        )
+    
+    return True
+
+def get_chunk_params(file_type: str) -> dict:
+    """Retorna parâmetros otimizados de chunk baseado no tipo de arquivo"""
+    params = {
+        'pdf': {
+            'chunk_size': 1000,
+            'chunk_overlap': 200,
+            'separators': ["\n\n", "\n", " ", ""]
+        },
+        'docx': {
+            'chunk_size': 800,
+            'chunk_overlap': 150,
+            'separators': ["\n\n", "\n", ". ", " ", ""]
+        },
+        'txt': {
+            'chunk_size': 500,
+            'chunk_overlap': 100,
+            'separators': ["\n\n", "\n", ". ", " "]
+        }
+    }
+    return params.get(file_type, params['txt'])
+
+def process_document(file_path: str, file_ext: str):
+    """Processa documento com parâmetros otimizados"""
+    # Determinar tipo de arquivo
+    file_type = file_ext.replace('.', '')
+    chunk_params = get_chunk_params(file_type)
+    
+    # Carregar documento
+    if file_ext == '.pdf':
+        loader = PyPDFLoader(file_path)
+    elif file_ext == '.docx':
+        loader = Docx2txtLoader(file_path)
+    else:
+        loader = TextLoader(file_path)
+
+    documents = loader.load()
+    
+    # Dividir texto com parâmetros otimizados
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=chunk_params['chunk_size'],
+        chunk_overlap=chunk_params['chunk_overlap'],
+        separators=chunk_params['separators']
+    )
+    
+    return text_splitter.split_documents(documents)
+
+# Criar um wrapper para a função de embedding
+class OpenAIEmbeddingFunction(EmbeddingFunction):
+    def __init__(self, openai_embeddings: OpenAIEmbeddings):
+        self.openai_embeddings = openai_embeddings
+
+    def __call__(self, input: List[str]) -> List[List[float]]:
+        embeddings = self.openai_embeddings.embed_documents(input)
+        return embeddings
+
+def safe_remove_db(db_path: str, max_attempts: int = 5, wait_time: int = 1):
+    """Tenta remover o diretório do banco de dados de forma segura"""
+    for attempt in range(max_attempts):
+        try:
+            if os.path.exists(db_path):
+                # Tenta fechar todas as conexões com o arquivo sqlite
+                db_file = os.path.join(db_path, "chroma.sqlite3")
+                if os.path.exists(db_file):
+                    for proc in psutil.process_iter(['pid', 'name', 'open_files']):
+                        try:
+                            for file in proc.open_files():
+                                if db_file in file.path:
+                                    proc.terminate()
+                                    time.sleep(wait_time)
+                        except (psutil.NoSuchProcess, psutil.AccessDenied):
+                            continue
+                
+                shutil.rmtree(db_path)
+                print(f"Diretório {db_path} removido com sucesso")
+                return True
+            return True
+        except PermissionError:
+            print(f"Tentativa {attempt + 1} de {max_attempts} falhou. Aguardando {wait_time} segundos...")
+            time.sleep(wait_time)
+    return False
+
+def init_chroma():
+    # Configurações simplificadas
+    settings = Settings(
+        anonymized_telemetry=False,  # Apenas esta configuração para telemetria
+        allow_reset=True,
+        is_persistent=True
+    )
+    
+    # Usar um diretório com timestamp
+    db_path = f"chroma_db_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    
+    try:
+        # Inicializar OpenAI Embeddings
+        openai_embeddings = OpenAIEmbeddings(openai_api_key=os.getenv('OPENAI_API_KEY'))
+        
+        # Criar a função de embedding
+        embedding_function = OpenAIEmbeddingFunction(openai_embeddings)
+        
+        # Inicializar Chroma
+        chroma_client = chromadb.PersistentClient(path=db_path)
+        
+        collection = chroma_client.get_or_create_collection(
+            name="documents",
+            embedding_function=embedding_function
+        )
+        
+        return chroma_client, collection
+        
+    except Exception as e:
+        print(f"Erro ao inicializar Chroma: {e}")
+        raise
+
+# Você também pode adicionar estas variáveis de ambiente antes de importar o chromadb
+os.environ['ANONYMIZED_TELEMETRY'] = 'False'
+os.environ['TELEMETRY_ENABLED'] = 'False'
+
+# Inicializar Chroma
+chroma_client, collection = init_chroma()
+
+def backup_chroma():
+    """Realiza backup do Chroma DB"""
+    try:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = f"backups/chroma/backup_{timestamp}"
+        
+        # Criar diretório de backup
+        os.makedirs(backup_path, exist_ok=True)
+        
+        # Copiar arquivos do Chroma
+        shutil.copytree(
+            "chroma_db",
+            f"{backup_path}/chroma_db",
+            dirs_exist_ok=True
+        )
+        
+        # Limpar backups antigos (manter últimos 5)
+        backups = sorted(os.listdir("backups/chroma"))
+        if len(backups) > 5:
+            for old_backup in backups[:-5]:
+                shutil.rmtree(f"backups/chroma/{old_backup}")
+                
+        logger.info(f"Backup do Chroma DB realizado: {backup_path}")
+    except Exception as e:
+        logger.error(f"Erro ao realizar backup: {str(e)}")
+
+# Agendar backup diário
+schedule.every().day.at("00:00").do(backup_chroma)
+
+def run_schedule():
+    while True:
+        schedule.run_pending()
+        time.sleep(60)
+
+# Iniciar agendador em thread separada
+threading.Thread(target=run_schedule, daemon=True).start()
+
+def monitor_chroma_metrics():
+    """Monitora métricas do Chroma DB"""
+    try:
+        # Tamanho do diretório
+        total_size = 0
+        for dirpath, dirnames, filenames in os.walk("chroma_db"):
+            for f in filenames:
+                fp = os.path.join(dirpath, f)
+                total_size += os.path.getsize(fp)
+        
+        # Métricas da collection
+        collection_stats = {
+            "count": collection.count(),
+            "size_mb": total_size / (1024 * 1024),
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        logger.info(f"Métricas Chroma DB: {collection_stats}")
+        return collection_stats
+    except Exception as e:
+        logger.error(f"Erro ao monitorar métricas: {str(e)}")
+        return None
+
+@app.get("/api/admin/chroma-metrics")
+async def get_chroma_metrics(db: Session = Depends(get_db)):
+    """Endpoint para verificar métricas do Chroma"""
+    return monitor_chroma_metrics()
+
+# Rotas para Projetos ESG
+@app.post("/api/esg-projects", response_model=schemas.ESGProject)
+async def create_esg_project(
+    project: schemas.ESGProjectCreate,
+    db: Session = Depends(get_db)
+):
+    try:
+        # Verificar se a empresa existe
+        company = db.query(models.Company).filter(models.Company.id == project.company_id).first()
+        if not company:
+            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+
+        db_project = models.ESGProject(**project.dict())
+        db.add(db_project)
+        db.commit()
+        db.refresh(db_project)
+        return db_project
+    except Exception as e:
+        logger.error(f"Erro ao criar projeto ESG: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/esg-projects", response_model=List[schemas.ESGProject])
+async def list_esg_projects(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    try:
+        projects = db.query(models.ESGProject).offset(skip).limit(limit).all()
+        return projects
+    except Exception as e:
+        logger.error(f"Erro ao listar projetos ESG: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/esg-projects/{project_id}", response_model=schemas.ESGProject)
+async def get_esg_project(
+    project_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        project = db.query(models.ESGProject).filter(models.ESGProject.id == project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Projeto não encontrado")
+        return project
+    except Exception as e:
+        logger.error(f"Erro ao buscar projeto ESG: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/esg-projects/{project_id}", response_model=schemas.ESGProject)
+async def update_esg_project(
+    project_id: int,
+    project: schemas.ESGProjectCreate,
+    db: Session = Depends(get_db)
+):
+    try:
+        db_project = db.query(models.ESGProject).filter(models.ESGProject.id == project_id).first()
+        if not db_project:
+            raise HTTPException(status_code=404, detail="Projeto não encontrado")
+
+        for key, value in project.dict().items():
+            setattr(db_project, key, value)
+
+        db.commit()
+        db.refresh(db_project)
+        return db_project
+    except Exception as e:
+        logger.error(f"Erro ao atualizar projeto ESG: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/esg-projects/{project_id}")
+async def delete_esg_project(
+    project_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        db_project = db.query(models.ESGProject).filter(models.ESGProject.id == project_id).first()
+        if not db_project:
+            raise HTTPException(status_code=404, detail="Projeto não encontrado")
+
+        db.delete(db_project)
+        db.commit()
+        return {"message": "Projeto excluído com sucesso"}
+    except Exception as e:
+        logger.error(f"Erro ao excluir projeto ESG: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Rotas para Project Tracking
+@app.post("/api/project-tracking", response_model=schemas.ProjectTracking)
+async def create_project_tracking(
+    project: schemas.ProjectTrackingCreate,
+    db: Session = Depends(get_db)
+):
+    try:
+        # Verificar se a empresa existe
+        company = db.query(models.Company).filter(models.Company.id == project.company_id).first()
+        if not company:
+            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+
+        db_project = models.ProjectTracking(**project.dict())
+        db.add(db_project)
+        db.commit()
+        db.refresh(db_project)
+        return db_project
+    except Exception as e:
+        logger.error(f"Erro ao criar projeto: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/project-tracking", response_model=List[schemas.ProjectTracking])
+async def list_project_tracking(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    try:
+        projects = db.query(models.ProjectTracking).offset(skip).limit(limit).all()
+        return projects
+    except Exception as e:
+        logger.error(f"Erro ao listar projetos: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/project-tracking/{project_id}", response_model=schemas.ProjectTracking)
+async def get_project_tracking(
+    project_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        project = db.query(models.ProjectTracking).filter(models.ProjectTracking.id == project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Projeto não encontrado")
+        return project
+    except Exception as e:
+        logger.error(f"Erro ao buscar projeto: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/project-tracking/{project_id}", response_model=schemas.ProjectTracking)
+async def update_project_tracking(
+    project_id: int,
+    project: schemas.ProjectTrackingCreate,
+    db: Session = Depends(get_db)
+):
+    try:
+        db_project = db.query(models.ProjectTracking).filter(models.ProjectTracking.id == project_id).first()
+        if not db_project:
+            raise HTTPException(status_code=404, detail="Projeto não encontrado")
+
+        for key, value in project.dict().items():
+            setattr(db_project, key, value)
+
+        db.commit()
+        db.refresh(db_project)
+        return db_project
+    except Exception as e:
+        logger.error(f"Erro ao atualizar projeto: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/project-tracking/{project_id}")
+async def delete_project_tracking(
+    project_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        db_project = db.query(models.ProjectTracking).filter(models.ProjectTracking.id == project_id).first()
+        if not db_project:
+            raise HTTPException(status_code=404, detail="Projeto não encontrado")
+
+        db.delete(db_project)
+        db.commit()
+        return {"message": "Projeto excluído com sucesso"}
+    except Exception as e:
+        logger.error(f"Erro ao excluir projeto: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Rotas para Dados de Emissão
+@app.post("/api/emissions", response_model=schemas.EmissionData)
+def create_emission(emission: schemas.EmissionDataCreate, db: Session = Depends(get_db)):
+    try:
+        logger.info(f"Criando nova emissão: {emission.dict()}")
+        
+        # Criar o objeto com apenas os campos necessários
+        emission_dict = {
+            'company_id': emission.company_id,
+            'scope': emission.scope,
+            'emission_type': emission.emission_type,
+            'value': emission.value,
+            'unit': emission.unit,
+            'source': emission.source,
+            'calculation_method': emission.calculation_method,
+            'uncertainty_level': emission.uncertainty_level,
+            'timestamp': emission.timestamp,
+            'calculated_emission': emission.calculated_emission,
+            'reporting_standard': emission.reporting_standard
+        }
+        
+        db_emission = models.EmissionData(**emission_dict)
+        
+        db.add(db_emission)
+        db.commit()
+        db.refresh(db_emission)
+        
+        logger.info(f"Emissão criada com sucesso: ID {db_emission.id}")
+        return db_emission
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao criar emissão: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/emissions", response_model=List[schemas.EmissionData])
+def read_emissions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    try:
+        emissions = db.query(models.EmissionData)\
+            .options(joinedload(models.EmissionData.company))\
+            .offset(skip)\
+            .limit(limit)\
+            .all()
+        return emissions
+    except Exception as e:
+        logger.error(f"Erro ao buscar emissões: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/emissions/{emission_id}", response_model=schemas.EmissionData)
+def read_emission(emission_id: int, db: Session = Depends(get_db)):
+    try:
+        db_emission = db.query(models.EmissionData).filter(models.EmissionData.id == emission_id).first()
+        if db_emission is None:
+            raise HTTPException(status_code=404, detail="Registro de emissão não encontrado")
+        return db_emission
+    except Exception as e:
+        logger.error(f"Erro ao buscar emissão: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/emissions/{emission_id}", response_model=schemas.EmissionData)
+def update_emission(emission_id: int, emission: schemas.EmissionDataCreate, db: Session = Depends(get_db)):
+    try:
+        db_emission = db.query(models.EmissionData).filter(models.EmissionData.id == emission_id).first()
+        if db_emission is None:
+            raise HTTPException(status_code=404, detail="Registro de emissão não encontrado")
+        
+        # Atualiza os campos
+        for key, value in emission.dict(exclude_unset=True).items():
+            if hasattr(db_emission, key):
+                setattr(db_emission, key, value)
+        
+        # O updated_at será atualizado automaticamente pelo onupdate
+        db.commit()
+        db.refresh(db_emission)
+        return db_emission
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao atualizar emissão: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/api/emissions/{emission_id}", response_model=schemas.EmissionData)
+def delete_emission(emission_id: int, db: Session = Depends(get_db)):
+    try:
+        db_emission = db.query(models.EmissionData).filter(models.EmissionData.id == emission_id).first()
+        if db_emission is None:
+            raise HTTPException(status_code=404, detail="Registro de emissão não encontrado")
+        
+        db.delete(db_emission)
+        db.commit()
+        return db_emission
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao deletar emissão: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+# Rotas para Fornecedores
+
+@app.post("/api/suppliers", response_model=schemas.Supplier)
+async def create_supplier(supplier: schemas.SupplierCreate, db: Session = Depends(get_db)):
+    logger.info("Iniciando criaço de fornecedor")
+    logger.info(f"Dados recebidos: {supplier.dict()}")
+    
+    try:
+        # Verifica se a empresa existe
+        company = db.query(models.Company).filter(models.Company.id == supplier.company_id).first()
+        if not company:
+            logger.error(f"Empresa {supplier.company_id} não encontrada")
+            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+
+        db_supplier = models.Supplier(**supplier.dict())
+        db.add(db_supplier)
+        db.commit()
+        db.refresh(db_supplier)
+        
+        logger.info(f"Fornecedor criado com sucesso: ID {db_supplier.id}")
+        return db_supplier
+        
+    except SQLAlchemyError as e:
+        logger.error(f"Erro SQL ao criar fornecedor: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Erro ao criar fornecedor: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/suppliers", response_model=List[schemas.Supplier])
+def read_suppliers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    try:
+        suppliers = db.query(models.Supplier).offset(skip).limit(limit).all()
+        return suppliers
+    except Exception as e:
+        logger.error(f"Erro ao buscar fornecedores: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/suppliers/{supplier_id}", response_model=schemas.Supplier)
+def read_supplier(supplier_id: int, db: Session = Depends(get_db)):
+    db_supplier = db.query(models.Supplier).filter(models.Supplier.id == supplier_id).first()
+    if db_supplier is None:
+        raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
+    return schemas.Supplier.from_orm(db_supplier)
+
+@app.put("/api/suppliers/{supplier_id}", response_model=schemas.Supplier)
+def update_supplier(supplier_id: int, supplier: schemas.SupplierCreate, db: Session = Depends(get_db)):
+    db_supplier = db.query(models.Supplier).filter(models.Supplier.id == supplier_id).first()
+    if db_supplier is None:
+        raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
+    
+    supplier_data = supplier.dict(exclude_unset=True)
+    for key, value in supplier_data.items():
+        setattr(db_supplier, key, value)
+    
+    try:
+        db.commit()
+        db.refresh(db_supplier)
+        logger.info(f"Fornecedor atualizado com sucesso: {db_supplier.id}")
+        return schemas.Supplier.from_orm(db_supplier)
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao atualizar fornecedor: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Erro ao atualizar fornecedor: {str(e)}"
+        )
+
+@app.delete("/api/suppliers/{supplier_id}", response_model=schemas.Supplier)
+def delete_supplier(supplier_id: int, db: Session = Depends(get_db)):
+    db_supplier = db.query(models.Supplier).filter(models.Supplier.id == supplier_id).first()
+    if db_supplier is None:
+        raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
+    try:
+        db.delete(db_supplier)
+        db.commit()
+        logger.info(f"Fornecedor deletado com sucesso: {supplier_id}")
+        return schemas.Supplier.from_orm(db_supplier)
+    except SQLAlchemyError as e:
+        logger.error(f"Erro ao deletar fornecedor: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Falha ao deletar fornecedor: {str(e)}")
+
+@app.get("/")
+async def root():
+    return {"message": "API is running"}
+
+@app.get("/api/suppliers/test")
+async def test_suppliers():
+    return {"message": "Suppliers endpoint is working"}
+
+@app.post("/api/suppliers", response_model=schemas.Supplier)
+async def create_supplier(
+    supplier: schemas.SupplierCreate, 
+    db: Session = Depends(get_db)
+):
+    logger.info(f"Recebendo requisição POST /api/suppliers: {supplier.dict()}")
+    try:
+        company = db.query(models.Company).filter(models.Company.id == supplier.company_id).first()
+        if not company:
+            logger.error(f"Empresa {supplier.company_id} não encontrada")
+            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+
+        db_supplier = models.Supplier(**supplier.dict())
+        db.add(db_supplier)
+        db.commit()
+        db.refresh(db_supplier)
+        
+        logger.info(f"Fornecedor criado com sucesso: ID {db_supplier.id}")
+        return db_supplier
+        
+    except Exception as e:
+        logger.error(f"Erro ao criar fornecedor: {str(e)}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Rotas para Avaliação de Materialidade
+@app.post("/api/materiality", response_model=schemas.MaterialityAssessment)
+def create_materiality(materiality: schemas.MaterialityAssessmentCreate, db: Session = Depends(get_db)):
+    try:
+        logger.info(f"Criando nova avaliação de materialidade: {materiality.dict()}")
+        
+        db_materiality = models.MaterialityAssessment(**materiality.dict())
+        db_materiality.last_updated = datetime.now(timezone.utc)  # Definir timezone
+        
+        db.add(db_materiality)
+        db.commit()
+        db.refresh(db_materiality)
+        
+        logger.info(f"Avaliação de materialidade criada com sucesso: ID {db_materiality.id}")
+        return db_materiality
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao criar avaliação de materialidade: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/materiality", response_model=List[schemas.MaterialityAssessment])
+def read_materiality(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    try:
+        materiality_list = db.query(models.MaterialityAssessment)\
+            .options(joinedload(models.MaterialityAssessment.company))\
+            .offset(skip)\
+            .limit(limit)\
+            .all()
+        return materiality_list
+    except Exception as e:
+        logger.error(f"Erro ao buscar avaliações de materialidade: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/materiality/{materiality_id}", response_model=schemas.MaterialityAssessment)
+def read_materiality_by_id(materiality_id: int, db: Session = Depends(get_db)):
+    db_materiality = db.query(models.MaterialityAssessment)\
+        .options(joinedload(models.MaterialityAssessment.company))\
+        .filter(models.MaterialityAssessment.id == materiality_id)\
+        .first()
+    
+    if db_materiality is None:
+        raise HTTPException(status_code=404, detail="Avaliação de materialidade não encontrada")
+    return db_materiality
+
+@app.put("/api/materiality/{materiality_id}", response_model=schemas.MaterialityAssessment)
+def update_materiality(
+    materiality_id: int, 
+    materiality: schemas.MaterialityAssessmentUpdate, 
+    db: Session = Depends(get_db)
+):
+    db_materiality = db.query(models.MaterialityAssessment).filter(
+        models.MaterialityAssessment.id == materiality_id
+    ).first()
+    
+    if db_materiality is None:
+        raise HTTPException(status_code=404, detail="Avaliação de materialidade não encontrada")
+    
+    try:
+        for key, value in materiality.dict(exclude_unset=True).items():
+            setattr(db_materiality, key, value)
+        
+        db_materiality.updated_at = func.now()
+        db.commit()
+        db.refresh(db_materiality)
+        return db_materiality
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao atualizar avaliação de materialidade: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/api/materiality/{materiality_id}")
+def delete_materiality(materiality_id: int, db: Session = Depends(get_db)):
+    try:
+        # Primeiro, verificamos se o registro existe
+        db_materiality = db.query(models.MaterialityAssessment).filter(
+            models.MaterialityAssessment.id == materiality_id
+        ).first()
+        
+        if db_materiality is None:
+            logger.error(f"Avaliação de materialidade não encontrada: ID {materiality_id}")
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Avaliação de materialidade com ID {materiality_id} não encontrada"
+            )
+        
+        # Se existe, deletamos
+        try:
+            db.delete(db_materiality)
+            db.commit()
+            logger.info(f"Avaliação de materialidade deletada com sucesso: ID {materiality_id}")
+            return {"message": f"Avaliação de materialidade {materiality_id} deletada com sucesso"}
+            
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Erro ao deletar avaliação de materialidade: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+            
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Erro inesperado ao deletar avaliação de materialidade: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Rotas para Investimentos
+@app.post("/api/investments", response_model=schemas.Investment)
+async def create_investment(investment: schemas.InvestmentCreate, db: Session = Depends(get_db)):
+    logger.info("=== Criando novo investimento ===")
+    logger.info(f"Dados recebidos: {investment.dict()}")
+    
+    try:
+        # Verificar se a empresa existe
+        company = db.query(models.Company).filter(models.Company.id == investment.company_id).first()
+        if not company:
+            logger.error(f"Empresa {investment.company_id} não encontrada")
+            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+        
+        db_investment = models.Investment(**investment.dict())
+        db.add(db_investment)
+        db.commit()
+        db.refresh(db_investment)
+        
+        logger.info(f"Investimento criado com sucesso: ID {db_investment.id}")
+        return db_investment
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao criar investimento: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/investments", response_model=List[schemas.Investment])
+async def read_investments(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    try:
+        investments = db.query(models.Investment)\
+            .options(joinedload(models.Investment.company))\
+            .offset(skip)\
+            .limit(limit)\
+            .all()
+        return investments
+    except Exception as e:
+        logger.error(f"Erro ao buscar investimentos: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/investments/{investment_id}", response_model=schemas.Investment)
+async def read_investment(investment_id: int, db: Session = Depends(get_db)):
+    try:
+        investment = db.query(models.Investment)\
+            .options(joinedload(models.Investment.company))\
+            .filter(models.Investment.id == investment_id)\
+            .first()
+        if not investment:
+            raise HTTPException(status_code=404, detail="Investimento não encontrado")
+        return investment
+    except Exception as e:
+        logger.error(f"Erro ao buscar investimento: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/investments/{investment_id}", response_model=schemas.Investment)
+async def update_investment(investment_id: int, investment: schemas.InvestmentCreate, db: Session = Depends(get_db)):
+    try:
+        db_investment = db.query(models.Investment).filter(models.Investment.id == investment_id).first()
+        if not db_investment:
+            raise HTTPException(status_code=404, detail="Investimento não encontrado")
+            
+        for key, value in investment.dict().items():
+            setattr(db_investment, key, value)
+            
+        db.commit()
+        db.refresh(db_investment)
+        return db_investment
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao atualizar investimento: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/api/investments/{investment_id}")
+async def delete_investment(investment_id: int, db: Session = Depends(get_db)):
+    try:
+        db_investment = db.query(models.Investment).filter(models.Investment.id == investment_id).first()
+        if not db_investment:
+            raise HTTPException(status_code=404, detail="Investimento não encontrado")
+            
+        db.delete(db_investment)
+        db.commit()
+        return {"message": f"Investimento {investment_id} deletado com sucesso"}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao deletar investimento: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/test")
+async def test_endpoint():
+    logger.info("Teste endpoint chamado")
+    return {"message": "API está funcionando"}
+
+# Rotas para Compliance Audit
+@app.post("/api/compliance", response_model=schemas.ComplianceAudit)
+def create_compliance_audit(
+    compliance: schemas.ComplianceAuditCreate,
+    db: Session = Depends(get_db)
+):
+    logger.info("=== Criando nova auditoria de compliance ===")
+    
+    try:
+        # Verificar se a empresa existe
+        company = db.query(models.Company).filter(models.Company.id == compliance.company_id).first()
+        if not company:
+            logger.error(f"Empresa {compliance.company_id} não encontrada")
+            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+        
+        # Criar SQL direto usando a sequência correta
+        sql = text("""
+            INSERT INTO xlonesg.compliance_audit
+            (id, company_id, entity_type, audit_date, auditor_name, compliance_status,
+             findings, corrective_action_plan, follow_up_date, created_at, updated_at)
+            VALUES
+            (nextval('xlonesg.compliance_audit_id_seq'), :company_id, :entity_type, :audit_date, 
+             :auditor_name, :compliance_status, :findings, :corrective_action_plan, 
+             :follow_up_date, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            RETURNING id, created_at, updated_at
+        """)
+        
+        result = db.execute(
+            sql,
+            {
+                "company_id": compliance.company_id,
+                "entity_type": compliance.entity_type,
+                "audit_date": compliance.audit_date,
+                "auditor_name": compliance.auditor_name,
+                "compliance_status": compliance.compliance_status,
+                "findings": compliance.findings,
+                "corrective_action_plan": compliance.corrective_action_plan,
+                "follow_up_date": compliance.follow_up_date
+            }
+        )
+        
+        db.commit()
+        
+        # Buscar o registro criado
+        row = result.fetchone()
+        if row:
+            return {
+                "id": row[0],
+                "company_id": compliance.company_id,
+                "entity_type": compliance.entity_type,
+                "audit_date": compliance.audit_date,
+                "auditor_name": compliance.auditor_name,
+                "compliance_status": compliance.compliance_status,
+                "findings": compliance.findings,
+                "corrective_action_plan": compliance.corrective_action_plan,
+                "follow_up_date": compliance.follow_up_date,
+                "created_at": row[1],
+                "updated_at": row[2]
+            }
+            
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao criar auditoria de compliance: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/compliance", response_model=List[schemas.ComplianceAudit])
+def read_compliance_audits(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    try:
+        compliance_audits = db.query(models.ComplianceAudit)\
+            .options(joinedload(models.ComplianceAudit.company))\
+            .offset(skip)\
+            .limit(limit)\
+            .all()
+        return compliance_audits
+    except Exception as e:
+        logger.error(f"Erro ao buscar auditorias de compliance: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/compliance/{compliance_id}", response_model=schemas.ComplianceAudit)
+def read_compliance_audit(compliance_id: int, db: Session = Depends(get_db)):
+    try:
+        compliance = db.query(models.ComplianceAudit)\
+            .options(joinedload(models.ComplianceAudit.company))\
+            .filter(models.ComplianceAudit.id == compliance_id)\
+            .first()
+        if not compliance:
+            raise HTTPException(status_code=404, detail="Auditoria de compliance não encontrada")
+        return compliance
+    except Exception as e:
+        logger.error(f"Erro ao buscar auditoria de compliance: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/compliance/{compliance_id}", response_model=schemas.ComplianceAudit)
+def update_compliance_audit(
+    compliance_id: int,
+    compliance: schemas.ComplianceAuditCreate,
+    db: Session = Depends(get_db)
+):
+    try:
+        db_compliance = db.query(models.ComplianceAudit)\
+            .filter(models.ComplianceAudit.id == compliance_id)\
+            .first()
+        if not db_compliance:
+            raise HTTPException(status_code=404, detail="Auditoria de compliance não encontrada")
+            
+        for key, value in compliance.dict().items():
+            setattr(db_compliance, key, value)
+            
+        db.commit()
+        db.refresh(db_compliance)
+        return db_compliance
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao atualizar auditoria de compliance: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/api/compliance/{compliance_id}")
+def delete_compliance_audit(compliance_id: int, db: Session = Depends(get_db)):
+    try:
+        db_compliance = db.query(models.ComplianceAudit)\
+            .filter(models.ComplianceAudit.id == compliance_id)\
+            .first()
+        if not db_compliance:
+            raise HTTPException(status_code=404, detail="Auditoria de compliance não encontrada")
+            
+        db.delete(db_compliance)
+        db.commit()
+        return {"message": f"Auditoria de compliance {compliance_id} deletada com sucesso"}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao deletar auditoria de compliance: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 

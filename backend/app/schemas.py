@@ -1,8 +1,9 @@
 # schemas.py
 
-from pydantic import BaseModel, constr, Field, EmailStr
-from datetime import date
+from pydantic import BaseModel, constr, Field, EmailStr, validator, condecimal
+from datetime import date, datetime
 from typing import Optional, List
+from decimal import Decimal
 
 
 class KPIBase(BaseModel):
@@ -46,9 +47,13 @@ class TaskBase(BaseModel):
     impact: str
     probability: str
 
+    class Config:
+        from_attributes = True
+
 
 class TaskCreate(TaskBase):
-    pass
+    class Config:
+        from_attributes = True
 
 
 class Task(TaskBase):
@@ -56,7 +61,7 @@ class Task(TaskBase):
     action_plan_id: Optional[int] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ActionPlanBase(BaseModel):
@@ -111,16 +116,20 @@ class CompanyBase(BaseModel):
     website: Optional[str] = None
     is_active: Optional[bool] = True
 
+    class Config:
+        from_attributes = True
+
 
 class CompanyCreate(CompanyBase):
-    pass
+    class Config:
+        from_attributes = True
 
 
 class Company(CompanyBase):
     id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class KPITemplateBase(BaseModel):
@@ -160,7 +169,6 @@ class KPIEntryBase(BaseModel):
     target_value: float
     year: int
     month: int
-    status: str
     isfavorite: bool = False
 
 
@@ -184,7 +192,6 @@ class KPIEntryWithTemplate(BaseModel):
     target_value: float
     year: int
     month: int
-    status: str
     isfavorite: bool
     unit: Optional[str] = None
     category: Optional[str] = None
@@ -195,9 +202,9 @@ class KPIEntryWithTemplate(BaseModel):
     kpicode: Optional[str] = None
     company_category: Optional[str] = None
     compliance: Optional[List[str]] = []
-    genero: Optional[str] = None  # Novo campo
-    raca: Optional[str] = None  # Novo campo
-    state: Optional[str] = None  # Torna o campo opcional
+    genero: Optional[str] = None
+    raca: Optional[str] = None
+    state: Optional[str] = None
 
     class Config:
         orm_mode = True
@@ -207,7 +214,6 @@ class CustomizationBase(BaseModel):
     sidebar_color: str
     button_color: str
     font_color: str
-    logo_url: str
 
 
 class CustomizationCreate(CustomizationBase):
@@ -225,6 +231,7 @@ class UserBase(BaseModel):
     username: str
     email: EmailStr
     role: str
+    is_active: bool
 
     class Config:
         from_attributes = True
@@ -242,6 +249,8 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     password: Optional[str] = None
     role: Optional[str] = None
+    full_name: Optional[str] = None
+    is_active: Optional[bool] = None
 
     class Config:
         from_attributes = True
@@ -249,6 +258,11 @@ class UserUpdate(BaseModel):
 
 class User(UserBase):
     id: int
+    username: str
+    email: str
+    role: str
+    is_active: bool = True
+    full_name: str
 
     class Config:
         from_attributes = True
@@ -272,10 +286,10 @@ class BondBase(BaseModel):
     resource_manager: str
     separate_account: bool
     social_impact_achieved: str
-    social_impact_measured_date: Optional[date]
+    social_impact_measured_date: Optional[date] = None
     audit_completed: bool
-    audit_result: Optional[str]
-    report_frequency: Optional[str]
+    audit_result: Optional[str] = None
+    report_frequency: Optional[str] = None
     interest_rate: float
     guarantee_value: float
     issuer_name: str
@@ -308,6 +322,258 @@ class Bond(BondBase):
 class UserLogin(BaseModel):
     username: str
     password: str
+
+    class Config:
+        from_attributes = True
+
+
+class DocumentBase(BaseModel):
+    title: str
+    original_filename: str
+    file_type: str
+
+
+class DocumentCreate(DocumentBase):
+    file_path: str
+
+
+class Document(DocumentBase):
+    id: int
+    file_path: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ESGProjectBase(BaseModel):
+    name: str
+    company_id: int
+    project_type: str
+    start_date: date
+    end_date: date
+    budget_allocated: float
+    currency: str = "BRL"
+    status: str
+    progress_percentage: float = 0
+    expected_impact: Optional[str] = None
+    actual_impact: Optional[str] = None
+    last_audit_date: Optional[date] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ESGProjectCreate(ESGProjectBase):
+    pass
+
+
+class ESGProject(ESGProjectBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ProjectTrackingBase(BaseModel):
+    name: str
+    company_id: int
+    project_type: str
+    start_date: date
+    end_date: date
+    budget_allocated: float
+    currency: str = "BRL"
+    status: str
+    progress_percentage: float = 0
+    expected_impact: Optional[str] = None
+    actual_impact: Optional[str] = None
+    last_audit_date: Optional[date] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ProjectTrackingCreate(ProjectTrackingBase):
+    pass
+
+
+class ProjectTracking(ProjectTrackingBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class EmissionDataBase(BaseModel):
+    company_id: int
+    scope: str
+    emission_type: str
+    value: float
+    unit: str
+    source: str
+    calculation_method: str
+    uncertainty_level: Optional[float] = None
+    timestamp: datetime
+    calculated_emission: Optional[bool] = False
+    reporting_standard: str
+
+    class Config:
+        from_attributes = True
+
+
+class EmissionDataCreate(EmissionDataBase):
+    pass
+
+
+class EmissionData(EmissionDataBase):
+    id: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    company: Optional[CompanyBase] = None
+
+    class Config:
+        from_attributes = True
+
+
+class SupplierBase(BaseModel):
+    company_id: int
+    name: str
+    risk_level: str
+    esg_score: float
+    location: str
+    compliance_status: str
+    esg_reporting: bool
+    impact_assessment: str
+
+    class Config:
+        from_attributes = True
+
+
+class SupplierCreate(SupplierBase):
+    pass
+
+
+class Supplier(SupplierBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class MaterialityAssessmentBase(BaseModel):
+    company_id: int
+    topic: str
+    business_impact: float
+    external_impact: float
+    stakeholder_importance: float
+    priority_level: str
+    regulatory_alignment: bool
+    last_updated: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class MaterialityAssessmentCreate(MaterialityAssessmentBase):
+    pass
+
+
+class MaterialityAssessmentUpdate(BaseModel):
+    company_id: Optional[int] = None
+    topic: Optional[str] = None
+    business_impact: Optional[float] = None
+    external_impact: Optional[float] = None
+    stakeholder_importance: Optional[float] = None
+    priority_level: Optional[str] = None
+    regulatory_alignment: Optional[bool] = None
+    last_updated: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class MaterialityAssessment(MaterialityAssessmentBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    company: CompanyBase
+
+    class Config:
+        from_attributes = True
+
+
+class InvestmentBase(BaseModel):
+    company_id: int
+    investment_type: str
+    amount_invested: float
+    currency: str
+    investment_date: date
+    expected_roi: Optional[float] = None
+    actual_roi: Optional[float] = None
+    impact_measured: Optional[str] = None
+    last_assessment_date: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class InvestmentCreate(InvestmentBase):
+    pass
+
+
+class Investment(InvestmentBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    company: Optional[CompanyBase] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ComplianceAuditBase(BaseModel):
+    company_id: int
+    entity_type: str
+    audit_date: date
+    auditor_name: str
+    compliance_status: str
+    findings: Optional[str] = None
+    corrective_action_plan: Optional[str] = None
+    follow_up_date: Optional[date] = None
+
+    @validator('compliance_status')
+    def validate_status(cls, v):
+        valid_status = ["Conforme", "Não Conforme", "Parcialmente Conforme"]
+        if v not in valid_status:
+            raise ValueError(f"Status inválido. Deve ser um dos seguintes: {', '.join(valid_status)}")
+        return v
+
+    @validator('entity_type')
+    def validate_entity_type(cls, v):
+        valid_types = ["Projeto", "Investimento", "Emissão"]
+        if v not in valid_types:
+            raise ValueError(f"Tipo de entidade inválido. Deve ser um dos seguintes: {', '.join(valid_types)}")
+        return v
+
+    class Config:
+        from_attributes = True
+
+
+class ComplianceAuditCreate(ComplianceAuditBase):
+    pass
+
+
+class ComplianceAudit(ComplianceAuditBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    company: Optional[CompanyBase] = None
 
     class Config:
         from_attributes = True

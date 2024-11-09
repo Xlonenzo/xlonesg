@@ -16,7 +16,6 @@ function KPITracker({ sidebarColor, buttonColor }) {
     target_value: '',
     year: new Date().getFullYear(),
     month: new Date().getMonth() + 1,
-    status: '',
     isfavorite: false
   });
   const [searchTerm, setSearchTerm] = useState('');
@@ -28,8 +27,7 @@ function KPITracker({ sidebarColor, buttonColor }) {
     actual_value: '',
     target_value: '',
     year: '',
-    month: '',
-    status: '',
+    month: ''
   });
 
   useEffect(() => {
@@ -96,7 +94,6 @@ function KPITracker({ sidebarColor, buttonColor }) {
         target_value: '',
         year: new Date().getFullYear(),
         month: new Date().getMonth() + 1,
-        status: '',
         isfavorite: false
       });
     } catch (error) {
@@ -114,7 +111,6 @@ function KPITracker({ sidebarColor, buttonColor }) {
       target_value: entry.target_value,
       year: entry.year,
       month: entry.month,
-      status: entry.status,
       isfavorite: entry.isfavorite
     });
     setIsFormOpen(true);
@@ -150,13 +146,13 @@ function KPITracker({ sidebarColor, buttonColor }) {
   };
 
   const filteredAndSearchedEntries = kpiEntries.filter(entry => {
-    const matchesSearch = entry.template_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          entry.cnpj.includes(searchTerm) ||
-                          entry.status.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = entry.template_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         entry.cnpj?.includes(searchTerm);
 
     const matchesFilters = Object.keys(filters).every(key => {
       if (!filters[key]) return true;
-      return entry[key].toString().toLowerCase().includes(filters[key].toLowerCase());
+      const entryValue = entry[key];
+      return entryValue?.toString().toLowerCase().includes(filters[key].toLowerCase());
     });
 
     return matchesSearch && matchesFilters;
@@ -186,9 +182,13 @@ function KPITracker({ sidebarColor, buttonColor }) {
   const handleDuplicate = async (entry) => {
     try {
       const duplicatedEntry = {
-        ...entry,
-        entry_id: undefined,  // Remova o ID para criar uma nova entrada
-        isfavorite: false,    // Reset o status de favorito
+        template_id: entry.template_id,
+        cnpj: entry.cnpj,
+        actual_value: entry.actual_value,
+        target_value: entry.target_value,
+        year: entry.year,
+        month: entry.month,
+        isfavorite: false
       };
       await axios.post(`${API_URL}/kpi-entries`, duplicatedEntry);
       fetchKPIEntries();
@@ -306,17 +306,6 @@ function KPITracker({ sidebarColor, buttonColor }) {
                   required
                 />
               </div>
-              <div>
-                <label className="block mb-2">Status</label>
-                <input
-                  type="text"
-                  name="status"
-                  value={newEntry.status}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border rounded"
-                  required
-                />
-              </div>
               <div className="flex items-center">
                 <label className="flex items-center">
                   <input
@@ -350,7 +339,6 @@ function KPITracker({ sidebarColor, buttonColor }) {
                     target_value: '',
                     year: new Date().getFullYear(),
                     month: new Date().getMonth() + 1,
-                    status: '',
                     isfavorite: false
                   });
                 }}
@@ -373,7 +361,6 @@ function KPITracker({ sidebarColor, buttonColor }) {
               <th className="px-4 py-2 border">{renderColumnFilter('target_value')}</th>
               <th className="px-4 py-2 border">{renderColumnFilter('year')}</th>
               <th className="px-4 py-2 border">{renderColumnFilter('month')}</th>
-              <th className="px-4 py-2 border">{renderColumnFilter('status')}</th>
               <th className="px-4 py-2 border">Favorito</th>
               <th className="px-4 py-2 border">Ações</th>
             </tr>
@@ -387,7 +374,6 @@ function KPITracker({ sidebarColor, buttonColor }) {
                 <td className="px-4 py-2 border">{entry.target_value}</td>
                 <td className="px-4 py-2 border">{entry.year}</td>
                 <td className="px-4 py-2 border">{entry.month}</td>
-                <td className="px-4 py-2 border">{entry.status}</td>
                 <td className="px-4 py-2 border">
                   <button 
                     onClick={() => toggleFavorite(entry)}

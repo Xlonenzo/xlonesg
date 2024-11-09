@@ -13,19 +13,22 @@ function Sidebar({
   isSidebarCollapsed,
   toggleSidebar,
   sidebarColor,
-  logo,
   buttonColor,
-  fontColor
+  fontColor,
+  isESGTrackerOpen,
+  setIsESGTrackerOpen,
 }) {
   // Função para renderizar cada item do menu
   const renderMenuItem = (item, isSubItem = false) => (
-    <li key={item.path}>
+    <li key={item.path || item.name}>
       <button
         onClick={() => {
           if (item.name === 'Análises') {
             setIsAnalyticsOpen(!isAnalyticsOpen);
           } else if (item.name === 'Painel de Administração') {
             setIsAdminOpen(!isAdminOpen);
+          } else if (item.name === 'Rastreador ESG') {
+            setIsESGTrackerOpen(!isESGTrackerOpen);
           } else {
             setActiveMenuItem(item.path);
           }
@@ -45,7 +48,8 @@ function Sidebar({
             {item.subItems && (
               <span className="ml-auto">
                 {(item.name === 'Análises' && isAnalyticsOpen) ||
-                (item.name === 'Painel de Administração' && isAdminOpen) ? (
+                (item.name === 'Painel de Administração' && isAdminOpen) ||
+                (item.name === 'Rastreador ESG' && isESGTrackerOpen) ? (
                   <ChevronDown size={16} />
                 ) : (
                   <ChevronRight size={16} />
@@ -60,7 +64,8 @@ function Sidebar({
       {!isSidebarCollapsed &&
         item.subItems &&
         ((item.name === 'Análises' && isAnalyticsOpen) ||
-          (item.name === 'Painel de Administração' && isAdminOpen)) && (
+         (item.name === 'Painel de Administração' && isAdminOpen) ||
+         (item.name === 'Rastreador ESG' && isESGTrackerOpen)) && (
           <ul className="mt-1 space-y-1">
             {item.subItems.map((subItem) => renderMenuItem(subItem, true))}
           </ul>
@@ -81,7 +86,17 @@ function Sidebar({
         {!isSidebarCollapsed && (
           <div className="flex items-center">
             {/* Logo */}
-            <img src={logo} alt="Logo" className="h-10 w-auto" />
+            <div className="flex items-center justify-center p-4">
+              <img 
+                src="/logo.png"
+                alt="Logo" 
+                className="h-12 w-auto"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = "/logo.svg";
+                }}
+              />
+            </div>
             {/* Título */}
             <span style={{ color: fontColor }} className="font-bold text-lg ml-2">ESG Dashboard</span>
           </div>

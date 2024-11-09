@@ -21,6 +21,12 @@ import KPITemplate from './components/KPITemplate';
 import KPITracker from './components/KPITracker';
 import Register from './components/Register';
 import BondManagement from './components/BondManagement';
+import EmissionTracking from './components/EmissionTracking';
+import ESGProjects from './components/ESGProjects';
+import Suppliers from './components/Suppliers';
+import Materiality from './components/Materiality';
+import Investment from './components/Investment';
+import Compliance from './components/Compliance';
 
 // Importar dados e estilos
 import articlesData from './data/articles';
@@ -37,6 +43,7 @@ function App() {
   const [activeMenuItem, setActiveMenuItem] = useState('/');
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isESGTrackerOpen, setIsESGTrackerOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [customization, setCustomization] = useState({
@@ -64,12 +71,25 @@ function App() {
 
   const fetchCustomization = async () => {
     try {
-      console.log('Buscando customização...');
-      const response = await axios.get(`${API_URL}/customization`);
-      console.log('Customização recebida:', response.data);
+      console.log('Iniciando busca de customização...');
+      const response = await axios.get(`${API_URL}/customization`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        withCredentials: true
+      });
+      
+      console.log('Resposta da customização:', response.data);
       setCustomization(response.data);
     } catch (error) {
-      console.error('Erro ao buscar customização:', error);
+      console.error('Erro completo:', error);
+      console.error('Detalhes do erro:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        headers: error.response?.headers
+      });
     }
   };
 
@@ -151,7 +171,9 @@ function App() {
           />
         );
       case '/admin/company-management':
-        return userRole === 'admin' ? <CompanyManagement /> : <UnauthorizedAccess />;
+        return userRole === 'admin' ? (
+          <CompanyManagement buttonColor={customization.button_color} />
+        ) : <UnauthorizedAccess />;
       case '/kpi-tracker':
         return ['admin', 'editor'].includes(userRole) ? (
           <KPITracker kpiEntries={kpiEntries} setKpiEntries={setKpiEntries} sidebarColor={customization.sidebar_color} buttonColor={customization.button_color} />
@@ -159,6 +181,48 @@ function App() {
       case '/bond-management':
         return ['admin', 'editor'].includes(userRole) ? (
           <BondManagement 
+            sidebarColor={customization.sidebar_color} 
+            buttonColor={customization.button_color} 
+          />
+        ) : <UnauthorizedAccess />;
+      case '/esg-tracker/projects':
+        return ['admin', 'editor'].includes(userRole) ? (
+          <ESGProjects 
+            sidebarColor={customization.sidebar_color} 
+            buttonColor={customization.button_color} 
+          />
+        ) : <UnauthorizedAccess />;
+      case '/esg-tracker/emissions':
+        return ['admin', 'editor'].includes(userRole) ? (
+          <EmissionTracking 
+            sidebarColor={customization.sidebar_color} 
+            buttonColor={customization.button_color} 
+          />
+        ) : <UnauthorizedAccess />;
+      case '/esg-tracker/suppliers':
+        return ['admin', 'editor'].includes(userRole) ? (
+          <Suppliers 
+            sidebarColor={customization.sidebar_color} 
+            buttonColor={customization.button_color} 
+          />
+        ) : <UnauthorizedAccess />;
+      case '/esg-tracker/materiality':
+        return ['admin', 'editor'].includes(userRole) ? (
+          <Materiality 
+            sidebarColor={customization.sidebar_color} 
+            buttonColor={customization.button_color} 
+          />
+        ) : <UnauthorizedAccess />;
+      case '/esg-tracker/investments':
+        return ['admin', 'editor'].includes(userRole) ? (
+          <Investment 
+            sidebarColor={customization.sidebar_color} 
+            buttonColor={customization.button_color} 
+          />
+        ) : <UnauthorizedAccess />;
+      case '/esg-tracker/compliance':
+        return ['admin', 'editor'].includes(userRole) ? (
+          <Compliance 
             sidebarColor={customization.sidebar_color} 
             buttonColor={customization.button_color} 
           />
@@ -197,6 +261,8 @@ function App() {
             setIsAnalyticsOpen={setIsAnalyticsOpen}
             isAdminOpen={isAdminOpen}
             setIsAdminOpen={setIsAdminOpen}
+            isESGTrackerOpen={isESGTrackerOpen}
+            setIsESGTrackerOpen={setIsESGTrackerOpen}
             isSidebarCollapsed={isSidebarCollapsed}
             toggleSidebar={toggleSidebar}
             logo={customization.logo_url}

@@ -13,7 +13,11 @@ import {
   Sliders,
   Building,
   FileText,
-  Activity,
+  Target,
+  TreePine,
+  TruckIcon,
+  Wallet,
+  Shield
 } from 'lucide-react';
 
 const menuItemsData = [
@@ -26,7 +30,7 @@ const menuItemsData = [
       { name: 'Fonte de Dados', icon: <Database size={20} />, path: '/admin/data-source' },
       { name: 'Perfis e Usuários', icon: <User size={20} />, path: '/admin/user-management' },
       { name: 'Personalização', icon: <Settings size={20} />, path: '/admin/customization' },
-      { name: 'Gerenciamento de Empresas', icon: <Building size={20} />, path: '/admin/company-management' },
+      { name: 'Empresas', icon: <Building size={20} />, path: '/admin/company-management' },
     ]
   },
   {
@@ -41,8 +45,21 @@ const menuItemsData = [
     ],
   },
   { name: 'KPIs', icon: <FileText size={20} />, path: '/kpi-templates' },
+  { name: 'Rastreador de KPI', icon: <Target size={20} />, path: '/kpi-tracker' },
   { name: 'Gerenciador de Títulos', icon: <FileText size={20} />, path: '/bond-management' },
-  { name: 'Rastreador de KPIs', icon: <Activity size={20} />, path: '/kpi-tracker' },
+  { 
+    name: 'Rastreador ESG', 
+    icon: <Target size={20} />, 
+    path: '/esg-tracker',
+    subItems: [
+      { name: 'Projetos ESG', icon: <TreePine size={20} />, path: '/esg-tracker/projects' },
+      { name: 'Dados de Emissão', icon: <Leaf size={20} />, path: '/esg-tracker/emissions' },
+      { name: 'Fornecedores', icon: <TruckIcon size={20} />, path: '/esg-tracker/suppliers' },
+      { name: 'Materialidade', icon: <BarChart2 size={20} />, path: '/esg-tracker/materiality' },
+      { name: 'Investimentos', icon: <Wallet size={20} />, path: '/esg-tracker/investments' },
+      { name: 'Compliance', icon: <Shield size={20} />, path: '/esg-tracker/compliance' }
+    ] 
+  },
   { name: 'Biblioteca de Informações', icon: <Book size={20} />, path: '/info-library' },
   { name: 'Plano de Ação', icon: <ClipboardList size={20} />, path: '/action-plan' },
 ];
