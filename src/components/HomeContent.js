@@ -6,9 +6,6 @@ import { PieChart, Pie } from 'recharts';
 import IEERComparativoChart from './IEERComparativoChart';
 import { API_URL } from '../config';
 
-// Adicione esta linha no topo do arquivo
-const isDevelopment = process.env.NODE_ENV === 'development';
-
 function HomeContent() {
   const [allKpis, setAllKpis] = useState([]);
   const [favoriteKpis, setFavoriteKpis] = useState([]);

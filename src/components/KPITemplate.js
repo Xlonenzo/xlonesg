@@ -149,7 +149,7 @@ function KPITemplate({ sidebarColor, buttonColor }) {
 
   useEffect(() => {
     fetchKPIs();
-  }, []);
+  }, [fetchKPIs]);
 
   // Calcular currentKPIs baseado nos KPIs filtrados e pesquisados
   const indexOfLastKPI = currentPage * kpisPerPage;

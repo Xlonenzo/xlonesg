@@ -1,7 +1,7 @@
 # models.py
 from sqlalchemy import (
     Column, Integer, String, Float, Text, Boolean, Date, 
-    ForeignKey, ARRAY, Enum, UniqueConstraint, DateTime as SQLDateTime
+    ForeignKey, ARRAY, Enum, UniqueConstraint, DateTime as SQLDateTime, Table
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -16,6 +16,7 @@ from sqlalchemy.orm import relationship
 from .database import Base
 from sqlalchemy.dialects import postgresql
 
+# Definir a tabela de 
 
 class KPI(Base):
     __tablename__ = "kpis"
@@ -144,9 +145,11 @@ class KPIEntry(Base):
     year = Column(Integer)
     month = Column(Integer)
     isfavorite = Column(Boolean, default=False)
+    project_id = Column(Integer, ForeignKey('xlonesg.project_tracking.id'), nullable=True)  # Nova coluna
 
     template = relationship("KPITemplate")
     company = relationship("Company")
+    project = relationship("ProjectTracking")  # Novo relacionamento
 
 
 class KPIEntryWithTemplate(Base):
@@ -161,6 +164,7 @@ class KPIEntryWithTemplate(Base):
     cnpj = Column(String)
     isfavorite = Column(Boolean)
     template_id = Column(Integer)
+    project_id = Column(Integer)  # Nova coluna
     template_name = Column(String)
     unit = Column(String)
     category = Column(String)
@@ -207,27 +211,27 @@ class Bond(Base):
     __table_args__ = {"schema": "xlonesg"}
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
+    name = Column(String, nullable=False, index=True)
     type = Column(String, nullable=False)
     value = Column(Float, nullable=False)
     esg_percentage = Column(Float, nullable=False)
     issue_date = Column(Date, nullable=False)
-    compliance_verified = Column(Boolean, default=False)
+    compliance_verified = Column(Boolean)
     regulator = Column(String, nullable=False)
     social_impact_type = Column(String, nullable=False)
     estimated_social_impact = Column(String, nullable=False)
-    social_report_issued = Column(Boolean, default=False)
+    social_report_issued = Column(Boolean)
     project_description = Column(String, nullable=False)
-    project_eligibility = Column(String, nullable=False)  # Alterado de bool para str
+    project_eligibility = Column(String, nullable=False)
     project_selection_date = Column(Date, nullable=False)
-    resource_allocation_approved = Column(Boolean, default=False)
+    resource_allocation_approved = Column(Boolean)
     resource_manager = Column(String, nullable=False)
-    separate_account = Column(Boolean, default=False)
+    separate_account = Column(Boolean)
     social_impact_achieved = Column(String, nullable=False)
-    social_impact_measured_date = Column(Date, nullable=True)
-    audit_completed = Column(Boolean, default=False)
-    audit_result = Column(String, nullable=True)
-    report_frequency = Column(String, nullable=True)
+    social_impact_measured_date = Column(Date)
+    audit_completed = Column(Boolean)
+    audit_result = Column(String)
+    report_frequency = Column(String)
     interest_rate = Column(Float, nullable=False)
     guarantee_value = Column(Float, nullable=False)
     issuer_name = Column(String, nullable=False)
@@ -240,6 +244,12 @@ class Bond(Base):
     financial_institution_name = Column(String, nullable=False)
     financial_institution_cnpj = Column(String, nullable=False)
     financial_institution_contact = Column(String, nullable=False)
+
+    # Relacionamentos
+    project_relations = relationship("BondProjectRelation", back_populates="bond", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<Bond {self.name} ({self.type})>"
 
 class Document(Base):
     __tablename__ = "documents"
@@ -271,6 +281,12 @@ class ESGProject(Base):
     last_audit_date = Column(Date)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    ods_contributions = Column(postgresql.JSONB, default={
+        'ods1': 0, 'ods2': 0, 'ods3': 0, 'ods4': 0, 'ods5': 0,
+        'ods6': 0, 'ods7': 0, 'ods8': 0, 'ods9': 0, 'ods10': 0,
+        'ods11': 0, 'ods12': 0, 'ods13': 0, 'ods14': 0, 'ods15': 0,
+        'ods16': 0, 'ods17': 0
+    })
 
     # Relacionamentos
     company = relationship("Company", back_populates="esg_projects")
@@ -280,23 +296,44 @@ class ProjectTracking(Base):
     __table_args__ = {"schema": "xlonesg"}
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
+    name = Column(String(200), nullable=False)
     company_id = Column(Integer, ForeignKey("xlonesg.companies.id"), nullable=False)
-    project_type = Column(String, nullable=False)  # Environmental, Social ou Governance
+    project_type = Column(String(100), nullable=False)
     start_date = Column(Date, nullable=False)
-    end_date = Column(Date, nullable=False)
-    budget_allocated = Column(Float, nullable=False)
-    currency = Column(String, default="BRL")
-    status = Column(String, nullable=False)  # Em andamento, Concluído, Cancelado, etc
-    progress_percentage = Column(Float, default=0)
-    expected_impact = Column(Text)
-    actual_impact = Column(Text)
-    last_audit_date = Column(Date)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    end_date = Column(Date)
+    budget_allocated = Column(Numeric(20, 2), nullable=False)
+    currency = Column(String(3), nullable=False)
+    status = Column(String(100), nullable=False)
+    progress_percentage = Column(Numeric(5, 2))
+    expected_impact = Column(String(200), nullable=False)
+    actual_impact = Column(String(200), nullable=False)
+    last_audit_date = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.current_timestamp())
+    updated_at = Column(DateTime(timezone=True), server_default=func.current_timestamp(), onupdate=func.current_timestamp())
+    
+    # Campos ODS com tipo numeric(5,2)
+    ods1 = Column(Numeric(5, 2), default=0)
+    ods2 = Column(Numeric(5, 2), default=0)
+    ods3 = Column(Numeric(5, 2), default=0)
+    ods4 = Column(Numeric(5, 2), default=0)
+    ods5 = Column(Numeric(5, 2), default=0)
+    ods6 = Column(Numeric(5, 2), default=0)
+    ods7 = Column(Numeric(5, 2), default=0)
+    ods8 = Column(Numeric(5, 2), default=0)
+    ods9 = Column(Numeric(5, 2), default=0)
+    ods10 = Column(Numeric(5, 2), default=0)
+    ods11 = Column(Numeric(5, 2), default=0)
+    ods12 = Column(Numeric(5, 2), default=0)
+    ods13 = Column(Numeric(5, 2), default=0)
+    ods14 = Column(Numeric(5, 2), default=0)
+    ods15 = Column(Numeric(5, 2), default=0)
+    ods16 = Column(Numeric(5, 2), default=0)
+    ods17 = Column(Numeric(5, 2), default=0)
 
-    # Relacionamentos
     company = relationship("Company", back_populates="project_tracking")
+
+    # Relacionamento direto com BondProjectRelation
+    bond_relations = relationship("BondProjectRelation", back_populates="project")
 
 class EmissionData(Base):
     __tablename__ = "emission_data"
@@ -395,3 +432,22 @@ class ComplianceAudit(Base):
     updated_at = Column(DateTime(timezone=True))
 
     company = relationship("Company", back_populates="compliance_audits")
+
+class BondProjectRelation(Base):
+    __tablename__ = "bond_project_relations"
+    __table_args__ = (
+        UniqueConstraint('bond_id', 'project_id', name='uq_bond_project_relation'),
+        {"schema": "xlonesg"}
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    bond_id = Column(Integer, ForeignKey("xlonesg.bonds.id", ondelete="CASCADE"), nullable=False)
+    project_id = Column(Integer, ForeignKey("xlonesg.project_tracking.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.current_timestamp())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.current_timestamp())
+    created_by = Column(String(100))
+    updated_by = Column(String(100))
+
+    # Relacionamentos diretos
+    bond = relationship("Bond", back_populates="project_relations")
+    project = relationship("ProjectTracking", back_populates="bond_relations")

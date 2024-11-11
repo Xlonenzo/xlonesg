@@ -153,6 +153,7 @@ function ActionPlanManagement() {
           <thead>
             <tr>
               <th className="px-4 py-2 border">Objetivo</th>
+              <th className="px-4 py-2 border">KPI</th>
               <th className="px-4 py-2 border">Data de Início</th>
               <th className="px-4 py-2 border">Data de Fim</th>
               <th className="px-4 py-2 border">Ações</th>
@@ -162,6 +163,9 @@ function ActionPlanManagement() {
             {actionPlans.map((plan) => (
               <tr key={plan.id} className="hover:bg-gray-100">
                 <td className="px-4 py-2 border">{plan.objective}</td>
+                <td className="px-4 py-2 border">
+                  {viewKpis.find(kpi => kpi.entry_id === plan.entry_id)?.template_name || '-'}
+                </td>
                 <td className="px-4 py-2 border">{plan.start_date}</td>
                 <td className="px-4 py-2 border">{plan.end_date}</td>
                 <td className="px-4 py-2 border">

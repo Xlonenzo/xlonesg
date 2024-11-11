@@ -17,7 +17,8 @@ import {
   TreePine,
   TruckIcon,
   Wallet,
-  Shield
+  Shield,
+  Link
 } from 'lucide-react';
 
 const menuItemsData = [
@@ -62,6 +63,14 @@ const menuItemsData = [
   },
   { name: 'Biblioteca de Informações', icon: <Book size={20} />, path: '/info-library' },
   { name: 'Plano de Ação', icon: <ClipboardList size={20} />, path: '/action-plan' },
+  {
+    name: 'Vínculos',
+    icon: <Link size={20} />,
+    path: '/bonds/projects',
+    subItems: [
+      { name: 'Títulos e Projetos', icon: <Link size={20} />, path: '/bonds/projects' },
+    ]
+  }
 ];
 
 export default menuItemsData;

@@ -27,6 +27,7 @@ import Suppliers from './components/Suppliers';
 import Materiality from './components/Materiality';
 import Investment from './components/Investment';
 import Compliance from './components/Compliance';
+import BondProjectRelation from './components/bond/BondProjectRelation';
 
 // Importar dados e estilos
 import articlesData from './data/articles';
@@ -227,6 +228,8 @@ function App() {
             buttonColor={customization.button_color} 
           />
         ) : <UnauthorizedAccess />;
+      case '/bonds/projects':
+        return <BondProjectRelation />;
       default:
         return <div>Selecione uma opção do menu</div>;
     }

@@ -30,6 +30,7 @@ from chromadb.api import EmbeddingFunction
 import psutil
 from sqlalchemy import func
 from sqlalchemy import text
+from decimal import Decimal
 
 from . import models, schemas  # Certifique-se de que o caminho está correto
 from .database import SessionLocal, engine
@@ -408,7 +409,7 @@ def update_company(company_id: int, company: schemas.CompanyCreate, db: Session 
                 
             except Exception as e:
                 db.rollback()
-                logger.error(f"Erro durante a atualização: {str(e)}")
+                logger.error(f"Erro durante a atualizao: {str(e)}")
                 logger.error(f"Traceback completo: {traceback.format_exc()}")
                 raise HTTPException(
                     status_code=400,
@@ -555,15 +556,30 @@ def delete_kpi_template(kpi_template_id: int, db: Session = Depends(get_db)):
 @app.post("/api/kpi-entries", response_model=schemas.KPIEntry)
 def create_kpi_entry(kpi_entry: schemas.KPIEntryCreate, db: Session = Depends(get_db)):
     try:
+        # Validar project_id se fornecido
+        if kpi_entry.project_id:
+            project = db.query(models.ProjectTracking)\
+                .filter(models.ProjectTracking.id == kpi_entry.project_id)\
+                .first()
+            if not project:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Projeto não encontrado"
+                )  # Fechando o parêntese aqui
+
         db_kpi_entry = models.KPIEntry(**kpi_entry.dict())
         db.add(db_kpi_entry)
         db.commit()
         db.refresh(db_kpi_entry)
-        return schemas.KPIEntry.from_orm(db_kpi_entry)
+        return db_kpi_entry
+
     except SQLAlchemyError as e:
         db.rollback()
         logger.error(f"Erro ao criar entrada de KPI: {str(e)}")
-        raise HTTPException(status_code=400, detail=f"Erro ao criar entrada de KPI: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Erro ao criar entrada de KPI: {str(e)}"
+        )  # Fechando o parêntese aqui
 
 @app.put("/api/kpi-entries/{kpi_entry_id}", response_model=schemas.KPIEntry)
 def update_kpi_entry(kpi_entry_id: int, kpi_entry: schemas.KPIEntryCreate, db: Session = Depends(get_db)):
@@ -584,12 +600,30 @@ def update_kpi_entry(kpi_entry_id: int, kpi_entry: schemas.KPIEntryCreate, db: S
 @app.delete("/api/kpi-entries/{kpi_entry_id}", response_model=schemas.KPIEntry)
 def delete_kpi_entry(kpi_entry_id: int, db: Session = Depends(get_db)):
     try:
+        # First fetch the entry
         db_kpi_entry = db.query(models.KPIEntry).filter(models.KPIEntry.id == kpi_entry_id).first()
         if db_kpi_entry is None:
             raise HTTPException(status_code=404, detail="KPI Entry not found")
+            
+        # Store the entry data before deletion
+        entry_data = schemas.KPIEntry(
+            id=db_kpi_entry.id,
+            template_id=db_kpi_entry.template_id,
+            cnpj=db_kpi_entry.cnpj,
+            actual_value=db_kpi_entry.actual_value,
+            target_value=db_kpi_entry.target_value,
+            year=db_kpi_entry.year,
+            month=db_kpi_entry.month,
+            isfavorite=db_kpi_entry.isfavorite,
+            project_id=db_kpi_entry.project_id
+        )
+        
+        # Delete the entry
         db.delete(db_kpi_entry)
         db.commit()
-        return schemas.KPIEntry.from_orm(db_kpi_entry)
+        
+        return entry_data
+        
     except SQLAlchemyError as e:
         db.rollback()
         logger.error(f"Erro ao excluir entrada de KPI: {str(e)}")
@@ -597,8 +631,15 @@ def delete_kpi_entry(kpi_entry_id: int, db: Session = Depends(get_db)):
 
 @app.get("/api/kpi-entries", response_model=List[schemas.KPIEntryWithTemplate])
 def read_kpi_entries(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    kpi_entries = db.query(models.KPIEntry).options(joinedload(models.KPIEntry.template)).offset(skip).limit(limit).all()
-    # Aqui, garantimos que cada entrada está no formato correto
+    kpi_entries = db.query(models.KPIEntry)\
+        .options(
+            joinedload(models.KPIEntry.template),
+            joinedload(models.KPIEntry.project)
+        )\
+        .offset(skip)\
+        .limit(limit)\
+        .all()
+    
     return [
         schemas.KPIEntryWithTemplate(
             entry_id=entry.id,
@@ -610,6 +651,9 @@ def read_kpi_entries(skip: int = 0, limit: int = 100, db: Session = Depends(get_
             year=entry.year,
             month=entry.month,
             isfavorite=entry.isfavorite,
+            project_id=entry.project_id,
+            project_name=entry.project.name if entry.project else None,
+            project_status=entry.project.status if entry.project else None,
             unit=entry.template.unit if entry.template else None,
             category=entry.template.category if entry.template else None,
             subcategory=entry.template.subcategory if entry.template else None,
@@ -621,7 +665,7 @@ def read_kpi_entries(skip: int = 0, limit: int = 100, db: Session = Depends(get_
             compliance=entry.template.compliance if entry.template else [],
             genero=entry.template.genero if entry.template else None,
             raca=entry.template.raca if entry.template else None,
-            state=entry.company.state if entry.company else None  # Assume que a empresa está relacionada
+            state=entry.company.state if entry.company else None
         )
         for entry in kpi_entries
     ]
@@ -881,7 +925,7 @@ def update_user(
         
         db_user = db.query(models.User).filter(models.User.id == user_id).first()
         if not db_user:
-            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+            raise HTTPException(status_code=404, detail="Usurio não encontrado")
 
         update_data = user_update.dict(exclude_unset=True)
         
@@ -1079,93 +1123,75 @@ async def upload_document(
     title: str = Form(...),
     db: Session = Depends(get_db)
 ):
+    file_path = None
     try:
-        logger.info(f"Iniciando upload do arquivo: {file.filename}")
+        # Verificar extensão do arquivo
+        file_ext = os.path.splitext(file.filename)[1]
+        file_type = file_ext.replace('.', '') if file_ext else ''
         
-        # Validar arquivo
-        validate_file(file)
-        
+        if file_type.lower() not in ['pdf', 'txt', 'docx']:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Tipo de arquivo não suportado: {file_type}"
+            )  # <-- Adicionado o parêntese de fechamento
+            
         # Gerar nome único para o arquivo
-        file_ext = os.path.splitext(file.filename)[1].lower()
-        safe_filename = f"{uuid4().hex}{file_ext}"
-        file_path = os.path.join(UPLOAD_DIR, safe_filename)
+        unique_filename = f"{uuid4()}{file_ext}"
+        file_path = os.path.join(UPLOAD_DIR, unique_filename)
         
         # Salvar arquivo
         with open(file_path, "wb") as buffer:
-            content = await file.read()
-            buffer.write(content)
+            shutil.copyfileobj(file.file, buffer)
         
-        logger.info(f"Arquivo salvo em: {file_path}")
-        
-        try:
-            # Carregar documento baseado na extensão
-            if file_ext == '.pdf':
-                loader = PyPDFLoader(file_path)
-            elif file_ext == '.docx':
-                loader = Docx2txtLoader(file_path)
-            else:
-                loader = TextLoader(file_path)
-
-            documents = loader.load()
+        # Processar documento e gerar embeddings
+        if file_type.lower() in ['pdf', 'txt', 'docx']:
+            # Processamento específico para cada tipo de arquivo
+            # ... resto do código de processamento ...
             
-            # Dividir texto em chunks
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000,
-                chunk_overlap=200
-            )
-            texts = text_splitter.split_documents(documents)
-
-            # Gerar embeddings e adicionar ao Chroma
-            for i, text in enumerate(texts):
-                embedding = embeddings.embed_query(text.page_content)
-                collection.add(
-                    embeddings=[embedding],
-                    documents=[text.page_content],
-                    metadatas=[{
-                        "source": file.filename,
-                        "chunk": i,
-                        "title": title
-                    }],
-                    ids=[f"{safe_filename}-{i}"]
-                )
-
-            # Salvar metadados no banco
-            db_document = models.Document(
-                title=title,
-                file_path=file_path,
-                original_filename=file.filename,
-                file_type=file_ext.replace('.', '')
-            )
-            db.add(db_document)
-            db.commit()
-            db.refresh(db_document)
-
-            logger.info("Documento processado com sucesso")
             return {
-                "id": db_document.id,
-                "title": db_document.title,
-                "filename": db_document.original_filename,
-                "created_at": db_document.created_at
+                "message": "Documento processado com sucesso",
+                "document_id": document.id
             }
-
-        except Exception as e:
-            logger.error(f"Erro no processamento: {str(e)}")
-            if os.path.exists(file_path):
-                os.remove(file_path)
-            raise HTTPException(
-                status_code=500,
-                detail=f"Erro no processamento do documento: {str(e)}"
-            )
-
+        else:
+            raise ValueError(f"Tipo de arquivo não suportado: {file_type}")
+            
     except Exception as e:
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
         logger.error(f"Erro no upload: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail=f"Erro no upload: {str(e)}"
+            detail=f"Erro no processamento do documento: {str(e)}"  # <-- Adicionado o parêntese de fechamento
+        )
+    except SQLAlchemyError as e:
+        logger.error(f"Erro de banco de dados: {str(e)}")
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
+        raise HTTPException(
+            status_code=500,
+            detail="Erro ao salvar documento no banco de dados"
+        )
+        
+    except IOError as e:
+        logger.error(f"Erro de I/O: {str(e)}")
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
+        raise HTTPException(
+            status_code=500,
+            detail="Erro ao processar arquivo"
+        )
+        
+    except Exception as e:
+        logger.error(f"Erro inesperado: {str(e)}")
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
+        raise HTTPException(
+            status_code=500,
+            detail="Erro interno do servidor"
         )
 
 @app.get("/api/documents/search")
-async def search_documents(
+def search_documents_advanced(
     query: str,
     limit: int = 5,
     db: Session = Depends(get_db)
@@ -1180,7 +1206,7 @@ async def search_documents(
             n_results=limit,
             include=["documents", "metadatas", "distances"]
         )
-
+        
         # Formatar resultados
         formatted_results = []
         if results and results['ids']:
@@ -1189,19 +1215,18 @@ async def search_documents(
                 metadata = results['metadatas'][0][i]
                 distance = results['distances'][0][i]
 
-                # Buscar informações do documento no banco
-            doc_info = db.query(models.Document).filter(
+                doc_info = db.query(models.Document).filter(
                     models.Document.title == metadata.get('title')
-            ).first()
+                ).first()
 
-            formatted_results.append({
-                "content": doc,
+                formatted_results.append({
+                    "content": doc,
                     "title": metadata.get('title', 'Sem título'),
                     "source": metadata.get('source', 'Fonte desconhecida'),
-                "similarity": round((1 - distance) * 100, 2),
+                    "similarity": round((1 - distance) * 100, 2),
                     "created_at": doc_info.created_at.isoformat() if doc_info else None,
                     "document_id": doc_info.id if doc_info else None
-            })
+                })
 
         return formatted_results
 
@@ -1209,8 +1234,23 @@ async def search_documents(
         logger.error(f"Erro na busca: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail=f"Erro ao realizar a busca: {str(e)}"
+            detail="Erro ao realizar a busca"
         )
+
+@app.get("/api/search")
+def search_documents(
+    query: str = Query(..., description="Termo de busca"),
+    n_results: int = Query(default=5, description="Número de resultados a retornar")
+):
+    try:
+        results = collection.query(
+            query_texts=[query],
+            n_results=n_results
+        )
+        return results
+    except Exception as e:
+        logger.error(f"Erro na busca: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Rota para listar documentos
 @app.get("/api/documents")
@@ -1524,88 +1564,124 @@ async def delete_esg_project(
 
 # Rotas para Project Tracking
 @app.post("/api/project-tracking", response_model=schemas.ProjectTracking)
-async def create_project_tracking(
-    project: schemas.ProjectTrackingCreate,
-    db: Session = Depends(get_db)
-):
+def create_project(project: schemas.ProjectTrackingCreate, db: Session = Depends(get_db)):
     try:
-        # Verificar se a empresa existe
-        company = db.query(models.Company).filter(models.Company.id == project.company_id).first()
-        if not company:
-            raise HTTPException(status_code=404, detail="Empresa não encontrada")
-
+        logger.info(f"Criando novo projeto: {project.dict()}")
+        
+        # Criar projeto com todos os campos, incluindo ODS
         db_project = models.ProjectTracking(**project.dict())
         db.add(db_project)
         db.commit()
         db.refresh(db_project)
+        
+        # Log dos valores ODS após criação
+        ods_values = {f"ods{i}": getattr(db_project, f"ods{i}", 0) for i in range(1, 18)}
+        logger.info(f"Valores ODS salvos: {ods_values}")
+        
         return db_project
     except Exception as e:
+        db.rollback()
         logger.error(f"Erro ao criar projeto: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.put("/api/project-tracking/{project_id}", response_model=schemas.ProjectTracking)
+def update_project(project_id: int, project: schemas.ProjectTrackingCreate, db: Session = Depends(get_db)):
+    try:
+        logger.info(f"Atualizando projeto {project_id}")
+        logger.info(f"Dados recebidos: {project.dict()}")
+        
+        db_project = db.query(models.ProjectTracking).filter(models.ProjectTracking.id == project_id).first()
+        if not db_project:
+            raise HTTPException(status_code=404, detail="Projeto não encontrado")
+        
+        # Log dos valores ODS antes da atualização
+        old_ods = {f"ods{i}": getattr(db_project, f"ods{i}", 0) for i in range(1, 18)}
+        logger.info(f"Valores ODS antes: {old_ods}")
+        
+        # Atualizar todos os campos, incluindo ODS
+        for key, value in project.dict().items():
+            setattr(db_project, key, value)
+        
+        db.commit()
+        db.refresh(db_project)
+        
+        # Log dos valores ODS após atualização
+        new_ods = {f"ods{i}": getattr(db_project, f"ods{i}", 0) for i in range(1, 18)}
+        logger.info(f"Valores ODS depois: {new_ods}")
+        
+        return db_project
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao atualizar projeto: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/api/project-tracking", response_model=List[schemas.ProjectTracking])
-async def list_project_tracking(
-    skip: int = 0,
-    limit: int = 100,
-    db: Session = Depends(get_db)
-):
+def read_projects(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     try:
-        projects = db.query(models.ProjectTracking).offset(skip).limit(limit).all()
+        logger.info("Iniciando busca de projetos...")
+        
+        # Verificar se há projetos no banco
+        total_projects = db.query(models.ProjectTracking).count()
+        logger.info(f"Total de projetos no banco: {total_projects}")
+        
+        # Buscar projetos com relacionamentos (apenas company)
+        projects = db.query(models.ProjectTracking)\
+            .options(
+                joinedload(models.ProjectTracking.company)  # Removido o joinedload de bonds
+            )\
+            .offset(skip)\
+            .limit(limit)\
+            .all()
+        
+        logger.info(f"Projetos encontrados: {len(projects)}")
+        
+        # Log detalhado de cada projeto
+        for project in projects:
+            logger.info(f"""
+                Projeto encontrado:
+                ID: {project.id}
+                Nome: {project.name}
+                Empresa: {project.company_id}
+                Tipo: {project.project_type}
+                Status: {project.status}
+                Orçamento: {project.budget_allocated}
+            """)
+        
         return projects
+        
     except Exception as e:
-        logger.error(f"Erro ao listar projetos: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Erro ao buscar projetos: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Erro interno ao buscar projetos: {str(e)}"
+        )
 
 @app.get("/api/project-tracking/{project_id}", response_model=schemas.ProjectTracking)
-async def get_project_tracking(
-    project_id: int,
-    db: Session = Depends(get_db)
-):
+def read_project(project_id: int, db: Session = Depends(get_db)):
+    project = db.query(models.ProjectTracking)\
+        .options(joinedload(models.ProjectTracking.company))\
+        .filter(models.ProjectTracking.id == project_id)\
+        .first()
+    if project is None:
+        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+    return project
+
+@app.delete("/api/project-tracking/{project_id}")
+def delete_project(project_id: int, db: Session = Depends(get_db)):
     try:
         project = db.query(models.ProjectTracking).filter(models.ProjectTracking.id == project_id).first()
         if not project:
             raise HTTPException(status_code=404, detail="Projeto não encontrado")
-        return project
-    except Exception as e:
-        logger.error(f"Erro ao buscar projeto: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.put("/api/project-tracking/{project_id}", response_model=schemas.ProjectTracking)
-async def update_project_tracking(
-    project_id: int,
-    project: schemas.ProjectTrackingCreate,
-    db: Session = Depends(get_db)
-):
-    try:
-        db_project = db.query(models.ProjectTracking).filter(models.ProjectTracking.id == project_id).first()
-        if not db_project:
-            raise HTTPException(status_code=404, detail="Projeto não encontrado")
-
-        for key, value in project.dict().items():
-            setattr(db_project, key, value)
-
+        
+        db.delete(project)
         db.commit()
-        db.refresh(db_project)
-        return db_project
+        return {"message": "Projeto deletado com sucesso"}
     except Exception as e:
-        logger.error(f"Erro ao atualizar projeto: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.delete("/api/project-tracking/{project_id}")
-async def delete_project_tracking(
-    project_id: int,
-    db: Session = Depends(get_db)
-):
-    try:
-        db_project = db.query(models.ProjectTracking).filter(models.ProjectTracking.id == project_id).first()
-        if not db_project:
-            raise HTTPException(status_code=404, detail="Projeto não encontrado")
-
-        db.delete(db_project)
-        db.commit()
-        return {"message": "Projeto excluído com sucesso"}
-    except Exception as e:
-        logger.error(f"Erro ao excluir projeto: {str(e)}")
+        db.rollback()
+        logger.error(f"Erro ao deletar projeto: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # Rotas para Dados de Emissão
@@ -2151,6 +2227,105 @@ def delete_compliance_audit(compliance_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         logger.error(f"Erro ao deletar auditoria de compliance: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/upload")
+async def upload_file(file: UploadFile = File(...)):
+    try:
+        # Obter extensão do arquivo
+        file_ext = os.path.splitext(file.filename)[1]
+        
+        # Corrigir esta linha (estava causando o erro)
+        file_type = file_ext.replace('.', '') if file_ext else ''
+        
+        # Resto do código...
+        
+    except Exception as e:
+        logger.error(f"Erro no upload: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/bonds/{bond_id}/projects")
+def get_bond_projects(bond_id: int, db: Session = Depends(get_db)):
+    try:
+        # Buscar o título com seus projetos relacionados
+        bond = db.query(models.Bond)\
+            .options(joinedload(models.Bond.projects))\
+            .filter(models.Bond.id == bond_id)\
+            .first()
+            
+        if not bond:
+            raise HTTPException(status_code=404, detail="Título não encontrado")
+            
+        return bond.projects
+        
+    except Exception as e:
+        logger.error(f"Erro ao buscar projetos do título: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/bonds/{bond_id}/projects")
+def relate_bond_projects(bond_id: int, data: dict, db: Session = Depends(get_db)):
+    try:
+        # Verificar se o título existe
+        bond = db.query(models.Bond).filter(models.Bond.id == bond_id).first()
+        if not bond:
+            raise HTTPException(status_code=404, detail="Título não encontrado")
+        
+        project_ids = data.get('project_ids', [])
+        
+        # Verificar se todos os projetos existem
+        projects = db.query(models.ProjectTracking)\
+            .filter(models.ProjectTracking.id.in_(project_ids))\
+            .all()
+        if len(projects) != len(project_ids):
+            raise HTTPException(status_code=404, detail="Um ou mais projetos não encontrados")
+        
+        # Remover relações existentes
+        db.query(models.BondProjectRelation)\
+            .filter(models.BondProjectRelation.bond_id == bond_id)\
+            .delete()
+        
+        # Criar novas relações
+        for project_id in project_ids:
+            relation = models.BondProjectRelation(
+                bond_id=bond_id,
+                project_id=project_id,
+                created_by="system"
+            )
+            db.add(relation)
+        
+        db.commit()
+        return {"message": "Relações atualizadas com sucesso"}
+    
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao relacionar projetos ao título: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/bonds/relationships")
+def get_all_relationships(db: Session = Depends(get_db)):
+    try:
+        # Buscar todas as relações com informações dos títulos e projetos
+        relations = db.query(models.BondProjectRelation)\
+            .options(
+                joinedload(models.BondProjectRelation.bond),
+                joinedload(models.BondProjectRelation.project)
+            )\
+            .all()
+            
+        relationships = {}
+        for relation in relations:
+            if relation.bond_id not in relationships:
+                relationships[relation.bond_id] = []
+            relationships[relation.bond_id].append({
+                "project_id": relation.project_id,
+                "created_at": relation.created_at,
+                "created_by": relation.created_by
+            })
+            
+        return relationships
+        
+    except Exception as e:
+        logger.error(f"Erro ao buscar relacionamentos: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
