@@ -23,4 +23,4 @@ function KPICard({ kpi }) {
   );
 }
 
-export default KPICard;
+export default KPICard; 
