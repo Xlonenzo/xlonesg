@@ -1,7 +1,7 @@
 # models.py
 from sqlalchemy import (
     Column, Integer, String, Float, Text, Boolean, Date, 
-    ForeignKey, ARRAY, Enum, UniqueConstraint, DateTime as SQLDateTime, Table
+    ForeignKey, ARRAY, Enum, UniqueConstraint, DateTime as SQLDateTime, Table, PrimaryKeyConstraint
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -245,8 +245,8 @@ class Bond(Base):
     financial_institution_cnpj = Column(String, nullable=False)
     financial_institution_contact = Column(String, nullable=False)
 
-    # Relacionamentos
-    project_relations = relationship("BondProjectRelation", back_populates="bond", cascade="all, delete-orphan")
+    # Adicione esta linha
+    project_relations = relationship("BondProjectRelation", back_populates="bond")
 
     def __repr__(self):
         return f"<Bond {self.name} ({self.type})>"
@@ -332,7 +332,7 @@ class ProjectTracking(Base):
 
     company = relationship("Company", back_populates="project_tracking")
 
-    # Relacionamento direto com BondProjectRelation
+    # Adicione esta linha
     bond_relations = relationship("BondProjectRelation", back_populates="project")
 
 class EmissionData(Base):
@@ -435,19 +435,14 @@ class ComplianceAudit(Base):
 
 class BondProjectRelation(Base):
     __tablename__ = "bond_project_relations"
-    __table_args__ = (
-        UniqueConstraint('bond_id', 'project_id', name='uq_bond_project_relation'),
-        {"schema": "xlonesg"}
-    )
+    __table_args__ = {"schema": "xlonesg"}
 
     id = Column(Integer, primary_key=True, index=True)
-    bond_id = Column(Integer, ForeignKey("xlonesg.bonds.id", ondelete="CASCADE"), nullable=False)
-    project_id = Column(Integer, ForeignKey("xlonesg.project_tracking.id", ondelete="CASCADE"), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.current_timestamp())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.current_timestamp())
-    created_by = Column(String(100))
-    updated_by = Column(String(100))
+    bond_id = Column(Integer, ForeignKey("xlonesg.bonds.id"))
+    project_id = Column(Integer, ForeignKey("xlonesg.project_tracking.id"))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relacionamentos diretos
+    # Relacionamentos
     bond = relationship("Bond", back_populates="project_relations")
     project = relationship("ProjectTracking", back_populates="bond_relations")

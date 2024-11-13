@@ -18,6 +18,9 @@ function Sidebar({
   isESGTrackerOpen,
   setIsESGTrackerOpen,
 }) {
+  // Adicionar novo estado para Gerenciador de Títulos
+  const [isBondsOpen, setIsBondsOpen] = React.useState(false);
+
   // Função para renderizar cada item do menu
   const renderMenuItem = (item, isSubItem = false) => (
     <li key={item.path || item.name}>
@@ -29,6 +32,8 @@ function Sidebar({
             setIsAdminOpen(!isAdminOpen);
           } else if (item.name === 'Rastreador ESG') {
             setIsESGTrackerOpen(!isESGTrackerOpen);
+          } else if (item.name === 'Gerenciador de Títulos') {
+            setIsBondsOpen(!isBondsOpen);
           } else {
             setActiveMenuItem(item.path);
           }
@@ -49,7 +54,8 @@ function Sidebar({
               <span className="ml-auto">
                 {(item.name === 'Análises' && isAnalyticsOpen) ||
                 (item.name === 'Painel de Administração' && isAdminOpen) ||
-                (item.name === 'Rastreador ESG' && isESGTrackerOpen) ? (
+                (item.name === 'Rastreador ESG' && isESGTrackerOpen) ||
+                (item.name === 'Gerenciador de Títulos' && isBondsOpen) ? (
                   <ChevronDown size={16} />
                 ) : (
                   <ChevronRight size={16} />
@@ -65,7 +71,8 @@ function Sidebar({
         item.subItems &&
         ((item.name === 'Análises' && isAnalyticsOpen) ||
          (item.name === 'Painel de Administração' && isAdminOpen) ||
-         (item.name === 'Rastreador ESG' && isESGTrackerOpen)) && (
+         (item.name === 'Rastreador ESG' && isESGTrackerOpen) ||
+         (item.name === 'Gerenciador de Títulos' && isBondsOpen)) && (
           <ul className="mt-1 space-y-1">
             {item.subItems.map((subItem) => renderMenuItem(subItem, true))}
           </ul>

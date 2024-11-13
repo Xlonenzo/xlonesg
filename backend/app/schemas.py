@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, constr, Field, EmailStr, validator, condecimal, field_validator, model_validator
 from datetime import date, datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from decimal import Decimal
 from enum import Enum
 
@@ -680,3 +680,26 @@ class ComplianceAudit(ComplianceAuditBase):
     model_config = {
         "from_attributes": True
     }
+
+
+class BondProjectRelationBase(BaseModel):
+    bond_id: int
+    project_id: int
+
+    class Config:
+        from_attributes = True
+
+
+class BondProjectRelationCreate(BondProjectRelationBase):
+    pass
+
+
+class BondProjectRelation(BondProjectRelationBase):
+    id: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    bond: Optional[Bond] = None
+    project: Optional[ProjectTracking] = None
+
+    class Config:
+        from_attributes = True

@@ -125,11 +125,21 @@ function ESGProjects({ sidebarColor, buttonColor }) {
 
   const fetchCompanies = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/companies`);
+      const config = {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        withCredentials: true
+      };
+
+      const response = await axios.get(`${API_URL}/companies`, config);
       console.log('Companies data:', response.data);
       setCompanies(response.data);
     } catch (error) {
       console.error('Erro ao buscar empresas:', error);
+      console.error('Detalhes do erro:', error.response?.data);
+      setCompanies([]);
     }
   };
 
@@ -255,7 +265,7 @@ function ESGProjects({ sidebarColor, buttonColor }) {
               className="p-2 border rounded w-full"
               required
             >
-              <option value="">Selecione a Empresa</option>
+              <option value="">Selecione uma empresa</option>
               {companies.map(company => (
                 <option key={company.id} value={company.id}>
                   {company.name}

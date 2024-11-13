@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import SQLAlchemyError
-from typing import List, Optional
+from typing import List, Optional, Dict, Union
 import re
 import shutil
 import os
@@ -31,6 +31,7 @@ import psutil
 from sqlalchemy import func
 from sqlalchemy import text
 from decimal import Decimal
+import json
 
 from . import models, schemas  # Certifique-se de que o caminho está correto
 from .database import SessionLocal, engine
@@ -432,7 +433,6 @@ def update_company(company_id: int, company: schemas.CompanyCreate, db: Session 
                     status_code=400,
                     detail=f"Erro ao atualizar empresa: {str(e)}"
                 )
-                
     except HTTPException:
         raise
     except Exception as e:
@@ -578,9 +578,8 @@ def create_kpi_entry(kpi_entry: schemas.KPIEntryCreate, db: Session = Depends(ge
         logger.error(f"Erro ao criar entrada de KPI: {str(e)}")
         raise HTTPException(
             status_code=400,
-            detail=f"Erro ao criar entrada de KPI: {str(e)}"
-        )  # Fechando o parêntese aqui
-
+            detail=f"Erro ao criar entrada de KPI: {str(e)}"  # Fechando o parêntese aqui
+        )
 @app.put("/api/kpi-entries/{kpi_entry_id}", response_model=schemas.KPIEntry)
 def update_kpi_entry(kpi_entry_id: int, kpi_entry: schemas.KPIEntryCreate, db: Session = Depends(get_db)):
     try:
@@ -1058,7 +1057,7 @@ def create_minimal_bond(bond: schemas.BondCreate, db: Session = Depends(get_db))
         db.rollback()
         raise HTTPException(status_code=400, detail=f"Falha ao criar título mínimo: {str(e)}")
 
-# Inicialização da aplicação
+# Inicializaão da aplicação
 
 if __name__ == "__main__":
     logger.info("Iniciando a aplicação...")
@@ -1622,42 +1621,40 @@ def read_projects(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
     try:
         logger.info("Iniciando busca de projetos...")
         
-        # Verificar se há projetos no banco
-        total_projects = db.query(models.ProjectTracking).count()
-        logger.info(f"Total de projetos no banco: {total_projects}")
-        
-        # Buscar projetos com relacionamentos (apenas company)
         projects = db.query(models.ProjectTracking)\
-            .options(
-                joinedload(models.ProjectTracking.company)  # Removido o joinedload de bonds
-            )\
+            .options(joinedload(models.ProjectTracking.company))\
             .offset(skip)\
             .limit(limit)\
             .all()
         
-        logger.info(f"Projetos encontrados: {len(projects)}")
-        
-        # Log detalhado de cada projeto
+        # Adicionar log para verificar os ODS
         for project in projects:
             logger.info(f"""
-                Projeto encontrado:
-                ID: {project.id}
-                Nome: {project.name}
-                Empresa: {project.company_id}
-                Tipo: {project.project_type}
-                Status: {project.status}
-                Orçamento: {project.budget_allocated}
+                Projeto ID {project.id} - ODS:
+                ods1: {project.ods1},
+                ods2: {project.ods2},
+                ods3: {project.ods3},
+                ods4: {project.ods4},
+                ods5: {project.ods5},
+                ods6: {project.ods6},
+                ods7: {project.ods7},
+                ods8: {project.ods8},
+                ods9: {project.ods9},
+                ods10: {project.ods10},
+                ods11: {project.ods11},
+                ods12: {project.ods12},
+                ods13: {project.ods13},
+                ods14: {project.ods14},
+                ods15: {project.ods15},
+                ods16: {project.ods16},
+                ods17: {project.ods17}
             """)
         
         return projects
         
     except Exception as e:
         logger.error(f"Erro ao buscar projetos: {str(e)}")
-        logger.error(traceback.format_exc())
-        raise HTTPException(
-            status_code=500, 
-            detail=f"Erro interno ao buscar projetos: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/project-tracking/{project_id}", response_model=schemas.ProjectTracking)
 def read_project(project_id: int, db: Session = Depends(get_db)):
@@ -1823,48 +1820,51 @@ def read_suppliers(skip: int = 0, limit: int = 100, db: Session = Depends(get_db
 
 @app.get("/api/suppliers/{supplier_id}", response_model=schemas.Supplier)
 def read_supplier(supplier_id: int, db: Session = Depends(get_db)):
-    db_supplier = db.query(models.Supplier).filter(models.Supplier.id == supplier_id).first()
-    if db_supplier is None:
-        raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
-    return schemas.Supplier.from_orm(db_supplier)
+    try:
+        supplier = db.query(models.Supplier).filter(models.Supplier.id == supplier_id).first()
+        if not supplier:
+            raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
+        return supplier
+    except Exception as e:
+        logger.error(f"Erro ao buscar fornecedor: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/suppliers/{supplier_id}", response_model=schemas.Supplier)
-def update_supplier(supplier_id: int, supplier: schemas.SupplierCreate, db: Session = Depends(get_db)):
-    db_supplier = db.query(models.Supplier).filter(models.Supplier.id == supplier_id).first()
-    if db_supplier is None:
-        raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
-    
-    supplier_data = supplier.dict(exclude_unset=True)
-    for key, value in supplier_data.items():
-        setattr(db_supplier, key, value)
-    
+def update_supplier(
+    supplier_id: int,
+    supplier: schemas.SupplierCreate,
+    db: Session = Depends(get_db)
+):
     try:
+        db_supplier = db.query(models.Supplier).filter(models.Supplier.id == supplier_id).first()
+        if not db_supplier:
+            raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
+        
+        for key, value in supplier.dict().items():
+            setattr(db_supplier, key, value)
+            
         db.commit()
         db.refresh(db_supplier)
-        logger.info(f"Fornecedor atualizado com sucesso: {db_supplier.id}")
-        return schemas.Supplier.from_orm(db_supplier)
+        return db_supplier
     except Exception as e:
         db.rollback()
         logger.error(f"Erro ao atualizar fornecedor: {str(e)}")
-        raise HTTPException(
-            status_code=400,
-            detail=f"Erro ao atualizar fornecedor: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.delete("/api/suppliers/{supplier_id}", response_model=schemas.Supplier)
+@app.delete("/api/suppliers/{supplier_id}")
 def delete_supplier(supplier_id: int, db: Session = Depends(get_db)):
-    db_supplier = db.query(models.Supplier).filter(models.Supplier.id == supplier_id).first()
-    if db_supplier is None:
-        raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
     try:
-        db.delete(db_supplier)
+        supplier = db.query(models.Supplier).filter(models.Supplier.id == supplier_id).first()
+        if not supplier:
+            raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
+        
+        db.delete(supplier)
         db.commit()
-        logger.info(f"Fornecedor deletado com sucesso: {supplier_id}")
-        return schemas.Supplier.from_orm(db_supplier)
-    except SQLAlchemyError as e:
-        logger.error(f"Erro ao deletar fornecedor: {str(e)}")
+        return {"message": "Fornecedor deletado com sucesso"}
+    except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=400, detail=f"Falha ao deletar fornecedor: {str(e)}")
+        logger.error(f"Erro ao deletar fornecedor: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/")
 async def root():
@@ -2154,7 +2154,7 @@ def create_compliance_audit(
                 "follow_up_date": compliance.follow_up_date,
                 "created_at": row[1],
                 "updated_at": row[2]
-            }
+            }  # <-- Adicionada a chave de fechamento que faltava
             
     except Exception as e:
         db.rollback()
@@ -2244,88 +2244,84 @@ async def upload_file(file: UploadFile = File(...)):
         logger.error(f"Erro no upload: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.get("/api/bonds/{bond_id}/projects")
-def get_bond_projects(bond_id: int, db: Session = Depends(get_db)):
+@app.get("/api/bond-project-relations", response_model=List[schemas.BondProjectRelation])
+def get_relationships(db: Session = Depends(get_db)):
     try:
-        # Buscar o título com seus projetos relacionados
-        bond = db.query(models.Bond)\
-            .options(joinedload(models.Bond.projects))\
-            .filter(models.Bond.id == bond_id)\
-            .first()
-            
-        if not bond:
-            raise HTTPException(status_code=404, detail="Título não encontrado")
-            
-        return bond.projects
+        logger.info("Buscando relações entre títulos e projetos...")
+        relations = db.query(models.BondProjectRelation)\
+            .options(joinedload(models.BondProjectRelation.bond))\
+            .options(joinedload(models.BondProjectRelation.project))\
+            .all()
         
+        logger.info(f"Encontradas {len(relations)} relações")
+        return relations
     except Exception as e:
-        logger.error(f"Erro ao buscar projetos do título: {str(e)}")
+        logger.error(f"Erro ao buscar relações: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/bonds/{bond_id}/projects")
-def relate_bond_projects(bond_id: int, data: dict, db: Session = Depends(get_db)):
+@app.post("/api/bonds/relationships")
+async def create_relationship(request: Request, db: Session = Depends(get_db)):
     try:
-        # Verificar se o título existe
-        bond = db.query(models.Bond).filter(models.Bond.id == bond_id).first()
-        if not bond:
-            raise HTTPException(status_code=404, detail="Título não encontrado")
+        form_data = await request.form()
+        bond_id = int(form_data.get('bond_id'))
+        project_id = int(form_data.get('project_id'))
         
-        project_ids = data.get('project_ids', [])
+        logger.info(f"Dados recebidos - bond_id: {bond_id}, project_id: {project_id}")
         
-        # Verificar se todos os projetos existem
-        projects = db.query(models.ProjectTracking)\
-            .filter(models.ProjectTracking.id.in_(project_ids))\
-            .all()
-        if len(projects) != len(project_ids):
-            raise HTTPException(status_code=404, detail="Um ou mais projetos não encontrados")
+        # Verificar se o relacionamento já existe
+        existing = db.query(models.BondProjectRelation).filter_by(
+            bond_id=bond_id,
+            project_id=project_id
+        ).first()
         
-        # Remover relações existentes
-        db.query(models.BondProjectRelation)\
-            .filter(models.BondProjectRelation.bond_id == bond_id)\
-            .delete()
-        
-        # Criar novas relações
-        for project_id in project_ids:
-            relation = models.BondProjectRelation(
-                bond_id=bond_id,
-                project_id=project_id,
-                created_by="system"
+        if existing:
+            raise HTTPException(
+                status_code=400,
+                detail="Relacionamento já existe"
             )
-            db.add(relation)
         
+        # Criar novo relacionamento
+        relation = models.BondProjectRelation(
+            bond_id=bond_id,
+            project_id=project_id
+        )
+        
+        db.add(relation)
         db.commit()
-        return {"message": "Relações atualizadas com sucesso"}
+        
+        logger.info(f"Novo relacionamento criado: bond_id={bond_id}, project_id={project_id}")
+        return {"message": "Relacionamento criado com sucesso"}
     
+    except ValueError as e:
+        db.rollback()
+        logger.error(f"Erro de validação: {str(e)}")
+        raise HTTPException(
+            status_code=422,
+            detail="Dados inválidos"
+        )
     except Exception as e:
         db.rollback()
-        logger.error(f"Erro ao relacionar projetos ao título: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Erro ao criar relacionamento: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail=str(e)
+        )
 
-@app.get("/api/bonds/relationships")
-def get_all_relationships(db: Session = Depends(get_db)):
+@app.delete("/api/bonds/relationships/{relation_id}")
+def delete_relationship(relation_id: int, db: Session = Depends(get_db)):
     try:
-        # Buscar todas as relações com informações dos títulos e projetos
-        relations = db.query(models.BondProjectRelation)\
-            .options(
-                joinedload(models.BondProjectRelation.bond),
-                joinedload(models.BondProjectRelation.project)
-            )\
-            .all()
-            
-        relationships = {}
-        for relation in relations:
-            if relation.bond_id not in relationships:
-                relationships[relation.bond_id] = []
-            relationships[relation.bond_id].append({
-                "project_id": relation.project_id,
-                "created_at": relation.created_at,
-                "created_by": relation.created_by
-            })
-            
-        return relationships
+        relation = db.query(models.BondProjectRelation)\
+            .filter_by(id=relation_id)\
+            .first()
+        if not relation:
+            raise HTTPException(status_code=404, detail="Relacionamento não encontrado")
         
+        db.delete(relation)
+        db.commit()
+        return {"message": "Relacionamento removido com sucesso"}
     except Exception as e:
-        logger.error(f"Erro ao buscar relacionamentos: {str(e)}")
+        db.rollback()
+        logger.error(f"Erro ao deletar relacionamento: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -21,13 +21,14 @@ import KPITemplate from './components/KPITemplate';
 import KPITracker from './components/KPITracker';
 import Register from './components/Register';
 import BondManagement from './components/BondManagement';
+import BondProjectRelation from './components/BondProjectRelation';
 import EmissionTracking from './components/EmissionTracking';
 import ESGProjects from './components/ESGProjects';
 import Suppliers from './components/Suppliers';
 import Materiality from './components/Materiality';
 import Investment from './components/Investment';
 import Compliance from './components/Compliance';
-import BondProjectRelation from './components/bond/BondProjectRelation';
+import SustainabilityReport from './components/SustainabilityReport';
 
 // Importar dados e estilos
 import articlesData from './data/articles';
@@ -228,8 +229,27 @@ function App() {
             buttonColor={customization.button_color} 
           />
         ) : <UnauthorizedAccess />;
-      case '/bonds/projects':
-        return <BondProjectRelation />;
+      case '/bonds/list':
+        return ['admin', 'editor'].includes(userRole) ? (
+          <BondManagement 
+            sidebarColor={customization.sidebar_color} 
+            buttonColor={customization.button_color} 
+          />
+        ) : <UnauthorizedAccess />;
+      case '/bonds/relationships':
+        return ['admin', 'editor'].includes(userRole) ? (
+          <BondProjectRelation 
+            sidebarColor={customization.sidebar_color} 
+            buttonColor={customization.button_color} 
+          />
+        ) : <UnauthorizedAccess />;
+      case '/bonds/sustainability-report':
+        return ['admin', 'editor'].includes(userRole) ? (
+          <SustainabilityReport 
+            sidebarColor={customization.sidebar_color} 
+            buttonColor={customization.button_color} 
+          />
+        ) : <UnauthorizedAccess />;
       default:
         return <div>Selecione uma opção do menu</div>;
     }

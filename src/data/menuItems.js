@@ -18,7 +18,8 @@ import {
   TruckIcon,
   Wallet,
   Shield,
-  Link
+  Link,
+  FileOutput
 } from 'lucide-react';
 
 const menuItemsData = [
@@ -47,7 +48,16 @@ const menuItemsData = [
   },
   { name: 'KPIs', icon: <FileText size={20} />, path: '/kpi-templates' },
   { name: 'Rastreador de KPI', icon: <Target size={20} />, path: '/kpi-tracker' },
-  { name: 'Gerenciador de Títulos', icon: <FileText size={20} />, path: '/bond-management' },
+  { 
+    name: 'Gerenciador de Títulos', 
+    icon: <FileText size={20} />, 
+    path: '/bonds',
+    subItems: [
+      { name: 'Lista de Títulos', icon: <FileText size={20} />, path: '/bonds/list' },
+      { name: 'Relacionar Projetos', icon: <Link size={20} />, path: '/bonds/relationships' },
+      { name: 'Relatório de Sustentabilidade', icon: <FileOutput size={20} />, path: '/bonds/sustainability-report' }
+    ]
+  }, 
   { 
     name: 'Rastreador ESG', 
     icon: <Target size={20} />, 
@@ -62,15 +72,7 @@ const menuItemsData = [
     ] 
   },
   { name: 'Biblioteca de Informações', icon: <Book size={20} />, path: '/info-library' },
-  { name: 'Plano de Ação', icon: <ClipboardList size={20} />, path: '/action-plan' },
-  {
-    name: 'Vínculos',
-    icon: <Link size={20} />,
-    path: '/bonds/projects',
-    subItems: [
-      { name: 'Títulos e Projetos', icon: <Link size={20} />, path: '/bonds/projects' },
-    ]
-  }
+  { name: 'Plano de Ação', icon: <ClipboardList size={20} />, path: '/action-plan' }
 ];
 
 export default menuItemsData;
