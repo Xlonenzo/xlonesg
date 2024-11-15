@@ -55,7 +55,7 @@ const menuItemsData = [
     subItems: [
       { name: 'Lista de Títulos', icon: <FileText size={20} />, path: '/bonds/list' },
       { name: 'Relacionar Projetos', icon: <Link size={20} />, path: '/bonds/relationships' },
-      { name: 'Relatório de Sustentabilidade', icon: <FileOutput size={20} />, path: '/bonds/sustainability-report' }
+      { name: 'Relatório ESG', icon: <FileOutput size={20} />, path: '/bonds/sustainability-report' }
     ]
   }, 
   { 

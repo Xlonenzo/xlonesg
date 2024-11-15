@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 
 router = APIRouter()
-
+    
 # Configurar Chroma
 client = chromadb.Client()
 collection = client.create_collection("documents")

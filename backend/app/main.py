@@ -1,11 +1,11 @@
 # main.py
 
-from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File, Request, Form
+from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File, Request, Form, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import SQLAlchemyError
-from typing import List, Optional, Dict, Union
+from typing import List, Optional, Dict, Union, AsyncGenerator
 import re
 import shutil
 import os
@@ -15,8 +15,8 @@ from pydantic import BaseModel
 import logging
 from datetime import date, datetime, timezone
 import traceback
-from fastapi.responses import JSONResponse
-from langchain_openai import OpenAIEmbeddings
+from fastapi.responses import JSONResponse, StreamingResponse
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader
 import chromadb
@@ -32,9 +32,14 @@ from sqlalchemy import func
 from sqlalchemy import text
 from decimal import Decimal
 import json
+import httpx  # Substitua axios por httpx
+from langchain.schema import HumanMessage, SystemMessage
+from langchain.callbacks import AsyncIteratorCallbackHandler
+import asyncio
 
 from . import models, schemas  # Certifique-se de que o caminho está correto
 from .database import SessionLocal, engine
+from .schemas import ReportRequest, BaseResponse
 
 # Configuração de logging
 logging.basicConfig(
@@ -69,7 +74,7 @@ BASE_URL = ""  # Substitua pela URL pública do seu backend
 CHROMA_PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", "chroma_db")
 os.makedirs(CHROMA_PERSIST_DIR, exist_ok=True)
 
-# Inicializar cliente Chroma com persistência
+# Inicializar cliente Chroma com persistência (apenas uma vez)
 chroma_client = chromadb.PersistentClient(
     path=CHROMA_PERSIST_DIR,
     settings=Settings(
@@ -80,7 +85,15 @@ chroma_client = chromadb.PersistentClient(
 
 # Criar ou obter a collection
 try:
-    collection = chroma_client.get_collection("documents")
+    try:
+        collection = chroma_client.get_collection("documents")
+        logger.info("Collection 'documents' obtida com sucesso")
+    except Exception as e:
+        logger.info("Criando nova collection 'documents'")
+        collection = chroma_client.create_collection(
+            name="documents",
+            metadata={"hnsw:space": "cosine"}
+        )
 except:
     collection = chroma_client.create_collection(
         name="documents",
@@ -100,6 +113,26 @@ if not api_key:
 
 # Usa a chave explicitamente
 embeddings = OpenAIEmbeddings(openai_api_key=api_key)
+
+# Inicializar o modelo ChatOpenAI (coloque isso junto com as outras inicializações)
+chat_model = ChatOpenAI(
+    model_name="gpt-3.5-turbo-16k",  # Modelo com maior contexto
+    temperature=0.5,  # Reduzir para respostas mais consistentes
+    max_tokens=2000,  # Aumentar limite de tokens
+    request_timeout=120,  # Aumentar timeout
+    openai_api_key=os.getenv('OPENAI_API_KEY')
+)
+
+# Adicionar o modelo de streaming separadamente
+chat_model_streaming = ChatOpenAI(
+    model_name="gpt-3.5-turbo-16k",
+    streaming=True,
+    temperature=0.5,
+    max_tokens=2000,
+    request_timeout=120,
+    openai_api_key=os.getenv('OPENAI_API_KEY'),
+    callbacks=[AsyncIteratorCallbackHandler()]
+)
 
 # Dependency
 def get_db():
@@ -431,8 +464,7 @@ def update_company(company_id: int, company: schemas.CompanyCreate, db: Session 
                 logger.error(f"Erro ao atualizar empresa: {str(e)}")
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Erro ao atualizar empresa: {str(e)}"
-                )
+                    detail=f"Erro ao atualizar empresa: {str(e)}")
     except HTTPException:
         raise
     except Exception as e:
@@ -565,7 +597,7 @@ def create_kpi_entry(kpi_entry: schemas.KPIEntryCreate, db: Session = Depends(ge
                 raise HTTPException(
                     status_code=404,
                     detail="Projeto não encontrado"
-                )  # Fechando o parêntese aqui
+                )
 
         db_kpi_entry = models.KPIEntry(**kpi_entry.dict())
         db.add(db_kpi_entry)
@@ -575,10 +607,10 @@ def create_kpi_entry(kpi_entry: schemas.KPIEntryCreate, db: Session = Depends(ge
 
     except SQLAlchemyError as e:
         db.rollback()
-        logger.error(f"Erro ao criar entrada de KPI: {str(e)}")
+        logger.error(f"Erro ao criar entrada de KPI: {str(e)}")  # Este é um comentário
         raise HTTPException(
             status_code=400,
-            detail=f"Erro ao criar entrada de KPI: {str(e)}"  # Fechando o parêntese aqui
+            detail=f"Erro ao criar entrada de KPI: {str(e)}"
         )
 @app.put("/api/kpi-entries/{kpi_entry_id}", response_model=schemas.KPIEntry)
 def update_kpi_entry(kpi_entry_id: int, kpi_entry: schemas.KPIEntryCreate, db: Session = Depends(get_db)):
@@ -1108,8 +1140,6 @@ def list_users(
         raise HTTPException(status_code=500, detail=str(e))
 
 # Configurar Chroma e OpenAI Embeddings
-client = chromadb.Client()
-collection = client.create_collection("documents")
 embeddings = OpenAIEmbeddings(
     openai_api_key=os.getenv("OPENAI_API_KEY"),
     model="text-embedding-ada-002"  # Especificar o modelo
@@ -1160,7 +1190,7 @@ async def upload_document(
         logger.error(f"Erro no upload: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail=f"Erro no processamento do documento: {str(e)}"  # <-- Adicionado o parêntese de fechamento
+            detail=f"Erro no processamento do documento: {str(e)}"  # Comentário movido para fora da f-string
         )
     except SQLAlchemyError as e:
         logger.error(f"Erro de banco de dados: {str(e)}")
@@ -1517,7 +1547,7 @@ async def get_esg_project(
     try:
         project = db.query(models.ESGProject).filter(models.ESGProject.id == project_id).first()
         if not project:
-            raise HTTPException(status_code=404, detail="Projeto não encontrado")
+            raise HTTPException(status_code=404, detail="Projeto no encontrado")
         return project
     except Exception as e:
         logger.error(f"Erro ao buscar projeto ESG: {str(e)}")
@@ -1917,7 +1947,7 @@ def create_materiality(materiality: schemas.MaterialityAssessmentCreate, db: Ses
         
     except Exception as e:
         db.rollback()
-        logger.error(f"Erro ao criar avaliação de materialidade: {str(e)}")
+        logger.error(f"Erro ao criar avaliaão de materialidade: {str(e)}")
         logger.error(traceback.format_exc())
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -2153,9 +2183,7 @@ def create_compliance_audit(
                 "corrective_action_plan": compliance.corrective_action_plan,
                 "follow_up_date": compliance.follow_up_date,
                 "created_at": row[1],
-                "updated_at": row[2]
-            }  # <-- Adicionada a chave de fechamento que faltava
-            
+                "updated_at": row[2]}
     except Exception as e:
         db.rollback()
         logger.error(f"Erro ao criar auditoria de compliance: {str(e)}")
@@ -2323,5 +2351,151 @@ def delete_relationship(relation_id: int, db: Session = Depends(get_db)):
         db.rollback()
         logger.error(f"Erro ao deletar relacionamento: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# Modelo para a requisição de geração de relatório
+class ReportRequest(BaseModel):
+    bond_id: int
+
+    class Config:
+        from_attributes = True  # Para compatibilidade com SQLAlchemy
+
+async def fetch_document_details(bond_name: str, db: Session) -> List[dict]:
+    """Busca documentos relacionados a um título específico"""
+    logger.info(f"Buscando documentos para o título: {bond_name}")
+    
+    try:
+        # Buscar no ChromaDB
+        results = collection.get(
+            where={"bond_name": bond_name}
+        )
+        
+        if not results or not results['documents']:
+            logger.warning(f"Nenhum documento encontrado para {bond_name}")
+            return []
+            
+        documents = []
+        for idx, doc in enumerate(results['documents']):
+            try:
+                metadata = results['metadatas'][idx] if results['metadatas'] else {}
+                
+                # Limitar o tamanho do conteúdo para evitar tokens excessivos
+                content = doc[:1000] + "..." if len(doc) > 1000 else doc
+                
+                documents.append({
+                    "title": metadata.get('title', 'Sem título'),
+                    "content": content,
+                    "type": metadata.get('document_type', 'Não especificado')
+                })
+                
+            except Exception as doc_error:
+                logger.error(f"Erro ao processar documento {idx}: {str(doc_error)}")
+                continue
+                
+        return documents
+        
+    except Exception as e:
+        logger.error(f"Erro ao buscar documentos: {str(e)}")
+        logger.error(traceback.format_exc())
+        return []
+
+@app.get("/api/documents/details")
+async def get_document_details(bond_name: str, db: Session = Depends(get_db)):
+    return await fetch_document_details(bond_name, db)
+
+@app.post("/api/generate-report/stream")
+async def generate_report_stream(
+    request: ReportRequest,
+    db: Session = Depends(get_db)
+) -> StreamingResponse:
+    """Gera um relatório simplificado focado no impacto social"""
+    
+    async def generate():
+        try:
+            # Debug da API key
+            current_api_key = os.getenv('OPENAI_API_KEY')
+            logger.info(f"Verificando API key no momento da requisição:")
+            logger.info(f"- API key presente: {'Sim' if current_api_key else 'Não'}")
+            logger.info(f"- Formato correto: {'Sim' if current_api_key.startswith('sk-') else 'Não'}")
+            logger.info(f"- Comprimento: {len(current_api_key) if current_api_key else 0}")
+
+            # 1. Validar título
+            bond = db.query(models.Bond).filter(models.Bond.id == request.bond_id).first()
+            if not bond:
+                logger.error(f"Título não encontrado: ID {request.bond_id}")
+                yield "data: [ERRO] Título não encontrado\n\n"
+                return
+
+            # 2. Configurar streaming com debug
+            try:
+                callback_handler = AsyncIteratorCallbackHandler()
+                chat_model = ChatOpenAI(
+                    model_name="gpt-3.5-turbo",
+                    streaming=True,
+                    temperature=0.7,
+                    callbacks=[callback_handler],
+                    openai_api_key=current_api_key
+                )
+                logger.info("Chat model configurado com sucesso")
+            except Exception as model_error:
+                logger.error(f"Erro ao configurar chat model: {str(model_error)}")
+                yield f"data: [ERRO] Erro na configuração: {str(model_error)}\n\n"
+                return
+
+            # 3. Tentar gerar relatório
+            try:
+                messages = [
+                    SystemMessage(content="Você é um especialista em análise de impacto social."),
+                    HumanMessage(content=f"""
+                        Gere um relatório conciso sobre o impacto social esperado para:
+                        Título: {bond.name}
+                        Tipo: {bond.type}
+                        Valor: R$ {bond.value:,.2f}
+                    """)
+                ]
+
+                logger.info("Iniciando geração com OpenAI")
+                task = asyncio.create_task(chat_model.agenerate(messages=[messages]))
+                
+                async for token in callback_handler.aiter():
+                    if isinstance(token, str):
+                        yield f"data: {token}\n\n"
+                    await asyncio.sleep(0.01)
+                
+                await task
+                logger.info("Geração concluída com sucesso")
+                yield "data: [FIM]\n\n"
+                
+            except Exception as stream_error:
+                logger.error(f"Erro detalhado no streaming:")
+                logger.error(f"- Tipo do erro: {type(stream_error)}")
+                logger.error(f"- Mensagem: {str(stream_error)}")
+                logger.error(f"- Traceback: {traceback.format_exc()}")
+                yield f"data: [ERRO] Erro no streaming: {str(stream_error)}\n\n"
+
+        except Exception as e:
+            logger.error(f"Erro geral na geração:")
+            logger.error(f"- Tipo: {type(e)}")
+            logger.error(f"- Mensagem: {str(e)}")
+            logger.error(f"- Traceback: {traceback.format_exc()}")
+            yield f"data: [ERRO] {str(e)}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+# Inicialização da aplicação
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+
+
 
 

@@ -703,3 +703,17 @@ class BondProjectRelation(BondProjectRelationBase):
 
     class Config:
         from_attributes = True
+
+
+class ReportRequest(BaseModel):
+    bond_id: int
+
+    class Config:
+        from_attributes = True
+
+
+class BaseResponse(BaseModel):
+    success: bool
+    message: str
+    data: Optional[dict] = None
+    error: Optional[str] = None
