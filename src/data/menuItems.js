@@ -19,7 +19,7 @@ import {
   Wallet,
   Shield,
   Link,
-  FileOutput
+  LineChart
 } from 'lucide-react';
 
 const menuItemsData = [
@@ -55,9 +55,9 @@ const menuItemsData = [
     subItems: [
       { name: 'Lista de Títulos', icon: <FileText size={20} />, path: '/bonds/list' },
       { name: 'Relacionar Projetos', icon: <Link size={20} />, path: '/bonds/relationships' },
-      { name: 'Relatório ESG', icon: <FileOutput size={20} />, path: '/bonds/sustainability-report' }
     ]
   }, 
+  { name: 'Relatório ESG', icon: <LineChart size={20} />, path: '/bonds/sustainability-report' },
   { 
     name: 'Rastreador ESG', 
     icon: <Target size={20} />, 
