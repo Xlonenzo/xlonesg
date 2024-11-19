@@ -29,6 +29,7 @@ import Materiality from './components/Materiality';
 import Investment from './components/Investment';
 import Compliance from './components/Compliance';
 import SustainabilityReport from './components/SustainabilityReport';
+import PortfolioODS from './components/PortfolioODS';
 
 // Importar dados e estilos
 import articlesData from './data/articles';
@@ -246,6 +247,13 @@ function App() {
       case '/bonds/sustainability-report':
         return ['admin', 'editor'].includes(userRole) ? (
           <SustainabilityReport 
+            sidebarColor={customization.sidebar_color} 
+            buttonColor={customization.button_color} 
+          />
+        ) : <UnauthorizedAccess />;
+      case '/bonds/portfolio-ods':
+        return ['admin', 'editor'].includes(userRole) ? (
+          <PortfolioODS 
             sidebarColor={customization.sidebar_color} 
             buttonColor={customization.button_color} 
           />

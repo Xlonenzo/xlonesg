@@ -55,9 +55,13 @@ const menuItemsData = [
     subItems: [
       { name: 'Lista de Títulos', icon: <FileText size={20} />, path: '/bonds/list' },
       { name: 'Relacionar Projetos', icon: <Link size={20} />, path: '/bonds/relationships' },
+      { name: 'Portfólio ODS', icon: <Target size={20} />, path: '/bonds/portfolio-ods' },
     ]
   }, 
-  { name: 'Relatório ESG', icon: <LineChart size={20} />, path: '/bonds/sustainability-report' },
+  { name: 'Relatório ESG', icon: <LineChart size={20} />, path: '/bonds/sustainability-report', subItems: [
+    { name: 'Relatório de Sustentabilidade', icon: <FileText size={20} />, path: '/bonds/sustainability-report' },
+    { name: 'Relacionar Projetos', icon: <Link size={20} />, path: '/bonds/relationships' },
+  ] },
   { 
     name: 'Rastreador ESG', 
     icon: <Target size={20} />, 
