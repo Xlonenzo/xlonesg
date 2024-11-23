@@ -1,14 +1,14 @@
 # models.py
 from sqlalchemy import (
     Column, Integer, String, Float, Text, Boolean, Date, 
-    ForeignKey, ARRAY, Enum, UniqueConstraint, DateTime as SQLDateTime, Table, PrimaryKeyConstraint
+    ForeignKey, ARRAY, Enum, UniqueConstraint, DateTime as SQLDateTime, Table, PrimaryKeyConstraint, Index
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.types import DateTime
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, ForeignKey, CheckConstraint
 
 from sqlalchemy import Column, Integer, String, Float, Text, Boolean, Date, ForeignKey, ARRAY, Enum, UniqueConstraint
@@ -38,7 +38,7 @@ class KPI(Base):
     cnpj = Column(String)
     kpicode = Column(String, unique=True, index=True)
     company_category = Column(String)  # Novo campo adicionado
-    isfavorite = Column(Boolean, default=False)  # Novo campo adicionado
+    isfavorite = Column(Boolean, default=False)  # Novo campo
     compliance = Column(ARRAY(String))  # Novo campo
 
 
@@ -446,3 +446,20 @@ class BondProjectRelation(Base):
     # Relacionamentos
     bond = relationship("Bond", back_populates="project_relations")
     project = relationship("ProjectTracking", back_populates="bond_relations")
+
+class GenericDocument(Base):
+    __tablename__ = "generic_documents"
+    __table_args__ = {'schema': 'xlonesg'}  # Especificar o schema
+
+    id = Column(Integer, primary_key=True, index=True)
+    entity_name = Column(String)
+    entity_id = Column(Integer)
+    filename = Column(String)
+    original_filename = Column(String)
+    file_type = Column(String)
+    file_size = Column(Integer)
+    mime_type = Column(String)
+    description = Column(String, nullable=True)
+    uploaded_by = Column(String(255), nullable=False, server_default='sistema')  # Alterado para String
+    upload_date = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), nullable=True)

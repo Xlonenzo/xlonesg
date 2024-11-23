@@ -15,7 +15,7 @@ from pydantic import BaseModel
 import logging
 from datetime import date, datetime, timezone
 import traceback
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse, FileResponse
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader
@@ -36,6 +36,7 @@ import httpx  # Substitua axios por httpx
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.callbacks import AsyncIteratorCallbackHandler
 import asyncio
+import aiofiles  # Adicionar esta linha no início do arquivo com as outras importações
 
 from . import models, schemas  # Certifique-se de que o caminho está correto
 from .database import SessionLocal, engine
@@ -1146,77 +1147,101 @@ embeddings = OpenAIEmbeddings(
 )
 
 # Rota para upload de documentos com processamento
-@app.post("/api/documents/upload")
+@app.post("/api/generic-documents", response_model=schemas.GenericDocumentResponse)
 async def upload_document(
     file: UploadFile = File(...),
-    title: str = Form(...),
+    entity_name: str = Form(...),
+    entity_id: str = Form(...),
+    description: Optional[str] = Form(None),
+    uploaded_by: str = Form('sistema'),
     db: Session = Depends(get_db)
 ):
-    file_path = None
+    """Upload de novo documento"""
     try:
-        # Verificar extensão do arquivo
-        file_ext = os.path.splitext(file.filename)[1]
-        file_type = file_ext.replace('.', '') if file_ext else ''
+        logger.info(f"Iniciando upload para {entity_name} {entity_id}")
         
-        if file_type.lower() not in ['pdf', 'txt', 'docx']:
+        # Validar entity_id
+        try:
+            entity_id_int = int(entity_id)
+        except ValueError:
             raise HTTPException(
                 status_code=400,
-                detail=f"Tipo de arquivo não suportado: {file_type}"
-            )  # <-- Adicionado o parêntese de fechamento
-            
+                detail="entity_id deve ser um número inteiro"
+            )
+
+        # Validar extensão do arquivo
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        ALLOWED_EXTENSIONS = {'.pdf', '.doc', '.docx', '.xls', '.xlsx'}
+        
+        if file_ext not in ALLOWED_EXTENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Tipo de arquivo não permitido. Permitidos: {', '.join(ALLOWED_EXTENSIONS)}"
+            )
+
         # Gerar nome único para o arquivo
-        unique_filename = f"{uuid4()}{file_ext}"
-        file_path = os.path.join(UPLOAD_DIR, unique_filename)
-        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_filename = f"{timestamp}_{entity_name}_{entity_id_int}{file_ext}"
+        file_path = Path(UPLOAD_DIR) / unique_filename
+
+        # Criar diretório se não existir
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+
         # Salvar arquivo
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        
-        # Processar documento e gerar embeddings
-        if file_type.lower() in ['pdf', 'txt', 'docx']:
-            # Processamento específico para cada tipo de arquivo
-            # ... resto do código de processamento ...
-            
-            return {
-                "message": "Documento processado com sucesso",
-                "document_id": document.id
-            }
-        else:
-            raise ValueError(f"Tipo de arquivo não suportado: {file_type}")
-            
+        try:
+            async with aiofiles.open(file_path, 'wb') as buffer:
+                content = await file.read()
+                await buffer.write(content)
+        except Exception as e:
+            logger.error(f"Erro ao salvar arquivo: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro ao salvar arquivo: {str(e)}"
+            )
+
+        try:
+            # Criar registro no banco
+            document = models.GenericDocument(
+                entity_name=entity_name,
+                entity_id=entity_id_int,
+                filename=unique_filename,
+                original_filename=file.filename,
+                file_type=file_ext.lstrip('.'),
+                file_size=os.path.getsize(file_path),
+                mime_type=file.content_type,
+                description=description,
+                uploaded_by=uploaded_by,
+                upload_date=datetime.now(timezone.utc)
+            )
+
+            db.add(document)
+            db.commit()
+            db.refresh(document)
+
+            logger.info(f"Documento {document.id} salvo com sucesso")
+            return document
+
+        except SQLAlchemyError as db_error:
+            # Se falhar no banco, remover o arquivo
+            if file_path.exists():
+                file_path.unlink()
+            logger.error(f"Erro no banco de dados: {str(db_error)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro ao salvar no banco de dados: {str(db_error)}"
+            )
+
+    except HTTPException as he:
+        raise he
     except Exception as e:
-        if file_path and os.path.exists(file_path):
-            os.remove(file_path)
-        logger.error(f"Erro no upload: {str(e)}")
+        # Limpar arquivo se existir
+        if 'file_path' in locals() and file_path.exists():
+            file_path.unlink()
+        logger.error(f"Erro inesperado no upload: {str(e)}")
+        logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=500,
-            detail=f"Erro no processamento do documento: {str(e)}"  # Comentário movido para fora da f-string
-        )
-    except SQLAlchemyError as e:
-        logger.error(f"Erro de banco de dados: {str(e)}")
-        if file_path and os.path.exists(file_path):
-            os.remove(file_path)
-        raise HTTPException(
-            status_code=500,
-            detail="Erro ao salvar documento no banco de dados"
-        )
-        
-    except IOError as e:
-        logger.error(f"Erro de I/O: {str(e)}")
-        if file_path and os.path.exists(file_path):
-            os.remove(file_path)
-        raise HTTPException(
-            status_code=500,
-            detail="Erro ao processar arquivo"
-        )
-        
-    except Exception as e:
-        logger.error(f"Erro inesperado: {str(e)}")
-        if file_path and os.path.exists(file_path):
-            os.remove(file_path)
-        raise HTTPException(
-            status_code=500,
-            detail="Erro interno do servidor"
+            detail=f"Erro inesperado: {str(e)}"
         )
 
 @app.get("/api/documents/search")
@@ -1288,12 +1313,56 @@ async def list_documents(db: Session = Depends(get_db)):
     return documents
 
 # Rota para download de documentos
-@app.get("/api/documents/{document_id}/download")
-async def download_document(document_id: int, db: Session = Depends(get_db)):
-    document = db.query(models.Document).filter(models.Document.id == document_id).first()
-    if not document:
-        raise HTTPException(status_code=404, detail="Documento não encontrado")
-    return FileResponse(document.file_path)
+@app.get("/api/generic-documents/download/{document_id}")
+async def download_document(
+    document_id: int,
+    db: Session = Depends(get_db)
+):
+    """Download de um documento específico"""
+    try:
+        # Buscar documento no banco
+        document = db.query(models.GenericDocument).filter(
+            models.GenericDocument.id == document_id
+        ).first()
+        
+        if not document:
+            raise HTTPException(status_code=404, detail="Documento não encontrado")
+        
+        # Construir caminho do arquivo
+        file_path = Path(UPLOAD_DIR) / document.filename
+        
+        # Verificar se arquivo existe
+        if not file_path.exists():
+            logger.error(f"Arquivo não encontrado: {file_path}")
+            raise HTTPException(
+                status_code=404, 
+                detail="Arquivo não encontrado no servidor"
+            )
+        
+        # Determinar o tipo MIME
+        mime_type = document.mime_type or 'application/octet-stream'
+        
+        # Log do download
+        logger.info(f"Iniciando download do documento {document_id}: {document.original_filename}")
+        
+        return FileResponse(
+            path=str(file_path),  # Converter Path para string
+            filename=document.original_filename,
+            media_type=mime_type,
+            headers={
+                "Content-Disposition": f"attachment; filename={document.original_filename}"
+            }
+        )
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Erro ao fazer download do documento {document_id}: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao fazer download do documento: {str(e)}"
+        )
 
 def validate_file(file: UploadFile) -> bool:
     # Lista de extensões permitidas
@@ -2494,7 +2563,43 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
+@app.get("/api/generic-documents/{entity_name}/{entity_id}", response_model=List[schemas.GenericDocumentResponse])
+async def list_entity_documents(
+    entity_name: str,
+    entity_id: int,
+    db: Session = Depends(get_db)
+):
+    """Lista todos os documentos de uma entidade específica"""
+    documents = db.query(models.GenericDocument).filter(
+        models.GenericDocument.entity_name == entity_name,
+        models.GenericDocument.entity_id == entity_id
+    ).order_by(models.GenericDocument.upload_date.desc()).all()
+    
+    return documents
 
+@app.delete("/api/generic-documents/{document_id}")
+async def delete_document(document_id: int, db: Session = Depends(get_db)):
+    """Remove um documento"""
+    document = db.query(models.GenericDocument).filter(
+        models.GenericDocument.id == document_id
+    ).first()
+    
+    if not document:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+    
+    # Remover arquivo físico
+    file_path = Path("uploads") / document.filename
+    try:
+        if file_path.exists():
+            file_path.unlink()
+    except Exception as e:
+        logger.error(f"Erro ao remover arquivo: {str(e)}")
+    
+    # Remover registro do banco
+    db.delete(document)
+    db.commit()
+    
+    return {"message": "Documento removido com sucesso"}
 
 
 

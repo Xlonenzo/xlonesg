@@ -717,3 +717,20 @@ class BaseResponse(BaseModel):
     message: str
     data: Optional[dict] = None
     error: Optional[str] = None
+
+
+class GenericDocumentResponse(BaseModel):
+    id: int
+    entity_name: str
+    entity_id: int
+    filename: str
+    original_filename: str
+    file_type: str
+    file_size: int
+    mime_type: Optional[str]
+    description: Optional[str]
+    upload_date: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True

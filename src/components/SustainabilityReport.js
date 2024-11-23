@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { FaSearch, FaFileAlt, FaUpload } from 'react-icons/fa';
+import { FaSearch, FaFileAlt, FaUpload, FaFolder, FaDownload, FaTrash } from 'react-icons/fa';
 import { API_URL } from '../config';
 
 function SustainabilityReport({ sidebarColor, buttonColor }) {
@@ -11,6 +11,11 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [report, setReport] = useState('');
+  const fileInputRef = useRef(null);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [showDocumentsModal, setShowDocumentsModal] = useState(false);
+  const [currentDocuments, setCurrentDocuments] = useState([]);
+  const [selectedBond, setSelectedBond] = useState(null);
 
   const fetchBonds = useCallback(async () => {
     try {
@@ -86,11 +91,187 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
 
   const handleUploadDocument = async (bond) => {
     try {
-      console.log('Upload para o título:', bond.name);
-      // TODO: Implementar lógica de upload
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.pdf,.doc,.docx,.xls,.xlsx';
+      
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('entity_name', 'bonds');
+        formData.append('entity_id', bond.id.toString());
+        formData.append('description', `Documento para o título ${bond.name}`);
+        formData.append('uploaded_by', localStorage.getItem('username') || 'sistema');
+
+        setUploadStatus('Enviando documento...');
+
+        await axios.post(`${API_URL}/generic-documents`, formData, {
+          headers: { 
+            'Content-Type': 'multipart/form-data',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`  // Se estiver usando token
+          },
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
+            setUploadStatus(`Enviando... ${percentCompleted}%`);
+          }
+        });
+
+        setUploadStatus('Documento enviado com sucesso!');
+        if (showDocumentsModal) {
+          await fetchDocuments('bonds', bond.id);
+        }
+        setTimeout(() => setUploadStatus(''), 3000);
+      };
+
+      input.click();
     } catch (error) {
-      console.error('Erro ao iniciar upload:', error);
+      console.error('Erro ao fazer upload:', error);
+      const errorMessage = error.response?.data?.detail || 'Erro ao enviar documento. Tente novamente.';
+      setUploadStatus(errorMessage);
+      setTimeout(() => setUploadStatus(''), 3000);
     }
+  };
+
+  const fetchDocuments = async (entityName, entityId) => {
+    try {
+      const response = await axios.get(
+        `${API_URL}/generic-documents/${entityName}/${entityId}`
+      );
+      setCurrentDocuments(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar documentos:', error);
+      setError('Falha ao carregar os documentos. Por favor, tente novamente.');
+    }
+  };
+
+  const handleDownload = async (documentId, filename) => {
+    try {
+      setUploadStatus('Iniciando download...');
+
+      const response = await axios.get(
+        `${API_URL}/generic-documents/download/${documentId}`,
+        {
+          responseType: 'blob',
+          onDownloadProgress: (progressEvent) => {
+            if (progressEvent.total) {
+              const percentCompleted = Math.round(
+                (progressEvent.loaded * 100) / progressEvent.total
+              );
+              setUploadStatus(`Baixando... ${percentCompleted}%`);
+            }
+          }
+        }
+      );
+
+      // Criar blob URL
+      const blob = new Blob([response.data], { 
+        type: response.headers['content-type'] 
+      });
+      const url = window.URL.createObjectURL(blob);
+
+      // Criar e clicar no link de download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename || 'documento';  // Usar nome original ou fallback
+      document.body.appendChild(link);
+      link.click();
+
+      // Limpar recursos
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(link);
+      }, 100);
+
+      setUploadStatus('Download concluído com sucesso!');
+      setTimeout(() => setUploadStatus(''), 3000);
+
+    } catch (error) {
+      console.error('Erro ao fazer download:', error);
+      const errorMessage = error.response?.data?.detail || 
+                          'Erro ao fazer download do documento';
+      setUploadStatus(`Erro: ${errorMessage}`);
+      setTimeout(() => setUploadStatus(''), 5000);
+    }
+  };
+
+  const handleDeleteDocument = async (documentId) => {
+    if (window.confirm('Tem certeza que deseja excluir este documento?')) {
+      try {
+        await axios.delete(`${API_URL}/generic-documents/${documentId}`);
+        // Atualizar lista de documentos
+        if (selectedBond) {
+          fetchDocuments('bonds', selectedBond.id);
+        }
+      } catch (error) {
+        console.error('Erro ao deletar documento:', error);
+      }
+    }
+  };
+
+  const DocumentsModal = ({ show, onClose, documents, onDownload, onDelete }) => {
+    if (!show) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg w-full max-w-4xl p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">Documentos</h2>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+              ×
+            </button>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tamanho</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data Upload</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {documents.map((doc) => (
+                  <tr key={doc.id}>
+                    <td className="px-6 py-4 whitespace-nowrap">{doc.original_filename}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{doc.file_type}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {(doc.file_size / 1024).toFixed(2)} KB
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {new Date(doc.upload_date).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => onDownload(doc.id, doc.original_filename)}
+                        className="text-blue-600 hover:text-blue-900 mr-3"
+                        title="Download"
+                      >
+                        <FaDownload />
+                      </button>
+                      <button
+                        onClick={() => onDelete(doc.id)}
+                        className="text-red-600 hover:text-red-900"
+                        title="Excluir"
+                      >
+                        <FaTrash />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const filteredBonds = bonds.filter(bond =>
@@ -159,10 +340,21 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
                                         </button>
                                         <button
                                             onClick={() => handleUploadDocument(bond)}
-                                            className="text-green-600 hover:text-green-900"
+                                            className="text-green-600 hover:text-green-900 mr-3"
                                             title="Adicionar Documentos"
                                         >
                                             <FaUpload />
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setSelectedBond(bond);
+                                                fetchDocuments('bonds', bond.id);
+                                                setShowDocumentsModal(true);
+                                            }}
+                                            className="text-yellow-600 hover:text-yellow-900"
+                                            title="Ver Documentos"
+                                        >
+                                            <FaFolder />
                                         </button>
                                     </td>
                                 </tr>
@@ -245,10 +437,21 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
                     </button>
                     <button
                       onClick={() => handleUploadDocument(bond)}
-                      className="text-green-600 hover:text-green-900"
+                      className="text-green-600 hover:text-green-900 mr-3"
                       title="Adicionar Documentos"
                     >
                       <FaUpload />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedBond(bond);
+                        fetchDocuments('bonds', bond.id);
+                        setShowDocumentsModal(true);
+                      }}
+                      className="text-yellow-600 hover:text-yellow-900"
+                      title="Ver Documentos"
+                    >
+                      <FaFolder />
                     </button>
                   </td>
                 </tr>
@@ -278,6 +481,23 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
           <pre className="whitespace-pre-wrap">{report}</pre>
         </div>
       )}
+
+      {uploadStatus && (
+        <div className={`fixed bottom-4 right-4 p-4 rounded-lg ${
+          uploadStatus.includes('sucesso') ? 'bg-green-500' : 
+          uploadStatus.includes('Erro') ? 'bg-red-500' : 'bg-blue-500'
+        } text-white`}>
+          {uploadStatus}
+        </div>
+      )}
+
+      <DocumentsModal
+        show={showDocumentsModal}
+        onClose={() => setShowDocumentsModal(false)}
+        documents={currentDocuments}
+        onDownload={handleDownload}
+        onDelete={handleDeleteDocument}
+      />
     </div>
   );
 }
