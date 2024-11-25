@@ -30,6 +30,8 @@ import Investment from './components/Investment';
 import Compliance from './components/Compliance';
 import SustainabilityReport from './components/SustainabilityReport';
 import PortfolioODS from './components/PortfolioODS';
+import EnvironmentalDocuments from './components/EnvironmentalDocuments';
+import EnvironmentalImpactStudy from './components/EnvironmentalImpactStudy';
 
 // Importar dados e estilos
 import articlesData from './data/articles';
@@ -258,6 +260,15 @@ function App() {
             buttonColor={customization.button_color} 
           />
         ) : <UnauthorizedAccess />;
+      case '/esg-tracker/environmental-documents':
+        return <EnvironmentalDocuments />;
+      case '/esg-tracker/environmental-impact':
+        return ['admin', 'editor'].includes(userRole) ? (
+          <EnvironmentalImpactStudy 
+            sidebarColor={customization.sidebar_color} 
+            buttonColor={customization.button_color} 
+          />
+        ) : <UnauthorizedAccess />;
       default:
         return <div>Selecione uma opção do menu</div>;
     }
@@ -302,9 +313,7 @@ function App() {
           />
 
           <main className="flex-1 overflow-y-auto p-8">
-            <h1 className="text-2xl font-bold mb-6" style={{ color: customization.font_color }}>
-              Dashboard ESG
-            </h1>
+          
             {renderContent()}
           </main>
         </div>

@@ -68,6 +68,8 @@ const menuItemsData = [
     path: '/esg-tracker',
     subItems: [
       { name: 'Projetos ESG', icon: <TreePine size={20} />, path: '/esg-tracker/projects' },
+      { name: 'Documentos Ambientais', icon: <FileText size={20} />, path: '/esg-tracker/environmental-documents' },
+      { name: 'Impacto Ambiental', icon: <Leaf size={20} />, path: '/esg-tracker/environmental-impact' },
       { name: 'Dados de Emissão', icon: <Leaf size={20} />, path: '/esg-tracker/emissions' },
       { name: 'Fornecedores', icon: <TruckIcon size={20} />, path: '/esg-tracker/suppliers' },
       { name: 'Materialidade', icon: <BarChart2 size={20} />, path: '/esg-tracker/materiality' },

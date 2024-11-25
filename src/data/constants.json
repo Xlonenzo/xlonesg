@@ -1,0 +1,67 @@
+{
+  "documentTypes": [
+    "EIA - Estudo de Impacto Ambiental",
+    "RIMA - Relatório de Impacto Ambiental",
+    "RAP - Relatório Ambiental Preliminar",
+    "PBA - Projeto Básico Ambiental",
+    "RCA - Relatório de Controle Ambiental",
+    "PCA - Plano de Controle Ambiental",
+    "Manual"
+  ],
+  "documentSubtypes": [
+    "Diagnóstico Ambiental",
+    "Análise de Impactos",
+    "Medidas Mitigadoras",
+    "Programas Ambientais",
+    "Relatório de Monitoramento",
+    "Complementação Técnica"
+  ],
+  "thematicAreas": [
+    "Biodiversidade",
+    "Energia Renovável",
+    "Energia",
+    "Mineração",
+    "Infraestrutura",
+    "Indústria",
+    "Saneamento",
+    "Agricultura",
+    "Urbanização",
+    "Mudanças Climáticas",
+    "Recursos Hídricos",
+    "Resíduos"
+  ],
+  "documentStatuses": [
+    "Em Elaboração",
+    "Em Análise",
+    "Aprovado",
+    "Aprovado com Condicionantes",
+    "Em Complementação",
+    "Arquivado"
+  ],
+  "languages": [
+    "Português",
+    "Inglês",
+    "Espanhol",
+    "Português/Inglês"
+  ],
+  "documentFormats": [
+    "PDF",
+    "DOC",
+    "DOCX",
+    "XLS",
+    "XLSX"
+  ],
+  "accessibilityLevels": [
+    "Público",
+    "Restrito",
+    "Confidencial"
+  ],
+  "signatureAuthentication": [
+    "Assinatura Digital",
+    "Certificado Digital",
+    "Token",
+    "Biometria",
+    "Duplo Fator",
+    "Sem Autenticação"
+  ]
+} 

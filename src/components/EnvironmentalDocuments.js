@@ -1,0 +1,641 @@
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { Plus, Search, Edit2, Trash2, Filter as FaFilter } from 'lucide-react';
+import { API_URL } from '../config';
+import constants from '../data/constants.json';
+
+function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
+  const [documents, setDocuments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingDocument, setEditingDocument] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [documentsPerPage] = useState(10);
+  const [filters, setFilters] = useState({
+    document_type: '',
+    document_status: '',
+    thematic_area: ''
+  });
+
+  const [newDocument, setNewDocument] = useState({
+    title: '',
+    description: '',
+    document_type: '',
+    document_subtype: '',
+    thematic_area: '',
+    document_status: '',
+    validity_period: '',
+    language: '',
+    document_format: '',
+    creation_date: new Date().toISOString().split('T')[0],
+    last_modification_date: new Date().toISOString().split('T')[0],
+    latitude: '',
+    longitude: '',
+    accessibility: '',
+    executive_summary: '',
+    notes: '',
+    signature_authentication: '',
+    legal_notice: ''
+  });
+
+  // Buscar documentos
+  const fetchDocuments = async () => {
+    try {
+      setIsLoading(true);
+      const response = await axios.get(`${API_URL}/environmental-documents`);
+      setDocuments(response.data);
+      setError(null);
+    } catch (err) {
+      console.error('Erro ao buscar documentos:', err);
+      setError('Falha ao carregar os documentos. Por favor, tente novamente.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDocuments();
+  }, []);
+
+  // Handlers
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewDocument(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingDocument) {
+        await axios.put(`${API_URL}/environmental-documents/${editingDocument.id}`, newDocument);
+        alert('Documento atualizado com sucesso!');
+      } else {
+        await axios.post(`${API_URL}/environmental-documents`, newDocument);
+        alert('Novo documento adicionado com sucesso!');
+      }
+      fetchDocuments();
+      setIsFormOpen(false);
+      setEditingDocument(null);
+      setNewDocument({
+        title: '',
+        description: '',
+        document_type: '',
+        document_subtype: '',
+        thematic_area: '',
+        document_status: '',
+        validity_period: '',
+        language: '',
+        document_format: '',
+        creation_date: new Date().toISOString().split('T')[0],
+        last_modification_date: new Date().toISOString().split('T')[0],
+        latitude: '',
+        longitude: '',
+        accessibility: '',
+        executive_summary: '',
+        notes: '',
+        signature_authentication: '',
+        legal_notice: ''
+      });
+    } catch (error) {
+      console.error('Erro ao salvar documento:', error);
+      alert('Erro ao salvar documento. Por favor, tente novamente.');
+    }
+  };
+
+  const handleEdit = (document) => {
+    setEditingDocument(document);
+    setNewDocument({
+      ...document,
+      creation_date: document.creation_date.split('T')[0],
+      last_modification_date: document.last_modification_date?.split('T')[0] || ''
+    });
+    setIsFormOpen(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Tem certeza que deseja excluir este documento?')) {
+      try {
+        await axios.delete(`${API_URL}/environmental-documents/${id}`);
+        fetchDocuments();
+        alert('Documento excluído com sucesso!');
+      } catch (error) {
+        console.error('Erro ao excluir documento:', error);
+        alert('Erro ao excluir documento. Por favor, tente novamente.');
+      }
+    }
+  };
+
+  // Filtros e paginação
+  const filteredDocuments = documents.filter(doc => {
+    const matchesSearch = 
+      doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      doc.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesFilters = 
+      (!filters.document_type || doc.document_type === filters.document_type) &&
+      (!filters.document_status || doc.document_status === filters.document_status) &&
+      (!filters.thematic_area || doc.thematic_area === filters.thematic_area);
+
+    return matchesSearch && matchesFilters;
+  });
+
+  const indexOfLastDocument = currentPage * documentsPerPage;
+  const indexOfFirstDocument = indexOfLastDocument - documentsPerPage;
+  const currentDocuments = filteredDocuments.slice(indexOfFirstDocument, indexOfLastDocument);
+  const totalPages = Math.ceil(filteredDocuments.length / documentsPerPage);
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Estilo comum para campos de texto truncado
+  const truncatedInputClass = "w-full p-2 border rounded overflow-hidden text-ellipsis whitespace-nowrap";
+
+  // Atualizar o estilo para textareas
+  const textareaClass = "w-full p-2 border rounded h-32 resize-none"; // h-32 equivale a 8rem, bom para 6 linhas
+
+  if (isLoading) return <div className="flex justify-center items-center h-full">Carregando...</div>;
+  if (error) return <div className="text-red-500 text-center">{error}</div>;
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Gerenciamento de Documentos Ambientais</h1>
+      
+      {/* Cabeçalho com botões e pesquisa */}
+      <div className="flex justify-between items-center mb-6">
+        <button 
+          onClick={() => {
+            setIsFormOpen(!isFormOpen);
+            if (isFormOpen) {
+              setEditingDocument(null);
+              setNewDocument({
+                title: '',
+                description: '',
+                document_type: '',
+                document_subtype: '',
+                thematic_area: '',
+                document_status: '',
+                validity_period: '',
+                language: '',
+                document_format: '',
+                creation_date: new Date().toISOString().split('T')[0],
+                last_modification_date: new Date().toISOString().split('T')[0],
+                latitude: '',
+                longitude: '',
+                accessibility: '',
+                executive_summary: '',
+                notes: '',
+                signature_authentication: '',
+                legal_notice: ''
+              });
+            }
+          }}
+          className={`flex items-center px-4 py-2 rounded text-white hover:opacity-80`}
+          style={{ backgroundColor: buttonColor || '#4F46E5' }}
+        >
+          <Plus size={20} className="mr-2" />
+          {isFormOpen ? 'Cancelar' : 'Adicionar Novo Documento'}
+        </button>
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Pesquisar documentos..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="p-2 pl-8 border rounded"
+          />
+          <Search className="absolute left-2 top-3 text-gray-400" size={16} />
+        </div>
+      </div>
+
+      {/* Formulário */}
+      {isFormOpen && (
+        <div className="mt-4 p-4 bg-gray-100 rounded">
+          <h3 className="text-lg font-bold mb-2">
+            {editingDocument ? 'Editar Documento' : 'Adicionar Novo Documento'}
+          </h3>
+          <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
+            {/* Título */}
+            <div>
+              <label className="block mb-2">Título *</label>
+              <input
+                type="text"
+                name="title"
+                value={newDocument.title}
+                onChange={handleInputChange}
+                required
+                maxLength="512"
+                className={truncatedInputClass}
+                title={newDocument.title} // Tooltip com texto completo
+              />
+            </div>
+
+            {/* Tipo de Documento - usando constants */}
+            <div>
+              <label className="block mb-2">Tipo de Documento</label>
+              <select
+                name="document_type"
+                value={newDocument.document_type}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+              >
+                <option value="">Selecione...</option>
+                {constants.documentTypes.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Subtipo de Documento - usando constants */}
+            <div>
+              <label className="block mb-2">Subtipo de Documento</label>
+              <select
+                name="document_subtype"
+                value={newDocument.document_subtype}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+              >
+                <option value="">Selecione...</option>
+                {constants.documentSubtypes.map(subtype => (
+                  <option key={subtype} value={subtype}>{subtype}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Área Temática - usando constants */}
+            <div>
+              <label className="block mb-2">Área Temática</label>
+              <select
+                name="thematic_area"
+                value={newDocument.thematic_area}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+              >
+                <option value="">Selecione...</option>
+                {constants.thematicAreas.map(area => (
+                  <option key={area} value={area}>{area}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Status do Documento - usando constants */}
+            <div>
+              <label className="block mb-2">Status do Documento</label>
+              <select
+                name="document_status"
+                value={newDocument.document_status}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+              >
+                <option value="">Selecione...</option>
+                {constants.documentStatuses.map(status => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Período de Validade */}
+            <div>
+              <label className="block mb-2">Período de Validade</label>
+              <input
+                type="text"
+                name="validity_period"
+                value={newDocument.validity_period}
+                onChange={handleInputChange}
+                maxLength="512"
+                className={truncatedInputClass}
+                title={newDocument.validity_period}
+              />
+            </div>
+
+            {/* Idioma - usando constants */}
+            <div>
+              <label className="block mb-2">Idioma</label>
+              <select
+                name="language"
+                value={newDocument.language}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+              >
+                <option value="">Selecione...</option>
+                {constants.languages.map(lang => (
+                  <option key={lang} value={lang}>{lang}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Formato do Documento - usando constants */}
+            <div>
+              <label className="block mb-2">Formato do Documento</label>
+              <select
+                name="document_format"
+                value={newDocument.document_format}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+              >
+                <option value="">Selecione...</option>
+                {constants.documentFormats.map(format => (
+                  <option key={format} value={format}>{format}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Data de Criação */}
+            <div>
+              <label className="block mb-2">Data de Criação</label>
+              <input
+                type="date"
+                name="creation_date"
+                value={newDocument.creation_date}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+              />
+            </div>
+
+            {/* Data da Última Modificação */}
+            <div>
+              <label className="block mb-2">Data da Última Modificação</label>
+              <input
+                type="date"
+                name="last_modification_date"
+                value={newDocument.last_modification_date}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+              />
+            </div>
+
+            {/* Latitude */}
+            <div>
+              <label className="block mb-2">Latitude</label>
+              <input
+                type="number"
+                step="0.000001"
+                name="latitude"
+                value={newDocument.latitude}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+                placeholder="Ex: -23.550520"
+              />
+            </div>
+
+            {/* Longitude */}
+            <div>
+              <label className="block mb-2">Longitude</label>
+              <input
+                type="number"
+                step="0.000001"
+                name="longitude"
+                value={newDocument.longitude}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+                placeholder="Ex: -46.633308"
+              />
+            </div>
+
+            {/* Acessibilidade - usando constants */}
+            <div>
+              <label className="block mb-2">Acessibilidade</label>
+              <select
+                name="accessibility"
+                value={newDocument.accessibility}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+              >
+                <option value="">Selecione...</option>
+                {constants.accessibilityLevels.map(level => (
+                  <option key={level} value={level}>{level}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Descrição */}
+            <div className="col-span-2">
+              <label className="block mb-2">Descrição</label>
+              <textarea
+                name="description"
+                value={newDocument.description}
+                onChange={handleInputChange}
+                maxLength="512"
+                className={textareaClass}
+                rows="6"
+                placeholder="Descreva o documento..."
+              />
+              <span className="text-xs text-gray-500">
+                {newDocument.description.length}/512 caracteres
+              </span>
+            </div>
+
+            {/* Resumo Executivo */}
+            <div className="col-span-2">
+              <label className="block mb-2">Resumo Executivo</label>
+              <textarea
+                name="executive_summary"
+                value={newDocument.executive_summary}
+                onChange={handleInputChange}
+                maxLength="512"
+                className={textareaClass}
+                rows="6"
+                placeholder="Digite o resumo executivo..."
+              />
+              <span className="text-xs text-gray-500">
+                {newDocument.executive_summary.length}/512 caracteres
+              </span>
+            </div>
+
+            {/* Notas */}
+            <div className="col-span-2">
+              <label className="block mb-2">Notas</label>
+              <textarea
+                name="notes"
+                value={newDocument.notes}
+                onChange={handleInputChange}
+                maxLength="512"
+                className={textareaClass}
+                rows="6"
+                placeholder="Adicione notas relevantes..."
+              />
+              <span className="text-xs text-gray-500">
+                {newDocument.notes.length}/512 caracteres
+              </span>
+            </div>
+
+            {/* Autenticação de Assinatura */}
+            <div>
+              <label className="block mb-2">Autenticação de Assinatura</label>
+              <select
+                name="signature_authentication"
+                value={newDocument.signature_authentication}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+              >
+                <option value="">Selecione...</option>
+                {constants.signatureAuthentication.map(auth => (
+                  <option key={auth} value={auth}>{auth}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Aviso Legal */}
+            <div className="col-span-2">
+              <label className="block mb-2">Aviso Legal</label>
+              <textarea
+                name="legal_notice"
+                value={newDocument.legal_notice}
+                onChange={handleInputChange}
+                maxLength="512"
+                className={textareaClass}
+                rows="6"
+                placeholder="Digite o aviso legal..."
+              />
+              <span className="text-xs text-gray-500">
+                {newDocument.legal_notice.length}/512 caracteres
+              </span>
+            </div>
+
+            {/* Botões de ação */}
+            <div className="col-span-2 mt-4 space-x-2">
+              <button
+                type="submit"
+                className="text-white px-4 py-2 rounded hover:opacity-80"
+                style={{ backgroundColor: buttonColor || '#4F46E5' }}
+              >
+                {editingDocument ? 'Atualizar' : 'Adicionar'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsFormOpen(false);
+                  setEditingDocument(null);
+                  setNewDocument({
+                    title: '',
+                    description: '',
+                    document_type: '',
+                    document_subtype: '',
+                    thematic_area: '',
+                    document_status: '',
+                    validity_period: '',
+                    language: '',
+                    document_format: '',
+                    creation_date: new Date().toISOString().split('T')[0],
+                    last_modification_date: new Date().toISOString().split('T')[0],
+                    latitude: '',
+                    longitude: '',
+                    accessibility: '',
+                    executive_summary: '',
+                    notes: '',
+                    signature_authentication: '',
+                    legal_notice: ''
+                  });
+                }}
+                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Tabela */}
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white border">
+          <thead>
+            <tr>
+              <th className="px-4 py-2 border">Título</th>
+              <th className="px-4 py-2 border">
+                <select
+                  name="document_type"
+                  value={filters.document_type}
+                  onChange={handleFilterChange}
+                  className="w-full p-1 text-sm border rounded"
+                >
+                  <option value="">Todos os tipos</option>
+                  {constants.documentTypes.map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </th>
+              <th className="px-4 py-2 border">
+                <select
+                  name="document_status"
+                  value={filters.document_status}
+                  onChange={handleFilterChange}
+                  className="w-full p-1 text-sm border rounded"
+                >
+                  <option value="">Todos os status</option>
+                  {constants.documentStatuses.map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+              </th>
+              <th className="px-4 py-2 border">Data de Criação</th>
+              <th className="px-4 py-2 border">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {currentDocuments.map(doc => (
+              <tr key={doc.id} className="hover:bg-gray-50">
+                <td className="px-4 py-2 border">{doc.title}</td>
+                <td className="px-4 py-2 border">{doc.document_type}</td>
+                <td className="px-4 py-2 border">
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                    ${doc.document_status === 'Ativo' ? 'bg-green-100 text-green-800' : 
+                    doc.document_status === 'Em Revisão' ? 'bg-yellow-100 text-yellow-800' : 
+                    'bg-gray-100 text-gray-800'}`}>
+                    {doc.document_status}
+                  </span>
+                </td>
+                <td className="px-4 py-2 border">
+                  {new Date(doc.creation_date).toLocaleDateString()}
+                </td>
+                <td className="px-4 py-2 border">
+                  <button
+                    onClick={() => handleEdit(doc)}
+                    className="text-blue-500 hover:text-blue-700 mr-2"
+                  >
+                    <Edit2 size={18} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(doc.id)}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Paginação */}
+      <div className="flex justify-center mt-4">
+        {Array.from({ length: totalPages }, (_, i) => (
+          <button
+            key={i}
+            onClick={() => setCurrentPage(i + 1)}
+            className={`mx-1 px-3 py-1 rounded ${
+              currentPage === i + 1 
+                ? 'text-white hover:opacity-80'
+                : 'bg-gray-200 hover:bg-gray-300'
+            }`}
+            style={currentPage === i + 1 ? { backgroundColor: buttonColor } : {}}
+          >
+            {i + 1}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default EnvironmentalDocuments; 

@@ -734,3 +734,67 @@ class GenericDocumentResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class EnvironmentalDocumentBase(BaseModel):
+    title: str
+    description: Optional[str] = None
+    document_type: Optional[str] = None
+    document_subtype: Optional[str] = None
+    thematic_area: Optional[str] = None
+    document_status: Optional[str] = None
+    validity_period: Optional[str] = None
+    language: Optional[str] = None
+    document_format: Optional[str] = None
+    creation_date: Optional[date] = None
+    last_modification_date: Optional[date] = None
+    latitude: Optional[Decimal] = None
+    longitude: Optional[Decimal] = None
+    accessibility: Optional[str] = None
+    executive_summary: Optional[str] = None
+    notes: Optional[str] = None
+    signature_authentication: Optional[str] = None
+    legal_notice: Optional[str] = None
+
+
+class EnvironmentalDocumentCreate(EnvironmentalDocumentBase):
+    pass
+
+
+class EnvironmentalDocument(EnvironmentalDocumentBase):
+    id: int
+
+    class Config:
+        orm_mode = True
+
+
+# Schema para criação de Estudo de Impacto Ambiental
+class EnvironmentalImpactStudyBase(BaseModel):
+    environmental_documentid: int
+    enterprisename: str
+    projectlocation: str
+    activitydescription: str
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class EnvironmentalImpactStudyCreate(EnvironmentalImpactStudyBase):
+    pass
+
+
+class EnvironmentalImpactStudy(EnvironmentalImpactStudyBase):
+    id: int
+    
+    class Config:
+        from_attributes = True
+
+
+# Schema para resposta incluindo detalhes do documento relacionado
+class EnvironmentalImpactStudyWithDocument(EnvironmentalImpactStudy):
+    environmental_document: Optional['EnvironmentalDocument'] = None
+
+    class Config:
+        from_attributes = True

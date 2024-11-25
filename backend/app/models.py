@@ -463,3 +463,59 @@ class GenericDocument(Base):
     uploaded_by = Column(String(255), nullable=False, server_default='sistema')  # Alterado para String
     upload_date = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), nullable=True)
+
+class EnvironmentalDocument(Base):
+    __tablename__ = "environmental_document"
+    __table_args__ = {'schema': 'xlonesg'}
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    document_type = Column(String(55), nullable=True, name="documenttype")
+    document_subtype = Column(String(55), nullable=True, name="documentsubtype")
+    thematic_area = Column(String(55), nullable=True, name="thematicarea")
+    document_status = Column(String(55), nullable=True, name="documentstatus")
+    validity_period = Column(String(55), nullable=True, name="validityperiod")
+    language = Column(String(55), nullable=True)
+    document_format = Column(String(55), nullable=True, name="documentformat")
+    creation_date = Column(Date, nullable=True, name="creationdate")
+    last_modification_date = Column(Date, nullable=True, name="lastmodificationdate")
+    latitude = Column(Numeric(10, 6), nullable=True)
+    longitude = Column(Numeric(10, 6), nullable=True)
+    accessibility = Column(String(55), nullable=True)
+    executive_summary = Column(Text, nullable=True, name="executivesummary")
+    notes = Column(Text, nullable=True)
+    signature_authentication = Column(String(55), nullable=True, name="signatureauthentication")
+    legal_notice = Column(String(55), nullable=True, name="legalnotice")
+
+    # Adicionar esta linha
+    impact_studies = relationship("EnvironmentalImpactStudy", back_populates="environmental_document")
+
+    class Config:
+        orm_mode = True
+
+class EnvironmentalImpactStudy(Base):
+    __tablename__ = "environmental_impact_study"
+    __table_args__ = (
+        Index('idx_eia_env_doc_id', 'environmental_documentid'),
+        Index('idx_eia_project_location', 'projectlocation'),
+        {'schema': 'xlonesg'}
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    environmental_documentid = Column(
+        Integer, 
+        ForeignKey("xlonesg.environmental_document.id"),
+        unique=True
+    )
+    enterprisename = Column(String(255))
+    projectlocation = Column(String(255))
+    activitydescription = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True))
+
+    # Relacionamento com o documento ambiental
+    environmental_document = relationship(
+        "EnvironmentalDocument",
+        foreign_keys=[environmental_documentid]
+    )

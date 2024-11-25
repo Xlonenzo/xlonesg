@@ -448,8 +448,7 @@ def update_company(company_id: int, company: schemas.CompanyCreate, db: Session 
                 logger.error(f"Traceback completo: {traceback.format_exc()}")
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Erro ao atualizar registros: {str(e)}"
-                )
+                    detail=f"Erro ao atualizar registros: {str(e)}")
         else:
             # Se o CNPJ não mudou, apenas atualiza os outros campos
             for key, value in company.dict(exclude_unset=True).items():
@@ -474,8 +473,7 @@ def update_company(company_id: int, company: schemas.CompanyCreate, db: Session 
         db.rollback()
         raise HTTPException(
             status_code=500,
-            detail=f"Erro interno do servidor: {str(e)}"
-        )
+            detail=f"Erro interno do servidor: {str(e)}")
 
 @app.delete("/api/companies/{company_id}", response_model=schemas.Company)
 def delete_company(company_id: int, db: Session = Depends(get_db)):
@@ -611,8 +609,7 @@ def create_kpi_entry(kpi_entry: schemas.KPIEntryCreate, db: Session = Depends(ge
         logger.error(f"Erro ao criar entrada de KPI: {str(e)}")  # Este é um comentário
         raise HTTPException(
             status_code=400,
-            detail=f"Erro ao criar entrada de KPI: {str(e)}"
-        )
+            detail=f"Erro ao criar entrada de KPI: {str(e)}")
 @app.put("/api/kpi-entries/{kpi_entry_id}", response_model=schemas.KPIEntry)
 def update_kpi_entry(kpi_entry_id: int, kpi_entry: schemas.KPIEntryCreate, db: Session = Depends(get_db)):
     try:
@@ -926,8 +923,7 @@ def list_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
         logger.error(traceback.format_exc())  # Log do stack trace completo
         raise HTTPException(
             status_code=500, 
-            detail=f"Erro interno ao buscar usuários: {str(e)}"
-        )
+            detail=f"Erro interno ao buscar usuários: {str(e)}")
 
 @app.get("/api/users/{user_id}", response_model=schemas.User)
 def get_user(
@@ -1196,8 +1192,7 @@ async def upload_document(
             logger.error(f"Erro ao salvar arquivo: {str(e)}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Erro ao salvar arquivo: {str(e)}"
-            )
+                detail=f"Erro ao salvar arquivo: {str(e)}")
 
         try:
             # Criar registro no banco
@@ -1228,8 +1223,7 @@ async def upload_document(
             logger.error(f"Erro no banco de dados: {str(db_error)}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Erro ao salvar no banco de dados: {str(db_error)}"
-            )
+                detail=f"Erro ao salvar no banco de dados: {str(db_error)}")
 
     except HTTPException as he:
         raise he
@@ -1241,8 +1235,7 @@ async def upload_document(
         logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=500,
-            detail=f"Erro inesperado: {str(e)}"
-        )
+            detail=f"Erro inesperado: {str(e)}")
 
 @app.get("/api/documents/search")
 def search_documents_advanced(
@@ -1288,8 +1281,7 @@ def search_documents_advanced(
         logger.error(f"Erro na busca: {str(e)}")
         raise HTTPException(
             status_code=500,
-            detail="Erro ao realizar a busca"
-        )
+            detail="Erro ao realizar a busca")
 
 @app.get("/api/search")
 def search_documents(
@@ -1336,8 +1328,7 @@ async def download_document(
             logger.error(f"Arquivo não encontrado: {file_path}")
             raise HTTPException(
                 status_code=404, 
-                detail="Arquivo não encontrado no servidor"
-            )
+                detail="Arquivo não encontrado no servidor")
         
         # Determinar o tipo MIME
         mime_type = document.mime_type or 'application/octet-stream'
@@ -1361,8 +1352,7 @@ async def download_document(
         logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=500,
-            detail=f"Erro ao fazer download do documento: {str(e)}"
-        )
+            detail=f"Erro ao fazer download do documento: {str(e)}")
 
 def validate_file(file: UploadFile) -> bool:
     # Lista de extensões permitidas
@@ -1373,8 +1363,7 @@ def validate_file(file: UploadFile) -> bool:
     if file_ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
-            detail="Tipo de arquivo não permitido"
-        )
+            detail="Tipo de arquivo não permitido")
     
     # Verificar tamanho (exemplo: máximo 10MB)
     MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB em bytes
@@ -1384,8 +1373,7 @@ def validate_file(file: UploadFile) -> bool:
     if file_size > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=400,
-            detail="Arquivo muito grande (máximo 10MB)"
-        )
+            detail="Arquivo muito grande (máximo 10MB)")
     
     return True
 
@@ -2083,8 +2071,7 @@ def delete_materiality(materiality_id: int, db: Session = Depends(get_db)):
             logger.error(f"Avaliação de materialidade não encontrada: ID {materiality_id}")
             raise HTTPException(
                 status_code=404, 
-                detail=f"Avaliação de materialidade com ID {materiality_id} não encontrada"
-            )
+                detail=f"Avaliação de materialidade com ID {materiality_id} não encontrada")
         
         # Se existe, deletamos
         try:
@@ -2394,15 +2381,13 @@ async def create_relationship(request: Request, db: Session = Depends(get_db)):
         logger.error(f"Erro de validação: {str(e)}")
         raise HTTPException(
             status_code=422,
-            detail="Dados inválidos"
-        )
+            detail="Dados inválidos")
     except Exception as e:
         db.rollback()
         logger.error(f"Erro ao criar relacionamento: {str(e)}")
         raise HTTPException(
             status_code=400,
-            detail=str(e)
-        )
+            detail=str(e))
 
 @app.delete("/api/bonds/relationships/{relation_id}")
 def delete_relationship(relation_id: int, db: Session = Depends(get_db)):
@@ -2600,6 +2585,257 @@ async def delete_document(document_id: int, db: Session = Depends(get_db)):
     db.commit()
     
     return {"message": "Documento removido com sucesso"}
+
+@app.post("/api/environmental-documents", response_model=schemas.EnvironmentalDocument)
+async def create_environmental_document(
+    document: schemas.EnvironmentalDocumentCreate,
+    db: Session = Depends(get_db)
+):
+    try:
+        db_document = models.EnvironmentalDocument(**document.dict())
+        db.add(db_document)
+        db.commit()
+        db.refresh(db_document)
+        return db_document
+    except Exception as e:
+        logger.error(f"Erro ao criar documento ambiental: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/environmental-documents", response_model=List[schemas.EnvironmentalDocument])
+async def list_environmental_documents(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    documents = db.query(models.EnvironmentalDocument)\
+        .order_by(models.EnvironmentalDocument.creation_date.desc())\
+        .offset(skip).limit(limit).all()
+    return documents
+
+@app.get("/api/environmental-documents/{document_id}", response_model=schemas.EnvironmentalDocument)
+async def get_environmental_document(document_id: int, db: Session = Depends(get_db)):
+    document = db.query(models.EnvironmentalDocument)\
+        .filter(models.EnvironmentalDocument.id == document_id).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+    return document
+
+@app.put("/api/environmental-documents/{document_id}", response_model=schemas.EnvironmentalDocument)
+async def update_environmental_document(
+    document_id: int,
+    document: schemas.EnvironmentalDocumentCreate,
+    db: Session = Depends(get_db)
+):
+    db_document = db.query(models.EnvironmentalDocument)\
+        .filter(models.EnvironmentalDocument.id == document_id).first()
+    if not db_document:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+    
+    for key, value in document.dict(exclude_unset=True).items():
+        setattr(db_document, key, value)
+    
+    db.commit()
+    db.refresh(db_document)
+    return db_document
+
+@app.delete("/api/environmental-documents/{document_id}")
+async def delete_environmental_document(document_id: int, db: Session = Depends(get_db)):
+    document = db.query(models.EnvironmentalDocument)\
+        .filter(models.EnvironmentalDocument.id == document_id).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+    
+    db.delete(document)
+    db.commit()
+    return {"message": "Documento deletado com sucesso"}
+
+# Rotas para Estudos de Impacto Ambiental
+@app.post("/api/environmental-impact-studies", response_model=schemas.EnvironmentalImpactStudy)
+async def create_impact_study(study: schemas.EnvironmentalImpactStudyCreate, db: Session = Depends(get_db)):
+    logger.info(f"Criando novo estudo de impacto ambiental: {study.dict()}")
+    try:
+        # Verificar se o documento ambiental existe
+        document = db.query(models.EnvironmentalDocument).filter(
+            models.EnvironmentalDocument.id == study.environmental_documentid  # Corrigido aqui
+        ).first()
+        if not document:
+            raise HTTPException(
+                status_code=404, 
+                detail="Documento ambiental não encontrado"
+            )
+
+        db_study = models.EnvironmentalImpactStudy(**study.dict())
+        db.add(db_study)
+        db.commit()
+        db.refresh(db_study)
+        
+        logger.info(f"Estudo de impacto criado com sucesso: ID {db_study.id}")
+        return db_study
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao criar estudo de impacto: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.get("/api/environmental-impact-studies", response_model=List[schemas.EnvironmentalImpactStudy])
+async def read_impact_studies(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    try:
+        studies = db.query(models.EnvironmentalImpactStudy)\
+            .options(joinedload(models.EnvironmentalImpactStudy.environmental_document))\
+            .offset(skip)\
+            .limit(limit)\
+            .all()
+        return studies
+    except Exception as e:
+        logger.error(f"Erro ao buscar estudos de impacto: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/environmental-impact-studies/{study_id}", response_model=schemas.EnvironmentalImpactStudy)
+async def read_impact_study(study_id: int, db: Session = Depends(get_db)):
+    try:
+        study = db.query(models.EnvironmentalImpactStudy)\
+            .options(joinedload(models.EnvironmentalImpactStudy.environmental_document))\
+            .filter(models.EnvironmentalImpactStudy.id == study_id)\
+            .first()
+        if not study:
+            raise HTTPException(status_code=404, detail="Estudo não encontrado")
+        return study
+    except Exception as e:
+        logger.error(f"Erro ao buscar estudo de impacto: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/environmental-impact-studies/{study_id}", response_model=schemas.EnvironmentalImpactStudy)
+async def update_impact_study(
+    study_id: int, 
+    study: schemas.EnvironmentalImpactStudyCreate, 
+    db: Session = Depends(get_db)
+):
+    try:
+        db_study = db.query(models.EnvironmentalImpactStudy)\
+            .filter(models.EnvironmentalImpactStudy.id == study_id)\
+            .first()
+        if not db_study:
+            raise HTTPException(status_code=404, detail="Estudo não encontrado")
+
+        # Verificar se o documento ambiental existe
+        if study.environmental_documentid:
+            document = db.query(models.EnvironmentalDocument)\
+                .filter(models.EnvironmentalDocument.id == study.environmental_documentid)\
+                .first()
+            if not document:
+                raise HTTPException(
+                    status_code=404, 
+                    detail="Documento ambiental não encontrado"
+                )
+
+        # Atualizar os campos
+        for key, value in study.dict().items():
+            setattr(db_study, key, value)
+
+        db_study.updated_at = func.now()  # Atualizar o timestamp
+        db.commit()
+        db.refresh(db_study)
+        return db_study
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao atualizar estudo de impacto: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.delete("/api/environmental-impact-studies/{study_id}")
+async def delete_impact_study(study_id: int, db: Session = Depends(get_db)):
+    try:
+        db_study = db.query(models.EnvironmentalImpactStudy)\
+            .filter(models.EnvironmentalImpactStudy.id == study_id)\
+            .first()
+        if not db_study:
+            raise HTTPException(status_code=404, detail="Estudo não encontrado")
+
+        db.delete(db_study)
+        db.commit()
+        return {"message": "Estudo excluído com sucesso"}
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao excluir estudo de impacto: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+# Adicionar o modelo de request se ainda não existir
+class DescriptionValidationRequest(BaseModel):
+    text: str
+    required_aspects: List[str]  
+
+# Corrigir o caminho do endpoint (note o hífen em vez de underline)
+@app.post("/api/environmental-impact-study/validate-description", tags=["Environmental Impact Study"])
+async def validate_environmental_impact_study_description(
+    request: DescriptionValidationRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Valida a descrição de um estudo de impacto ambiental usando LLM.
+    """
+    try:
+        logger.info("=== Iniciando validação de descrição de estudo de impacto ===")
+        logger.info(f"Texto para análise: {request.text[:100]}...")
+        
+        prompt = f"""
+        Como especialista em análise de documentação ambiental, avalie a seguinte descrição 
+        de atividade e verifique se ela contém informações adequadas sobre todos os aspectos requeridos.
+        
+        Descrição a ser analisada:
+        {request.text}
+        
+        Aspectos que devem estar presentes na descrição:
+        {', '.join(request.required_aspects)}
+        
+        Por favor, analise o texto e forneça:
+        1. Se cada aspecto está presente ou ausente
+        2. Para aspectos presentes, indique onde no texto a informação foi encontrada
+        3. Para aspectos ausentes, sugira o que deveria ser incluído
+        
+        Responda em formato JSON com a seguinte estrutura:
+        {{
+            "isValid": boolean,
+            "missingAspects": ["aspecto1", "aspecto2"],
+            "analysis": {{
+                "aspecto1": {{
+                    "present": boolean,
+                    "location": "trecho do texto ou null",
+                    "suggestion": "sugestão de melhoria ou null"
+                }}
+            }}
+        }}
+        """
+
+        messages = [
+            SystemMessage(content="Você é um especialista em análise de documentação ambiental, "
+                                "com vasto conhecimento em estudos de impacto ambiental e licenciamento."),
+            HumanMessage(content=prompt)
+        ]
+        
+        response = await chat_model.agenerate([messages])
+        
+        result = json.loads(response.generations[0][0].text)
+        
+        logger.info("=== Resultado da validação ===")
+        logger.info(f"Válido: {result['isValid']}")
+        if not result['isValid']:
+            logger.info(f"Aspectos faltantes: {result['missingAspects']}")
+
+        return result
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Erro ao decodificar resposta do LLM: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail="Erro ao processar resposta da validação"
+        )
+    except Exception as e:
+        logger.error(f"Erro na validação: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Erro ao validar descrição: {str(e)}"
+        )
 
 
 
