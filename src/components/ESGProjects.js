@@ -113,6 +113,18 @@ function ESGProjects({ sidebarColor, buttonColor }) {
     ods16: 0,
     ods17: 0
   });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [projectsPerPage] = useState(10);
+
+  // Lógica de paginação
+  const indexOfLastProject = currentPage * projectsPerPage;
+  const indexOfFirstProject = indexOfLastProject - projectsPerPage;
+  const currentProjects = projects.slice(indexOfFirstProject, indexOfLastProject);
+
+  // Handler para mudança de página
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
 
   useEffect(() => {
     console.log('Estado atual do newProject:', newProject);
@@ -676,14 +688,14 @@ function ESGProjects({ sidebarColor, buttonColor }) {
             </tr>
           </thead>
           <tbody>
-            {projects.length === 0 ? (
+            {currentProjects.length === 0 ? (
               <tr>
                 <td colSpan="12" className="px-4 py-2 text-center border">
                   Nenhum projeto encontrado
                 </td>
               </tr>
             ) : (
-              projects.map((project) => (
+              currentProjects.map((project) => (
                 <tr key={project.id}>
                   <td className="px-4 py-2 border">
                     <div>
@@ -761,6 +773,30 @@ function ESGProjects({ sidebarColor, buttonColor }) {
           </tbody>
         </table>
       </div>
+
+      {/* Paginação */}
+      {!isFormOpen && projects.length > 0 && (
+        <div className="flex justify-center mt-4">
+          {Array.from({ 
+            length: Math.ceil(projects.length / projectsPerPage)
+          }, (_, i) => (
+            <button
+              key={i}
+              onClick={() => handlePageChange(i + 1)}
+              className={`mx-1 px-3 py-1 rounded ${
+                currentPage === i + 1 
+                  ? 'text-white'
+                  : 'bg-gray-200 hover:bg-gray-300'
+              }`}
+              style={{
+                backgroundColor: currentPage === i + 1 ? buttonColor || '#4F46E5' : undefined
+              }}
+            >
+              {i + 1}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

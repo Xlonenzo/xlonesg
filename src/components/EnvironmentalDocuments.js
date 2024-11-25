@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { Plus, Search, Edit2, Trash2, Filter as FaFilter } from 'lucide-react';
 import { API_URL } from '../config';
@@ -130,31 +130,48 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
     }
   };
 
-  // Filtros e paginação
-  const filteredDocuments = documents.filter(doc => {
-    const matchesSearch = 
-      doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doc.description?.toLowerCase().includes(searchTerm.toLowerCase());
+  // Atualizar a lógica de filtragem usando useMemo
+  const filteredDocuments = useMemo(() => {
+    if (!documents) return [];
     
-    const matchesFilters = 
-      (!filters.document_type || doc.document_type === filters.document_type) &&
-      (!filters.document_status || doc.document_status === filters.document_status) &&
-      (!filters.thematic_area || doc.thematic_area === filters.thematic_area);
+    return documents.filter(doc => {
+      const matchesSearch = !searchTerm || (
+        doc.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        doc.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
 
-    return matchesSearch && matchesFilters;
-  });
+      const matchesDocumentType = !filters.document_type || 
+        doc.document_type === filters.document_type;
 
+      const matchesDocumentStatus = !filters.document_status || 
+        doc.document_status === filters.document_status;
+
+      const matchesThematicArea = !filters.thematic_area || 
+        doc.thematic_area === filters.thematic_area;
+
+      return matchesSearch && matchesDocumentType && 
+             matchesDocumentStatus && matchesThematicArea;
+    });
+  }, [documents, searchTerm, filters]);
+
+  // Atualizar a lógica de paginação
   const indexOfLastDocument = currentPage * documentsPerPage;
   const indexOfFirstDocument = indexOfLastDocument - documentsPerPage;
   const currentDocuments = filteredDocuments.slice(indexOfFirstDocument, indexOfLastDocument);
-  const totalPages = Math.ceil(filteredDocuments.length / documentsPerPage);
 
+  // Adicionar handler para mudança de página se não existir
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
+
+  // Handler para mudança de filtro
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters(prev => ({
       ...prev,
       [name]: value
     }));
+    setCurrentPage(1); // Reset da página ao filtrar
   };
 
   // Estilo comum para campos de texto truncado
@@ -172,10 +189,10 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
       
       {/* Cabeçalho com botões e pesquisa */}
       <div className="flex justify-between items-center mb-6">
-        <button 
-          onClick={() => {
-            setIsFormOpen(!isFormOpen);
-            if (isFormOpen) {
+        <div>
+          <button
+            onClick={() => {
+              setIsFormOpen(true);
               setEditingDocument(null);
               setNewDocument({
                 title: '',
@@ -197,23 +214,26 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
                 signature_authentication: '',
                 legal_notice: ''
               });
-            }
-          }}
-          className={`flex items-center px-4 py-2 rounded text-white hover:opacity-80`}
-          style={{ backgroundColor: buttonColor || '#4F46E5' }}
-        >
-          <Plus size={20} className="mr-2" />
-          {isFormOpen ? 'Cancelar' : 'Adicionar Novo Documento'}
-        </button>
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Pesquisar documentos..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="p-2 pl-8 border rounded"
-          />
-          <Search className="absolute left-2 top-3 text-gray-400" size={16} />
+            }}
+            className="flex items-center px-4 py-2 text-white rounded hover:opacity-80"
+            style={{ backgroundColor: buttonColor }}
+          >
+            <Plus size={20} className="mr-2" />
+            Novo Documento
+          </button>
+        </div>
+
+        <div className="flex items-center space-x-4">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Pesquisar..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 border rounded"
+            />
+            <Search size={20} className="absolute left-3 top-2.5 text-gray-400" />
+          </div>
         </div>
       </div>
 
@@ -617,23 +637,29 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
         </table>
       </div>
 
-      {/* Paginação */}
-      <div className="flex justify-center mt-4">
-        {Array.from({ length: totalPages }, (_, i) => (
-          <button
-            key={i}
-            onClick={() => setCurrentPage(i + 1)}
-            className={`mx-1 px-3 py-1 rounded ${
-              currentPage === i + 1 
-                ? 'text-white hover:opacity-80'
-                : 'bg-gray-200 hover:bg-gray-300'
-            }`}
-            style={currentPage === i + 1 ? { backgroundColor: buttonColor } : {}}
-          >
-            {i + 1}
-          </button>
-        ))}
-      </div>
+      {/* Paginação ajustada */}
+      {!isFormOpen && filteredDocuments.length > 0 && (
+        <div className="flex justify-center mt-4">
+          {Array.from({ 
+            length: Math.ceil(filteredDocuments.length / documentsPerPage)
+          }, (_, i) => (
+            <button
+              key={i}
+              onClick={() => handlePageChange(i + 1)}
+              className={`mx-1 px-3 py-1 rounded ${
+                currentPage === i + 1 
+                  ? 'text-white'
+                  : 'bg-gray-200 hover:bg-gray-300'
+              }`}
+              style={{
+                backgroundColor: currentPage === i + 1 ? buttonColor || '#4F46E5' : undefined
+              }}
+            >
+              {i + 1}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

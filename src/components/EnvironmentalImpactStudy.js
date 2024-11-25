@@ -222,6 +222,11 @@ function EnvironmentalImpactStudy({ sidebarColor, buttonColor }) {
     }));
   };
 
+  // Adicionar handler para mudança de página
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
+
   // Adicionar a lógica de filtragem
   const filteredStudies = useMemo(() => {
     if (!impactStudies) return [];
@@ -820,15 +825,15 @@ function EnvironmentalImpactStudy({ sidebarColor, buttonColor }) {
         </div>
       )}
 
-      {/* Paginação com verificação de segurança */}
+      {/* Paginação simplificada */}
       {!isFormOpen && filteredStudies.length > 0 && (
         <div className="flex justify-center mt-4">
           {Array.from({ 
-            length: Math.max(1, Math.ceil(filteredStudies.length / studiesPerPage))
+            length: Math.ceil(filteredStudies.length / studiesPerPage)
           }, (_, i) => (
             <button
               key={i}
-              onClick={() => setCurrentPage(i + 1)}
+              onClick={() => handlePageChange(i + 1)}
               className={`mx-1 px-3 py-1 rounded ${
                 currentPage === i + 1 
                   ? 'text-white hover:opacity-80'
