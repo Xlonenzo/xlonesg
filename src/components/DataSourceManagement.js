@@ -82,17 +82,16 @@ function DataSourceManagement() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Gerenciamento de Fontes de Dados</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">Gerenciamento de Fontes de Dados</h2>
+        <button
+          onClick={() => setIsAdding(true)}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          Adicionar Nova Fonte de Dados
+        </button>
+      </div>
 
-      {/* Botão para adicionar nova fonte de dados */}
-      <button
-        onClick={() => setIsAdding(true)}
-        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-      >
-        Adicionar Nova Fonte de Dados
-      </button>
-
-      {/* Formulário para adicionar nova fonte de dados */}
       {isAdding && (
         <div className="bg-white p-6 rounded-lg shadow-md">
           <h3 className="text-xl font-bold mb-4">Adicionar Nova Fonte de Dados</h3>
@@ -140,7 +139,6 @@ function DataSourceManagement() {
         </div>
       )}
 
-      {/* Lista de fontes de dados */}
       <div className="space-y-4">
         {dataSources && dataSources.length > 0 ? (
           dataSources.map((source) => (

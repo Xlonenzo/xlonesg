@@ -184,10 +184,10 @@ const BondProjectRelation = ({ sidebarColor, buttonColor }) => {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold mb-4">Relações Título-Projeto</h2>
 
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-row-reverse mb-4">
         <button 
           onClick={() => setIsFormOpen(!isFormOpen)} 
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 flex items-center"
+          className="text-white px-4 py-2 rounded hover:opacity-80 transition-all flex items-center"
           style={{ backgroundColor: buttonColor }}
         >
           <FaPlus className="mr-2" /> {isFormOpen ? 'Fechar Formulário' : 'Nova Relação'}

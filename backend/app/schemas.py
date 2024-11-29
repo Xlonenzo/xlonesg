@@ -417,27 +417,36 @@ class ProjectTrackingBase(BaseModel):
     end_date: date
     budget_allocated: float
     currency: str = "BRL"
-    status: ProjectStatus  # Use o enum aqui
+    status: ProjectStatus
     progress_percentage: float = 0
     expected_impact: Optional[str] = None
     actual_impact: Optional[str] = None
     last_audit_date: Optional[date] = None
-    ods_contributions: Dict[str, float] = {}
+    ods1: float = 0
+    ods2: float = 0
+    ods3: float = 0
+    ods4: float = 0
+    ods5: float = 0
+    ods6: float = 0
+    ods7: float = 0
+    ods8: float = 0
+    ods9: float = 0
+    ods10: float = 0
+    ods11: float = 0
+    ods12: float = 0
+    ods13: float = 0
+    ods14: float = 0
+    ods15: float = 0
+    ods16: float = 0
+    ods17: float = 0
 
-    @field_validator('ods_contributions')
-    def validate_ods_fields(cls, v: Dict[str, float]) -> Dict[str, float]:
-        # Validar que todos os valores ODS estão entre 0 e 1
-        for ods_key, value in v.items():
-            if not 0 <= value <= 1:
-                raise ValueError(f"O valor para {ods_key} deve estar entre 0 e 1")
-        
-        # Garantir que todas as 17 ODS estão presentes
-        default_ods = {
-            f'ods{i}': 0 for i in range(1, 18)
-        }
-        # Atualizar com os valores fornecidos
-        default_ods.update(v)
-        return default_ods
+    @field_validator('ods1', 'ods2', 'ods3', 'ods4', 'ods5', 'ods6', 'ods7', 'ods8', 
+                    'ods9', 'ods10', 'ods11', 'ods12', 'ods13', 'ods14', 'ods15', 
+                    'ods16', 'ods17')
+    def validate_ods_value(cls, v: float) -> float:
+        if not 0 <= v <= 2:
+            raise ValueError("O valor ODS deve estar entre 0 e 2")
+        return v
 
     @field_validator('status')
     def validate_status(cls, v: str) -> str:
@@ -448,7 +457,7 @@ class ProjectTrackingBase(BaseModel):
 
     @field_validator('project_type')
     def validate_project_type(cls, v: str) -> str:
-        valid_types = ["Environmental", "Social", "Governance"]
+        valid_types = ["Ambiental", "Social", "Governança"]
         if v not in valid_types:
             raise ValueError(f"Tipo de projeto deve ser um dos seguintes: {', '.join(valid_types)}")
         return v
@@ -469,7 +478,7 @@ class ProjectTrackingBase(BaseModel):
             "example": {
                 "name": "Projeto ESG Exemplo",
                 "company_id": 1,
-                "project_type": "Environmental",
+                "project_type": "Ambiental",
                 "start_date": "2024-01-01",
                 "end_date": "2024-12-31",
                 "budget_allocated": 100000.0,
@@ -477,7 +486,10 @@ class ProjectTrackingBase(BaseModel):
                 "status": "Em andamento",
                 "progress_percentage": 0,
                 "expected_impact": "Redução de 30% nas emissões de CO2",
-                "ods_contributions": {"ods1": 0.5, "ods2": 0.7}
+                "ods1": 0.5,
+                "ods2": 1.0,
+                "ods3": 0.0
+                # ... outros campos ODS
             }
         }
     }
@@ -498,17 +510,17 @@ class ProjectTracking(ProjectTrackingBase):
 
 
 class EmissionDataBase(BaseModel):
-    company_id: int
-    scope: str
-    emission_type: str
-    value: float
-    unit: str
-    source: str
-    calculation_method: str
-    uncertainty_level: Optional[float] = None
+    project_id: int
+    scope: str = Field(..., max_length=255)
+    emission_type: str = Field(..., max_length=255)
+    value: condecimal(max_digits=20, decimal_places=6, ge=0)
+    unit: str = Field(..., max_length=255)
+    source: str = Field(..., max_length=255)
+    calculation_method: str = Field(..., max_length=255)
+    uncertainty_level: Optional[condecimal(max_digits=5, decimal_places=2)] = None
     timestamp: datetime
-    calculated_emission: Optional[bool] = False
-    reporting_standard: str
+    calculated_emission: bool = False
+    reporting_standard: str = Field(..., max_length=255)
 
     class Config:
         from_attributes = True
@@ -520,16 +532,22 @@ class EmissionDataCreate(EmissionDataBase):
 
 class EmissionData(EmissionDataBase):
     id: int
-    created_at: Optional[datetime] = None
+    created_at: datetime
     updated_at: Optional[datetime] = None
-    company: Optional[CompanyBase] = None
+
+    class Config:
+        from_attributes = True
+
+
+class EmissionDataResponse(EmissionData):
+    project: Optional['ProjectTracking'] = None
 
     class Config:
         from_attributes = True
 
 
 class SupplierBase(BaseModel):
-    company_id: int
+    project_id: int
     name: str
     risk_level: str
     esg_score: float
@@ -546,6 +564,11 @@ class SupplierCreate(SupplierBase):
     pass
 
 
+class SupplierUpdate(SupplierBase):
+    class Config:
+        from_attributes = True
+
+
 class Supplier(SupplierBase):
     id: int
     created_at: datetime
@@ -556,14 +579,13 @@ class Supplier(SupplierBase):
 
 
 class MaterialityAssessmentBase(BaseModel):
-    company_id: int
+    project_id: int
     topic: str
     business_impact: float
     external_impact: float
     stakeholder_importance: float
     priority_level: str
     regulatory_alignment: bool
-    last_updated: datetime
 
     class Config:
         from_attributes = True
@@ -574,14 +596,13 @@ class MaterialityAssessmentCreate(MaterialityAssessmentBase):
 
 
 class MaterialityAssessmentUpdate(BaseModel):
-    company_id: Optional[int] = None
+    project_id: Optional[int] = None
     topic: Optional[str] = None
     business_impact: Optional[float] = None
     external_impact: Optional[float] = None
     stakeholder_importance: Optional[float] = None
     priority_level: Optional[str] = None
     regulatory_alignment: Optional[bool] = None
-    last_updated: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -591,7 +612,7 @@ class MaterialityAssessment(MaterialityAssessmentBase):
     id: int
     created_at: datetime
     updated_at: Optional[datetime] = None
-    company: CompanyBase
+    project: Optional['ProjectTracking'] = None
 
     class Config:
         from_attributes = True

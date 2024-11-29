@@ -184,56 +184,52 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
   if (error) return <div className="text-red-500 text-center">{error}</div>;
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Gerenciamento de Documentos Ambientais</h1>
-      
-      {/* Cabeçalho com botões e pesquisa */}
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <button
-            onClick={() => {
-              setIsFormOpen(true);
-              setEditingDocument(null);
-              setNewDocument({
-                title: '',
-                description: '',
-                document_type: '',
-                document_subtype: '',
-                thematic_area: '',
-                document_status: '',
-                validity_period: '',
-                language: '',
-                document_format: '',
-                creation_date: new Date().toISOString().split('T')[0],
-                last_modification_date: new Date().toISOString().split('T')[0],
-                latitude: '',
-                longitude: '',
-                accessibility: '',
-                executive_summary: '',
-                notes: '',
-                signature_authentication: '',
-                legal_notice: ''
-              });
-            }}
-            className="flex items-center px-4 py-2 text-white rounded hover:opacity-80"
-            style={{ backgroundColor: buttonColor }}
-          >
-            <Plus size={20} className="mr-2" />
-            Novo Documento
-          </button>
-        </div>
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold mb-6">Documentos Ambientais</h2>
 
-        <div className="flex items-center space-x-4">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Pesquisar..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border rounded"
-            />
-            <Search size={20} className="absolute left-3 top-2.5 text-gray-400" />
-          </div>
+      {/* Ajustado para flex-row-reverse para alinhar o botão à direita */}
+      <div className="flex flex-row-reverse justify-between items-center mb-6">
+        <button
+          onClick={() => {
+            setIsFormOpen(true);
+            setEditingDocument(null);
+            setNewDocument({
+              title: '',
+              description: '',
+              document_type: '',
+              document_subtype: '',
+              thematic_area: '',
+              document_status: '',
+              validity_period: '',
+              language: '',
+              document_format: '',
+              creation_date: new Date().toISOString().split('T')[0],
+              last_modification_date: new Date().toISOString().split('T')[0],
+              latitude: '',
+              longitude: '',
+              accessibility: '',
+              executive_summary: '',
+              notes: '',
+              signature_authentication: '',
+              legal_notice: ''
+            });
+          }}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 inline-flex items-center h-10"
+          style={{ backgroundColor: buttonColor }}
+        >
+          <Plus size={16} className="mr-2" />
+          <span className="leading-none">Novo Documento</span>
+        </button>
+
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Pesquisar..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 pr-4 py-2 border rounded"
+          />
+          <Search size={20} className="absolute left-3 top-2.5 text-gray-400" />
         </div>
       </div>
 

@@ -76,6 +76,13 @@ const ODSHelper = {
   }
 };
 
+// Constantes para tipos de projeto
+const PROJECT_TYPES = {
+  AMBIENTAL: 'Ambiental',
+  SOCIAL: 'Social',
+  GOVERNANCA: 'Governança'
+};
+
 function ESGProjects({ sidebarColor, buttonColor }) {
   const [projects, setProjects] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -116,15 +123,37 @@ function ESGProjects({ sidebarColor, buttonColor }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [projectsPerPage] = useState(10);
 
-  // Lógica de paginação
+  // Estados dos filtros
+  const [filters, setFilters] = useState({
+    name: '',
+    company_id: '',
+    project_type: '',
+    status: ''
+  });
+
+  // Função para lidar com mudanças nos filtros
+  const handleFilterChange = (field, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    setCurrentPage(1);
+  };
+
+  // Aplicar filtros aos projetos
+  const filteredProjects = projects.filter(project => {
+    return (
+      project.name.toLowerCase().includes(filters.name.toLowerCase()) &&
+      (filters.company_id === '' || project.company_id.toString() === filters.company_id) &&
+      (filters.project_type === '' || project.project_type === filters.project_type) &&
+      (filters.status === '' || project.status === filters.status)
+    );
+  });
+
+  // Calcular projetos da página atual (usando projetos filtrados)
   const indexOfLastProject = currentPage * projectsPerPage;
   const indexOfFirstProject = indexOfLastProject - projectsPerPage;
-  const currentProjects = projects.slice(indexOfFirstProject, indexOfLastProject);
-
-  // Handler para mudança de página
-  const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
-  };
+  const currentProjects = filteredProjects.slice(indexOfFirstProject, indexOfLastProject);
 
   useEffect(() => {
     console.log('Estado atual do newProject:', newProject);
@@ -189,13 +218,38 @@ function ESGProjects({ sidebarColor, buttonColor }) {
       const odsValues = ODSHelper.formatValues(newProject);
       console.log('Valores ODS formatados:', odsValues);
 
-      // Preparar dados para envio
+      // Preparar dados para envio - removendo campos inválidos
       const formData = {
-        ...newProject,
+        name: newProject.name,
         company_id: parseInt(newProject.company_id),
+        project_type: newProject.project_type,
+        start_date: newProject.start_date,
+        end_date: newProject.end_date,
         budget_allocated: parseFloat(newProject.budget_allocated),
+        currency: newProject.currency,
+        status: newProject.status,
         progress_percentage: parseFloat(newProject.progress_percentage),
-        ...odsValues // Sobrescrever com valores ODS formatados
+        expected_impact: newProject.expected_impact,
+        actual_impact: newProject.actual_impact,
+        last_audit_date: newProject.last_audit_date,
+        // Adicionar valores ODS individualmente
+        ods1: odsValues.ods1,
+        ods2: odsValues.ods2,
+        ods3: odsValues.ods3,
+        ods4: odsValues.ods4,
+        ods5: odsValues.ods5,
+        ods6: odsValues.ods6,
+        ods7: odsValues.ods7,
+        ods8: odsValues.ods8,
+        ods9: odsValues.ods9,
+        ods10: odsValues.ods10,
+        ods11: odsValues.ods11,
+        ods12: odsValues.ods12,
+        ods13: odsValues.ods13,
+        ods14: odsValues.ods14,
+        ods15: odsValues.ods15,
+        ods16: odsValues.ods16,
+        ods17: odsValues.ods17
       };
 
       console.log('Dados completos para envio:', formData);
@@ -297,10 +351,10 @@ function ESGProjects({ sidebarColor, buttonColor }) {
               className="p-2 border rounded w-full"
               required
             >
-              <option value="">Selecione o Tipo</option>
-              <option value="Environmental">Ambiental</option>
+              <option value="">Selecione o tipo</option>
+              <option value="Ambiental">Ambiental</option>
               <option value="Social">Social</option>
-              <option value="Governance">Governança</option>
+              <option value="Governança">Governança</option>
             </select>
           </div>
 
@@ -653,6 +707,15 @@ function ESGProjects({ sidebarColor, buttonColor }) {
     return text.length > maxLength ? `${text.substring(0, maxLength)}...` : text;
   };
 
+  // Adicionar função handlePageChange
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
+
   return (
     <div className="container mx-auto px-4">
       <div className="flex justify-between items-center mb-6">
@@ -668,50 +731,103 @@ function ESGProjects({ sidebarColor, buttonColor }) {
 
       {isFormOpen && renderForm()}
 
-      {/* Tabela de projetos */}
+      {/* Filtros */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+        <div>
+          <input
+            type="text"
+            placeholder="Filtrar por nome..."
+            className="w-full px-3 py-2 border rounded"
+            value={filters.name}
+            onChange={(e) => handleFilterChange('name', e.target.value)}
+          />
+        </div>
+        
+        <div>
+          <select
+            className="w-full px-3 py-2 border rounded"
+            value={filters.company_id}
+            onChange={(e) => handleFilterChange('company_id', e.target.value)}
+          >
+            <option value="">Todas as empresas</option>
+            {companies.map(company => (
+              <option key={company.id} value={company.id}>
+                {company.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <select
+            className="w-full px-3 py-2 border rounded"
+            value={filters.project_type}
+            onChange={(e) => handleFilterChange('project_type', e.target.value)}
+          >
+            <option value="">Todos os tipos</option>
+            <option value="Ambiental">Ambiental</option>
+            <option value="Social">Social</option>
+            <option value="Governança">Governança</option>
+          </select>
+        </div>
+
+        <div>
+          <select
+            className="w-full px-3 py-2 border rounded"
+            value={filters.status}
+            onChange={(e) => handleFilterChange('status', e.target.value)}
+          >
+            <option value="">Todos os status</option>
+            <option value="Em Andamento">Em Andamento</option>
+            <option value="Concluído">Concluído</option>
+            <option value="Cancelado">Cancelado</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Tabela ajustada */}
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white border">
           <thead>
             <tr>
-              <th className="px-4 py-2 border">Nome</th>
+              <th className="px-4 py-2 border">Nome / ODS</th>
               <th className="px-4 py-2 border">Empresa</th>
               <th className="px-4 py-2 border">Tipo</th>
               <th className="px-4 py-2 border">Status</th>
               <th className="px-4 py-2 border">Progresso</th>
               <th className="px-4 py-2 border">Orçamento</th>
-              <th className="px-4 py-2 border">Data Início</th>
-              <th className="px-4 py-2 border">Data Fim</th>
-              <th className="px-4 py-2 border">Impacto Esperado</th>
-              <th className="px-4 py-2 border">Impacto Real</th>
-              <th className="px-4 py-2 border">Última Auditoria</th>
+              <th className="px-4 py-2 border">Período</th>
               <th className="px-4 py-2 border">Ações</th>
             </tr>
           </thead>
           <tbody>
             {currentProjects.length === 0 ? (
               <tr>
-                <td colSpan="12" className="px-4 py-2 text-center border">
+                <td colSpan="8" className="px-4 py-2 text-center border">
                   Nenhum projeto encontrado
                 </td>
               </tr>
             ) : (
               currentProjects.map((project) => (
-                <tr key={project.id}>
+                <tr key={project.id} className="hover:bg-gray-50">
                   <td className="px-4 py-2 border">
                     <div>
-                      <div>{project.name}</div>
+                      <div className="font-medium">{project.name}</div>
                       <div className="text-xs text-gray-500 mt-1">
                         <div className="flex flex-wrap gap-1">
-                          {[...Array(17)].map((_, index) => {
-                            const odsValue = project[`ods${index + 1}`];
+                          {Array.from({ length: 17 }, (_, i) => {
+                            const odsNumber = i + 1;
+                            const odsKey = `ods${odsNumber}`;
+                            const odsValue = parseFloat(project[odsKey] || 0);
+                            
                             if (odsValue > 0) {
                               return (
                                 <span 
-                                  key={index} 
-                                  className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
-                                  title={`ODS ${index + 1}: ${getODSLabel(odsValue)}`}
+                                  key={odsNumber} 
+                                  className="inline-flex items-center px-2 py-1 rounded bg-blue-100 text-blue-800 text-xs font-medium"
+                                  title={`ODS ${odsNumber}: ${getODSLabel(odsValue)}`}
                                 >
-                                  {index + 1}
+                                  {odsNumber}
                                 </span>
                               );
                             }
@@ -726,7 +842,12 @@ function ESGProjects({ sidebarColor, buttonColor }) {
                   </td>
                   <td className="px-4 py-2 border">{project.project_type}</td>
                   <td className="px-4 py-2 border">
-                    {project.status === "Em Andamento" ? "Em andamento" : project.status}
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium
+                      ${project.status === 'Em Andamento' ? 'bg-blue-100 text-blue-800' : 
+                        project.status === 'Concluído' ? 'bg-green-100 text-green-800' : 
+                        'bg-gray-100 text-gray-800'}`}>
+                      {project.status === "Em Andamento" ? "Em andamento" : project.status}
+                    </span>
                   </td>
                   <td className="px-4 py-2 border">{project.progress_percentage}%</td>
                   <td className="px-4 py-2 border">
@@ -735,37 +856,28 @@ function ESGProjects({ sidebarColor, buttonColor }) {
                       currency: project.currency
                     }).format(project.budget_allocated)}
                   </td>
-                  <td className="px-4 py-2 border">
-                    {new Date(project.start_date).toLocaleDateString('pt-BR')}
+                  <td className="px-4 py-2 border text-sm">
+                    <div>{new Date(project.start_date).toLocaleDateString('pt-BR')}</div>
+                    <div className="text-gray-500">até</div>
+                    <div>{new Date(project.end_date).toLocaleDateString('pt-BR')}</div>
                   </td>
                   <td className="px-4 py-2 border">
-                    {new Date(project.end_date).toLocaleDateString('pt-BR')}
-                  </td>
-                  <td className="px-4 py-2 border" title={project.expected_impact || '-'}>
-                    {truncateText(project.expected_impact)}
-                  </td>
-                  <td className="px-4 py-2 border" title={project.actual_impact || '-'}>
-                    {truncateText(project.actual_impact)}
-                  </td>
-                  <td className="px-4 py-2 border">
-                    {project.last_audit_date 
-                      ? new Date(project.last_audit_date).toLocaleDateString('pt-BR')
-                      : '-'
-                    }
-                  </td>
-                  <td className="px-4 py-2 border">
-                    <button
-                      onClick={() => handleEdit(project)}
-                      className="text-blue-500 hover:text-blue-700 mr-2"
-                    >
-                      <FaEdit />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(project.id)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <FaTrash />
-                    </button>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleEdit(project)}
+                        className="text-blue-500 hover:text-blue-700"
+                        title="Editar"
+                      >
+                        <FaEdit size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(project.id)}
+                        className="text-red-500 hover:text-red-700"
+                        title="Excluir"
+                      >
+                        <FaTrash size={16} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -775,10 +887,10 @@ function ESGProjects({ sidebarColor, buttonColor }) {
       </div>
 
       {/* Paginação */}
-      {!isFormOpen && projects.length > 0 && (
+      {!isFormOpen && filteredProjects.length > 0 && (
         <div className="flex justify-center mt-4">
           {Array.from({ 
-            length: Math.ceil(projects.length / projectsPerPage)
+            length: Math.ceil(filteredProjects.length / projectsPerPage)
           }, (_, i) => (
             <button
               key={i}

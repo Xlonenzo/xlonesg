@@ -257,10 +257,10 @@ function EnvironmentalImpactStudy({ sidebarColor, buttonColor }) {
       <h1 className="text-2xl font-bold mb-4">Gerenciamento de Impacto Ambiental</h1>
 
       {/* Cabeçalho com botões e pesquisa */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-row-reverse justify-between items-center mb-6">
         <button
           onClick={() => {
-            setIsFormOpen(true); // Abre o formulário apenas ao clicar em Novo
+            setIsFormOpen(true);
             setEditingStudy(null);
             setNewStudy({
               environmental_documentid: '',
@@ -284,11 +284,11 @@ function EnvironmentalImpactStudy({ sidebarColor, buttonColor }) {
               public_consultation: ''
             });
           }}
-          className="flex items-center text-white px-4 py-2 rounded hover:opacity-80"
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 inline-flex items-center h-10"
           style={{ backgroundColor: buttonColor }}
         >
-          <Plus size={20} className="mr-2" />
-          Adicionar Novo Estudo
+          <Plus size={16} className="mr-2" />
+          <span className="leading-none">Adicionar Novo Estudo</span>
         </button>
         
         {/* Barra de pesquisa */}
@@ -298,7 +298,7 @@ function EnvironmentalImpactStudy({ sidebarColor, buttonColor }) {
             placeholder="Pesquisar estudos..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="p-2 pl-8 border rounded"
+            className="pl-10 pr-4 py-2 border rounded"
           />
           <Search className="absolute left-2 top-3 text-gray-400" size={16} />
         </div>

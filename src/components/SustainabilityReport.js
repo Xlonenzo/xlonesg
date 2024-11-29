@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
-import { FaSearch, FaFileAlt, FaUpload, FaFolder, FaDownload, FaTrash } from 'react-icons/fa';
+import { FaSearch, FaFileAlt, FaUpload, FaFolder, FaDownload, FaTrash, FaStop } from 'react-icons/fa';
 import { API_URL } from '../config';
 
 function SustainabilityReport({ sidebarColor, buttonColor }) {
@@ -16,6 +16,11 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
   const [currentDocuments, setCurrentDocuments] = useState([]);
   const [selectedBond, setSelectedBond] = useState(null);
+  const [currentHandlerId, setCurrentHandlerId] = useState(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [showStopButton, setShowStopButton] = useState(false);
+  const [showReportTypeModal, setShowReportTypeModal] = useState(false);
+  const [selectedBondForReport, setSelectedBondForReport] = useState(null);
 
   const fetchBonds = useCallback(async () => {
     try {
@@ -37,9 +42,16 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
 
   
   const handleGenerateReport = async (bond) => {
+    if (isGenerating) {
+        alert('Já existe uma geração em andamento. Por favor, aguarde ou cancele a geração atual.');
+        return;
+    }
+
     try {
         setReport('Iniciando geração do relatório...');
         setIsLoading(true);
+        setIsGenerating(true);
+        setShowStopButton(true);
 
         const response = await fetch(`${API_URL}/generate-report/stream`, {
             method: 'POST',
@@ -48,15 +60,18 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
             },
             body: JSON.stringify({ bond_id: bond.id })
         });
+        
+        const handlerId = response.headers.get('X-Handler-ID');
+        setCurrentHandlerId(handlerId);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        // Usar EventSource para SSE
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let fullReport = '';
+        let isCancelled = false;
 
         while (true) {
             const { value, done } = await reader.read();
@@ -70,7 +85,11 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
                     const data = line.slice(6);
                     if (data === '[FIM]') {
                         break;
-                    } else if (data.startsWith('Erro:')) {
+                    } else if (data.startsWith('[CANCELADO]')) {
+                        isCancelled = true;
+                        setReport(fullReport + '\n\n' + data);
+                        return;
+                    } else if (data.startsWith('[ERRO]')) {
                         throw new Error(data);
                     } else {
                         fullReport += data;
@@ -79,13 +98,32 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
                 }
             }
         }
-
-        
     } catch (error) {
         console.error('Erro:', error);
         setReport('Erro ao gerar relatório. Por favor, tente novamente.');
     } finally {
         setIsLoading(false);
+        setCurrentHandlerId(null);
+        setIsGenerating(false);
+        setShowStopButton(false);
+    }
+  };
+
+  const handleStopGeneration = async () => {
+    if (currentHandlerId) {
+        try {
+            const response = await fetch(`${API_URL}/generate-report/cancel/${currentHandlerId}`, {
+                method: 'POST'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Falha ao cancelar geração');
+            }
+            
+            setReport(prev => prev + '\n\nCancelando geração...');
+        } catch (error) {
+            console.error('Erro ao cancelar geração:', error);
+        }
     }
   };
 
@@ -285,6 +323,110 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
+  const startReportGeneration = async (type) => {
+    setShowReportTypeModal(false);
+    if (!selectedBondForReport) return;
+
+    try {
+      setReport('Iniciando geração do relatório...');
+      setIsLoading(true);
+      setIsGenerating(true);
+      setShowStopButton(true);
+
+      const response = await fetch(`${API_URL}/generate-report/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          bond_id: selectedBondForReport.id,
+          report_type: type // Adicionar tipo do relatório
+        })
+      });
+      
+      const handlerId = response.headers.get('X-Handler-ID');
+      setCurrentHandlerId(handlerId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullReport = '';
+      let isCancelled = false;
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            if (data === '[FIM]') {
+              break;
+            } else if (data.startsWith('[CANCELADO]')) {
+              isCancelled = true;
+              setReport(fullReport + '\n\n' + data);
+              return;
+            } else if (data.startsWith('[ERRO]')) {
+              throw new Error(data);
+            } else {
+              fullReport += data;
+              setReport(fullReport);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Erro:', error);
+      setReport('Erro ao gerar relatório. Por favor, tente novamente.');
+    } finally {
+      setIsLoading(false);
+      setCurrentHandlerId(null);
+      setIsGenerating(false);
+      setShowStopButton(false);
+      setSelectedBondForReport(null);
+    }
+  };
+
+  const ReportTypeModal = ({ show, onClose, onSelect }) => {
+    if (!show) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+          <h3 className="text-lg font-semibold mb-4">Selecione o Tipo de Relatório</h3>
+          <div className="space-y-4">
+            <button
+              onClick={() => onSelect('summary')}
+              className="w-full p-3 text-left border rounded hover:bg-blue-50 transition-colors"
+            >
+              <div className="font-semibold">Relatório Sumário</div>
+              <div className="text-sm text-gray-600">Análise básica do título e seus ODS</div>
+            </button>
+            <button
+              onClick={() => onSelect('complete')}
+              className="w-full p-3 text-left border rounded hover:bg-blue-50 transition-colors"
+            >
+              <div className="font-semibold">Relatório Completo</div>
+              <div className="text-sm text-gray-600">Análise detalhada com todos os aspectos ESG</div>
+            </button>
+          </div>
+          <button
+            onClick={onClose}
+            className="mt-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300 w-full"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   if (isLoading) {
     return (
         <div className="container mx-auto px-4 py-8">
@@ -332,27 +474,37 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right border">
                                         <button
-                                            onClick={() => handleGenerateReport(bond)}
-                                            className="text-blue-600 hover:text-blue-900 mr-3"
-                                            title="Gerar Relatório"
+                                            onClick={() => {
+                                                if (!isGenerating) {
+                                                    setSelectedBondForReport(bond);
+                                                    setShowReportTypeModal(true);
+                                                }
+                                            }}
+                                            className={`text-blue-600 hover:text-blue-900 mr-3 ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            title={isGenerating ? "Geração em andamento" : "Gerar Relatório"}
+                                            disabled={isGenerating}
                                         >
                                             <FaFileAlt />
                                         </button>
                                         <button
                                             onClick={() => handleUploadDocument(bond)}
-                                            className="text-green-600 hover:text-green-900 mr-3"
-                                            title="Adicionar Documentos"
+                                            className={`text-green-600 hover:text-green-900 mr-3 ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            title={isGenerating ? "Geração em andamento" : "Adicionar Documentos"}
+                                            disabled={isGenerating}
                                         >
                                             <FaUpload />
                                         </button>
                                         <button
                                             onClick={() => {
-                                                setSelectedBond(bond);
-                                                fetchDocuments('bonds', bond.id);
-                                                setShowDocumentsModal(true);
+                                                if (!isGenerating) {
+                                                    setSelectedBond(bond);
+                                                    fetchDocuments('bonds', bond.id);
+                                                    setShowDocumentsModal(true);
+                                                }
                                             }}
-                                            className="text-yellow-600 hover:text-yellow-900"
-                                            title="Ver Documentos"
+                                            className={`text-yellow-600 hover:text-yellow-900 ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            title={isGenerating ? "Geração em andamento" : "Ver Documentos"}
+                                            disabled={isGenerating}
                                         >
                                             <FaFolder />
                                         </button>
@@ -365,11 +517,23 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
             </div>
 
             <div className="mt-8">
-                <div className="bg-white rounded-lg shadow p-4">
-                    <div className="flex items-center mb-4">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-3"></div>
-                        <h3 className="text-lg font-semibold">Gerando relatório...</h3>
-                    </div>
+                <div className="bg-white rounded-lg shadow p-4 relative">
+                    {isGenerating && (
+                        <div className="flex items-center mb-4">
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-3"></div>
+                            <h3 className="text-lg font-semibold">Gerando relatório...</h3>
+                            
+                            {showStopButton && (
+                                <button
+                                    onClick={handleStopGeneration}
+                                    className="absolute top-4 right-4 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md flex items-center"
+                                    title="Parar geração"
+                                >
+                                    <FaStop className="mr-1" /> Parar
+                                </button>
+                            )}
+                        </div>
+                    )}
                     {report && (
                         <pre className="whitespace-pre-wrap text-gray-700">{report}</pre>
                     )}
@@ -385,6 +549,8 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <h2 className="text-2xl font-bold mb-6">Relatório de Sustentabilidade</h2>
+
       <div className="mb-4 flex items-center">
         <div className="relative flex-1">
           <input
@@ -429,27 +595,37 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right border">
                     <button
-                      onClick={() => handleGenerateReport(bond)}
-                      className="text-blue-600 hover:text-blue-900 mr-3"
-                      title="Gerar Relatório"
+                      onClick={() => {
+                        if (!isGenerating) {
+                          setSelectedBondForReport(bond);
+                          setShowReportTypeModal(true);
+                        }
+                      }}
+                      className={`text-blue-600 hover:text-blue-900 mr-3 ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      title={isGenerating ? "Geração em andamento" : "Gerar Relatório"}
+                      disabled={isGenerating}
                     >
                       <FaFileAlt />
                     </button>
                     <button
                       onClick={() => handleUploadDocument(bond)}
-                      className="text-green-600 hover:text-green-900 mr-3"
-                      title="Adicionar Documentos"
+                      className={`text-green-600 hover:text-green-900 mr-3 ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      title={isGenerating ? "Geração em andamento" : "Adicionar Documentos"}
+                      disabled={isGenerating}
                     >
                       <FaUpload />
                     </button>
                     <button
                       onClick={() => {
-                        setSelectedBond(bond);
-                        fetchDocuments('bonds', bond.id);
-                        setShowDocumentsModal(true);
+                        if (!isGenerating) {
+                          setSelectedBond(bond);
+                          fetchDocuments('bonds', bond.id);
+                          setShowDocumentsModal(true);
+                        }
                       }}
-                      className="text-yellow-600 hover:text-yellow-900"
-                      title="Ver Documentos"
+                      className={`text-yellow-600 hover:text-yellow-900 ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      title={isGenerating ? "Geração em andamento" : "Ver Documentos"}
+                      disabled={isGenerating}
                     >
                       <FaFolder />
                     </button>
@@ -476,8 +652,17 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
       </div>
 
       {report && (
-        <div className="mt-8 p-4 bg-white rounded-lg shadow">
+        <div className="mt-8 p-4 bg-white rounded-lg shadow relative">
           <h3 className="text-lg font-semibold mb-4">Relatório de Sustentabilidade</h3>
+          {showStopButton && (
+            <button
+              onClick={handleStopGeneration}
+              className="absolute top-4 right-4 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md flex items-center"
+              title="Parar geração"
+            >
+              <FaStop className="mr-1" /> Parar
+            </button>
+          )}
           <pre className="whitespace-pre-wrap">{report}</pre>
         </div>
       )}
@@ -497,6 +682,15 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
         documents={currentDocuments}
         onDownload={handleDownload}
         onDelete={handleDeleteDocument}
+      />
+
+      <ReportTypeModal
+        show={showReportTypeModal}
+        onClose={() => {
+          setShowReportTypeModal(false);
+          setSelectedBondForReport(null);
+        }}
+        onSelect={startReportGeneration}
       />
     </div>
   );

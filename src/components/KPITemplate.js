@@ -399,10 +399,10 @@ function KPITemplate({ sidebarColor, buttonColor }) {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold mb-4">Gerenciamento de Templates de KPI</h2>
       
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-row-reverse justify-between items-center mb-4">
         <button 
           onClick={() => setIsAddingKPI(!isAddingKPI)} 
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          className="text-white px-4 py-2 rounded hover:opacity-80 transition-all"
           style={{ backgroundColor: buttonColor }}
         >
           {isAddingKPI ? 'Cancelar' : 'Adicionar Novo KPI'}

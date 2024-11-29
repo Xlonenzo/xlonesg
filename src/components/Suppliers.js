@@ -5,7 +5,7 @@ import { API_URL } from '../config';
 
 function Suppliers({ sidebarColor, buttonColor }) {
   const [suppliers, setSuppliers] = useState([]);
-  const [companies, setCompanies] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
@@ -14,7 +14,7 @@ function Suppliers({ sidebarColor, buttonColor }) {
   const [suppliersPerPage] = useState(12);
 
   const [newSupplier, setNewSupplier] = useState({
-    company_id: '',
+    project_id: '',
     name: '',
     risk_level: '',
     esg_score: 0,
@@ -36,8 +36,16 @@ function Suppliers({ sidebarColor, buttonColor }) {
   ];
 
   useEffect(() => {
-    fetchSuppliers();
-    fetchCompanies();
+    const loadData = async () => {
+      try {
+        await fetchProjects();
+        await fetchSuppliers();
+      } catch (error) {
+        console.error('Erro ao carregar dados iniciais:', error);
+      }
+    };
+    
+    loadData();
   }, []);
 
   const fetchSuppliers = async () => {
@@ -51,12 +59,15 @@ function Suppliers({ sidebarColor, buttonColor }) {
     }
   };
 
-  const fetchCompanies = async () => {
+  const fetchProjects = async () => {
     try {
-      const response = await axios.get(`${API_URL}/companies`);
-      setCompanies(response.data);
+      console.log('Iniciando busca de projetos...');
+      const response = await axios.get(`${API_URL}/project-tracking`);
+      console.log('Resposta dos projetos:', response.data);
+      setProjects(response.data);
     } catch (error) {
-      console.error('Erro ao buscar empresas:', error);
+      console.error('Erro ao buscar projetos:', error.response || error);
+      alert('Erro ao carregar projetos. Por favor, verifique o console.');
     }
   };
 
@@ -70,7 +81,7 @@ function Suppliers({ sidebarColor, buttonColor }) {
 
   const resetForm = () => {
     setNewSupplier({
-      company_id: '',
+      project_id: '',
       name: '',
       risk_level: '',
       esg_score: 0,
@@ -88,7 +99,7 @@ function Suppliers({ sidebarColor, buttonColor }) {
       console.log('URL da API:', API_URL);
       console.log('Enviando dados:', newSupplier);
       const formattedData = {
-        company_id: parseInt(newSupplier.company_id),
+        project_id: parseInt(newSupplier.project_id),
         name: String(newSupplier.name).trim(),
         risk_level: String(newSupplier.risk_level).trim(),
         esg_score: parseFloat(newSupplier.esg_score),
@@ -98,12 +109,24 @@ function Suppliers({ sidebarColor, buttonColor }) {
         impact_assessment: String(newSupplier.impact_assessment).trim()
       };
       console.log('Dados formatados:', formattedData);
-      console.log('Fazendo requisição POST para:', `${API_URL}/suppliers`);
 
-      const response = await axios.post(`${API_URL}/suppliers`, formattedData);
+      let response;
+      if (editingSupplier) {
+        // Se estiver editando, faz PUT para atualizar
+        console.log('Atualizando fornecedor:', editingSupplier.id);
+        response = await axios.put(
+          `${API_URL}/suppliers/${editingSupplier.id}`, 
+          formattedData
+        );
+      } else {
+        // Se não estiver editando, faz POST para criar
+        console.log('Criando novo fornecedor');
+        response = await axios.post(`${API_URL}/suppliers`, formattedData);
+      }
+
       console.log('Resposta do servidor:', response.data);
       
-      fetchSuppliers();
+      fetchSuppliers(); // Atualiza a lista
       setIsFormOpen(false);
       setEditingSupplier(null);
       resetForm();
@@ -141,7 +164,7 @@ function Suppliers({ sidebarColor, buttonColor }) {
     return (
       supplier.name.toLowerCase().includes(searchTermLower) ||
       supplier.location.toLowerCase().includes(searchTermLower) ||
-      companies.find(c => c.id === supplier.company_id)?.name.toLowerCase().includes(searchTermLower)
+      projects.find(p => p.id === supplier.project_id)?.name.toLowerCase().includes(searchTermLower)
     );
   });
 
@@ -186,25 +209,30 @@ function Suppliers({ sidebarColor, buttonColor }) {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Campos do formulário */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Empresa */}
+              {/* Projeto */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Empresa
+                  Projeto *
                 </label>
                 <select
-                  name="company_id"
-                  value={newSupplier.company_id}
+                  name="project_id"
+                  value={newSupplier.project_id}
                   onChange={handleInputChange}
                   className="p-2 border rounded w-full"
                   required
                 >
-                  <option value="">Selecione a Empresa</option>
-                  {companies.map(company => (
-                    <option key={company.id} value={company.id}>
-                      {company.name}
+                  <option value="">Selecione o Projeto</option>
+                  {projects.map(project => (
+                    <option key={project.id} value={project.id}>
+                      {project.title || project.name || `Projeto ${project.id}`}
                     </option>
                   ))}
                 </select>
+                {projects.length === 0 && (
+                  <p className="text-sm text-red-500 mt-1">
+                    Nenhum projeto encontrado. Crie um projeto primeiro.
+                  </p>
+                )}
               </div>
 
               {/* Nome */}
@@ -358,7 +386,7 @@ function Suppliers({ sidebarColor, buttonColor }) {
         <table className="min-w-full bg-white border">
           <thead>
             <tr>
-              <th className="px-4 py-2 border">Empresa</th>
+              <th className="px-4 py-2 border">Projeto</th>
               <th className="px-4 py-2 border">Nome</th>
               <th className="px-4 py-2 border">Nível de Risco</th>
               <th className="px-4 py-2 border">Score ESG</th>
@@ -372,7 +400,9 @@ function Suppliers({ sidebarColor, buttonColor }) {
             {currentSuppliers.map(supplier => (
               <tr key={supplier.id}>
                 <td className="px-4 py-2 border">
-                  {companies.find(c => c.id === supplier.company_id)?.name || 'N/A'}
+                  {projects.find(p => p.id === supplier.project_id)?.title || 
+                   projects.find(p => p.id === supplier.project_id)?.name || 
+                   'N/A'}
                 </td>
                 <td className="px-4 py-2 border">{supplier.name}</td>
                 <td className="px-4 py-2 border">{supplier.risk_level}</td>

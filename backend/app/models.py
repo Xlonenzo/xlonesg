@@ -97,16 +97,13 @@ class Company(Base):
     zip_code = Column(String(8))
     phone = Column(String(20))
     email = Column(String(100))
-    website = Column(String(100))
+    website = Column(String(200))
     is_active = Column(Boolean, default=True)
 
     # Adicionar relacionamento bidirecional
     kpi_entries = relationship("KPIEntry", back_populates="company", cascade="all, delete-orphan")
     esg_projects = relationship("ESGProject", back_populates="company")
     project_tracking = relationship("ProjectTracking", back_populates="company", cascade="all, delete-orphan")
-    emission_data = relationship("EmissionData", back_populates="company")
-    suppliers = relationship("Supplier", back_populates="company", cascade="all, delete-orphan")
-    materiality_assessments = relationship("MaterialityAssessment", back_populates="company", cascade="all, delete-orphan")  # Novo relacionamento
     investments = relationship("Investment", back_populates="company", cascade="all, delete-orphan")
     compliance_audits = relationship("ComplianceAudit", back_populates="company", cascade="all, delete-orphan")
 
@@ -310,8 +307,6 @@ class ProjectTracking(Base):
     last_audit_date = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.current_timestamp())
     updated_at = Column(DateTime(timezone=True), server_default=func.current_timestamp(), onupdate=func.current_timestamp())
-    
-    # Campos ODS com tipo numeric(5,2)
     ods1 = Column(Numeric(5, 2), default=0)
     ods2 = Column(Numeric(5, 2), default=0)
     ods3 = Column(Numeric(5, 2), default=0)
@@ -331,9 +326,10 @@ class ProjectTracking(Base):
     ods17 = Column(Numeric(5, 2), default=0)
 
     company = relationship("Company", back_populates="project_tracking")
-
-    # Adicione esta linha
     bond_relations = relationship("BondProjectRelation", back_populates="project")
+    emissions = relationship("EmissionData", back_populates="project")
+    suppliers = relationship("Supplier", back_populates="project", cascade="all, delete-orphan")
+    materiality_assessments = relationship("MaterialityAssessment", back_populates="project", cascade="all, delete-orphan")
 
 class EmissionData(Base):
     __tablename__ = "emission_data"
@@ -343,29 +339,29 @@ class EmissionData(Base):
     )
 
     id = Column(Integer, primary_key=True, index=True)
-    company_id = Column(Integer, ForeignKey("xlonesg.companies.id"), nullable=False)
-    scope = Column(String(20), nullable=False, index=True)
-    emission_type = Column(String(50), nullable=False)
+    project_id = Column(Integer, ForeignKey("xlonesg.project_tracking.id", ondelete="CASCADE"), nullable=False)
+    scope = Column(String(255), nullable=False)
+    emission_type = Column(String(255), nullable=False)
     value = Column(Numeric(20, 6), nullable=False)
-    unit = Column(String(20), nullable=False)
-    source = Column(String(200), nullable=False)
-    calculation_method = Column(String(200), nullable=False)
+    unit = Column(String(255), nullable=False)
+    source = Column(String(255), nullable=False)
+    calculation_method = Column(String(255), nullable=False)
     uncertainty_level = Column(Numeric(5, 2), nullable=True)
-    timestamp = Column(DateTime(timezone=True), nullable=False, index=True)
-    calculated_emission = Column(Boolean, default=False, nullable=True)
-    reporting_standard = Column(String(20), nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.current_timestamp(), nullable=True)
-    updated_at = Column(DateTime(timezone=True), server_default=func.current_timestamp(), nullable=True)
+    timestamp = Column(DateTime(timezone=True), nullable=False)
+    calculated_emission = Column(Boolean, default=False)
+    reporting_standard = Column(String(255), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relacionamento
-    company = relationship("Company", back_populates="emission_data")
+    # Relacionamento com o projeto
+    project = relationship("ProjectTracking", back_populates="emissions")
 
 class Supplier(Base):
     __tablename__ = "supplier"
     __table_args__ = {"schema": "xlonesg"}
 
     id = Column(Integer, primary_key=True, index=True)
-    company_id = Column(Integer, ForeignKey("xlonesg.companies.id"), nullable=False)
+    project_id = Column(Integer, ForeignKey("xlonesg.project_tracking.id"), nullable=False)
     name = Column(String, nullable=False)
     risk_level = Column(String, nullable=False)
     esg_score = Column(Float, nullable=False)
@@ -376,25 +372,26 @@ class Supplier(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    company = relationship("Company", back_populates="suppliers")
+    # Relacionamento apenas com o projeto
+    project = relationship("ProjectTracking", back_populates="suppliers")
 
 class MaterialityAssessment(Base):
     __tablename__ = "materiality_assessment"
     __table_args__ = {"schema": "xlonesg"}
 
     id = Column(Integer, primary_key=True, index=True)
-    company_id = Column(Integer, ForeignKey("xlonesg.companies.id"), nullable=False)
+    project_id = Column(Integer, ForeignKey("xlonesg.project_tracking.id"), nullable=False)
     topic = Column(String, nullable=False)
     business_impact = Column(Float, nullable=False)
     external_impact = Column(Float, nullable=False)
     stakeholder_importance = Column(Float, nullable=False)
-    priority_level = Column(String, nullable=False)  # Alto, Médio, Baixo
+    priority_level = Column(String, nullable=False)
     regulatory_alignment = Column(Boolean, default=False)
-    last_updated = Column(DateTime(timezone=True), server_default=func.now())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    company = relationship("Company", back_populates="materiality_assessments")
+    # Update relationship to point to ProjectTracking instead of Company
+    project = relationship("ProjectTracking", back_populates="materiality_assessments")
 
 class Investment(Base):
     __tablename__ = "investment"
@@ -519,3 +516,4 @@ class EnvironmentalImpactStudy(Base):
         "EnvironmentalDocument",
         foreign_keys=[environmental_documentid]
     )
+

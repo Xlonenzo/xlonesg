@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaSearch } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaSearch, FaAsterisk } from 'react-icons/fa';
 import { API_URL } from '../config';
 
 // Definir bondTypes fora do componente para evitar recriação a cada render
@@ -20,6 +20,126 @@ const bondTypes = [
   'Letra de Crédito Imobiliário - LCI',
   'Letra Financeira - LF'
 ];
+
+// Função auxiliar para formatação de moeda
+const formatCurrency = (value) => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(value);
+};
+
+// Função para formatar valor em moeda
+const formatCurrencyInput = (value) => {
+  try {
+    // Remove tudo exceto números
+    let numericValue = value.toString().replace(/\D/g, '');
+    
+    // Se não houver valor, retorna zero formatado
+    if (!numericValue) return 'R$ 0,00';
+    
+    // Garante que o valor tenha pelo menos 3 dígitos (incluindo centavos)
+    numericValue = numericValue.padStart(3, '0');
+    
+    // Separa os centavos
+    const decimal = numericValue.slice(-2);
+    // Pega a parte inteira mantendo todos os dígitos
+    const integer = numericValue.slice(0, -2);
+    
+    // Formata com separadores de milhar
+    const formattedInteger = integer.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    
+    return `R$ ${formattedInteger || '0'},${decimal}`;
+  } catch (error) {
+    console.error('Erro na formatação:', error);
+    return 'R$ 0,00';
+  }
+};
+
+// Função para extrair valor numérico
+const parseCurrencyValue = (formattedValue) => {
+  try {
+    // Remove R$, pontos e espaços, troca vírgula por ponto
+    const cleanValue = formattedValue
+      .replace(/[R$\s.]/g, '')
+      .replace(',', '.');
+    
+    // Converte para número mantendo a precisão
+    const value = parseFloat(cleanValue);
+    
+    // Retorna 0 se não for um número válido
+    return isNaN(value) ? 0 : value;
+  } catch (error) {
+    console.error('Erro no parsing:', error);
+    return 0;
+  }
+};
+
+// Função para formatar taxa de juros
+const formatInterestRate = (value) => {
+  const numericValue = parseFloat(value);
+  return isNaN(numericValue) ? '0.00' : numericValue.toFixed(2);
+};
+
+// Função para formatar CNPJ durante digitação
+const formatCNPJ = (value) => {
+  // Remove tudo que não é número
+  const numericValue = value.replace(/\D/g, '');
+  
+  // Aplica a máscara XX.XXX.XXX/XXXX-XX
+  return numericValue
+    .replace(/^(\d{2})(\d)/, '$1.$2')
+    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d)/, '.$1/$2')
+    .replace(/(\d{4})(\d)/, '$1-$2')
+    .substring(0, 18); // Limita ao tamanho máximo do CNPJ formatado
+};
+
+// Função para remover formatação do CNPJ
+const removeCNPJFormat = (value) => {
+  return value.replace(/\D/g, '');
+};
+
+// Definição dos campos obrigatórios com suas mensagens
+const REQUIRED_FIELDS = {
+  name: 'Nome do Título',
+  type: 'Tipo do Título',
+  value: 'Valor',
+  esg_percentage: 'Porcentagem ESG',
+  issue_date: 'Data de Emissão',
+  regulator: 'Regulador',
+  social_impact_type: 'Tipo de Impacto Social',
+  estimated_social_impact: 'Impacto Social Estimado',
+  project_description: 'Descrição do Projeto',
+  project_eligibility: 'Elegibilidade do Projeto',
+  project_selection_date: 'Data de Seleção do Projeto',
+  resource_manager: 'Gestor de Recursos',
+  social_impact_achieved: 'Impacto Social Alcançado',
+  interest_rate: 'Taxa de Juros',
+  guarantee_value: 'Valor da Garantia',
+  issuer_name: 'Nome do Emissor',
+  issuer_cnpj: 'CNPJ do Emissor',
+  issuer_address: 'Endereço do Emissor',
+  issuer_contact: 'Contato do Emissor',
+  intermediary_name: 'Nome do Intermediário',
+  intermediary_cnpj: 'CNPJ do Intermediário',
+  intermediary_contact: 'Contato do Intermediário',
+  financial_institution_name: 'Nome da Instituição Financeira',
+  financial_institution_cnpj: 'CNPJ da Instituição Financeira',
+  financial_institution_contact: 'Contato da Instituição Financeira'
+};
+
+// Componente para label com indicador de obrigatório
+const RequiredFieldLabel = ({ htmlFor, children }) => (
+  <div className="flex items-center gap-1">
+    <label htmlFor={htmlFor} className="block text-sm font-medium text-gray-700">
+      {children}
+    </label>
+    <div className="text-red-500 text-xs" title="Campo obrigatório">
+      <FaAsterisk size={8} />
+    </div>
+  </div>
+);
 
 function BondManagement({ sidebarColor, buttonColor }) {
   const [bonds, setBonds] = useState([]);
@@ -51,13 +171,15 @@ function BondManagement({ sidebarColor, buttonColor }) {
     guarantee_value: 0,
     issuer_name: '',
     issuer_cnpj: '',
+    issuer_cnpj_formatted: '',
     issuer_address: '',
     issuer_contact: '',
     intermediary_name: '',
     intermediary_cnpj: '',
-    intermediary_contact: '',
+    intermediary_cnpj_formatted: '',
     financial_institution_name: '',
     financial_institution_cnpj: '',
+    financial_institution_cnpj_formatted: '',
     financial_institution_contact: ''
   });
   const [searchTerm, setSearchTerm] = useState('');
@@ -65,6 +187,7 @@ function BondManagement({ sidebarColor, buttonColor }) {
   const [bondsPerPage] = useState(10);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [validationErrors, setValidationErrors] = useState([]);
 
   const fetchBonds = useCallback(async () => {
     try {
@@ -84,30 +207,95 @@ function BondManagement({ sidebarColor, buttonColor }) {
     fetchBonds();
   }, [fetchBonds]);
 
+  // Função de validação
+  const validateBond = (bond) => {
+    const errors = [];
+
+    // Validação dos campos obrigatórios
+    Object.entries(REQUIRED_FIELDS).forEach(([field, label]) => {
+      if (!bond[field] && bond[field] !== 0) {
+        errors.push(`O campo "${label}" é obrigatório`);
+      }
+    });
+
+    // Validações específicas para campos numéricos
+    if (bond.value <= 0) {
+      errors.push('O Valor deve ser maior que zero');
+    }
+
+    if (bond.esg_percentage < 0 || bond.esg_percentage > 100) {
+      errors.push('A Porcentagem ESG deve estar entre 0 e 100');
+    }
+
+    if (bond.interest_rate < 0) {
+      errors.push('A Taxa de Juros não pode ser negativa');
+    }
+
+    if (bond.guarantee_value <= 0) {
+      errors.push('O Valor da Garantia deve ser maior que zero');
+    }
+
+    // Validação de CNPJ
+    const validateCNPJ = (cnpj) => {
+      return cnpj.replace(/\D/g, '').length === 14;
+    };
+
+    if (!validateCNPJ(bond.issuer_cnpj)) {
+      errors.push('CNPJ do Emissor inválido');
+    }
+    if (!validateCNPJ(bond.intermediary_cnpj)) {
+      errors.push('CNPJ do Intermediário inválido');
+    }
+    if (!validateCNPJ(bond.financial_institution_cnpj)) {
+      errors.push('CNPJ da Instituição Financeira inválido');
+    }
+
+    return errors;
+  };
+
+  // Atualizar handleAddBond e handleUpdateBond
   const handleAddBond = async () => {
+    const errors = validateBond(newBond);
+    setValidationErrors(errors);
+
+    if (errors.length > 0) {
+      return;
+    }
+
     try {
       const response = await axios.post(`${API_URL}/bonds`, newBond);
       setBonds([...bonds, response.data]);
       setIsAddingBond(false);
       setNewBond({
-        // Reset do estado inicial
+        // Reset do estado inicial com todos os campos obrigatórios
         name: '',
         type: '',
         value: 0,
         // ... outros campos ...
       });
+      setValidationErrors([]);
     } catch (error) {
       console.error('Erro ao adicionar título:', error);
+      setValidationErrors(['Erro ao salvar o título. Por favor, tente novamente.']);
     }
   };
 
   const handleUpdateBond = async () => {
+    const errors = validateBond(editingBond);
+    setValidationErrors(errors);
+
+    if (errors.length > 0) {
+      return;
+    }
+
     try {
       const response = await axios.put(`${API_URL}/bonds/${editingBond.id}`, editingBond);
       setBonds(bonds.map(bond => bond.id === editingBond.id ? response.data : bond));
       setEditingBond(null);
+      setValidationErrors([]);
     } catch (error) {
       console.error('Erro ao atualizar título:', error);
+      setValidationErrors(['Erro ao atualizar o título. Por favor, tente novamente.']);
     }
   };
 
@@ -122,504 +310,602 @@ function BondManagement({ sidebarColor, buttonColor }) {
     }
   };
 
+  const handleCurrencyInput = (e, field, isAdding) => {
+    try {
+      // Pega apenas os números do input
+      const rawValue = e.target.value.replace(/\D/g, '');
+      
+      // Formata o valor
+      const formattedValue = formatCurrencyInput(rawValue);
+      
+      // Extrai o valor numérico
+      const numericValue = parseCurrencyValue(formattedValue);
+      
+      console.log('Input:', {
+        raw: rawValue,
+        formatted: formattedValue,
+        numeric: numericValue
+      });
+
+      if (isAdding) {
+        setNewBond(prev => ({
+          ...prev,
+          [field]: numericValue,
+          [`${field}_formatted`]: formattedValue
+        }));
+      } else {
+        setEditingBond(prev => ({
+          ...prev,
+          [field]: numericValue,
+          [`${field}_formatted`]: formattedValue
+        }));
+      }
+    } catch (error) {
+      console.error('Erro no handleCurrencyInput:', error);
+    }
+  };
+
+  const handleCurrencyBlur = (e, field, isAdding) => {
+    try {
+      const currentValue = isAdding ? newBond[field] : editingBond[field];
+      console.log('Blur - valor atual:', currentValue);
+      
+      // Garante que o valor seja tratado como string com todos os dígitos
+      const formattedValue = formatCurrencyInput(currentValue.toFixed(2).replace('.', ''));
+      
+      console.log('Blur - valor formatado:', formattedValue);
+
+      if (isAdding) {
+        setNewBond(prev => ({
+          ...prev,
+          [`${field}_formatted`]: formattedValue
+        }));
+      } else {
+        setEditingBond(prev => ({
+          ...prev,
+          [`${field}_formatted`]: formattedValue
+        }));
+      }
+    } catch (error) {
+      console.error('Erro no handleCurrencyBlur:', error);
+    }
+  };
+
+  const handleCNPJInput = (e, field, isAdding) => {
+    const formattedValue = formatCNPJ(e.target.value);
+    const numericValue = removeCNPJFormat(formattedValue);
+    
+    if (isAdding) {
+      setNewBond(prev => ({
+        ...prev,
+        [field]: numericValue, // Salva apenas números
+        [`${field}_formatted`]: formattedValue // Mantém valor formatado para exibição
+      }));
+    } else {
+      setEditingBond(prev => ({
+        ...prev,
+        [field]: numericValue, // Salva apenas números
+        [`${field}_formatted`]: formattedValue // Mantém valor formatado para exibição
+      }));
+    }
+  };
+
   const renderBondForm = (bond, isAdding = false) => (
     <div className="grid grid-cols-2 gap-4">
-      {/* Informações Básicas */}
-      <div className="col-span-2 bg-gray-50 p-4 rounded-lg mb-4">
-        <h4 className="font-bold mb-3">Informações Básicas</h4>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Nome do Título</label>
-            <input
-              type="text"
-              value={bond.name}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, name: e.target.value}) : 
-                setEditingBond({...editingBond, name: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              required
-            />
-          </div>
+      <div>
+        <RequiredFieldLabel htmlFor="name">Nome do Título</RequiredFieldLabel>
+        <input
+          id="name"
+          type="text"
+          value={bond.name}
+          onChange={(e) => isAdding ? 
+            setNewBond({...newBond, name: e.target.value}) : 
+            setEditingBond({...editingBond, name: e.target.value})}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          required
+        />
+      </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Tipo do Título</label>
-            <select
-              value={bond.type}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, type: e.target.value}) : 
-                setEditingBond({...editingBond, type: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              required
-            >
-              <option value="">Selecione um tipo</option>
-              {bondTypes.map((type, index) => (
-                <option key={index} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-          </div>
+      <div>
+        <RequiredFieldLabel htmlFor="type">Tipo do Título</RequiredFieldLabel>
+        <select
+          id="type"
+          value={bond.type}
+          onChange={(e) => isAdding ? 
+            setNewBond({...newBond, type: e.target.value}) : 
+            setEditingBond({...editingBond, type: e.target.value})}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          required
+        >
+          <option value="">Selecione um tipo</option>
+          {bondTypes.map((type) => (
+            <option key={type} value={type}>{type}</option>
+          ))}
+        </select>
+      </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Valor</label>
-            <input
-              type="number"
-              value={bond.value}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, value: parseFloat(e.target.value)}) : 
-                setEditingBond({...editingBond, value: parseFloat(e.target.value)})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              placeholder="R$ 0,00"
-              required
-            />
-          </div>
+      <div>
+        <RequiredFieldLabel htmlFor="value">Valor</RequiredFieldLabel>
+        <input
+          id="value"
+          type="text"
+          value={bond.value_formatted || formatCurrencyInput(String(bond.value || 0))}
+          onChange={(e) => handleCurrencyInput(e, 'value', isAdding)}
+          onBlur={(e) => handleCurrencyBlur(e, 'value', isAdding)}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          required
+        />
+      </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Porcentagem ESG</label>
-            <input
-              type="number"
-              value={bond.esg_percentage}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, esg_percentage: parseFloat(e.target.value)}) : 
-                setEditingBond({...editingBond, esg_percentage: parseFloat(e.target.value)})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              placeholder="0%"
-              required
-            />
-          </div>
+      <div>
+        <RequiredFieldLabel htmlFor="esg_percentage">Porcentagem ESG (%)</RequiredFieldLabel>
+        <input
+          id="esg_percentage"
+          type="number"
+          value={bond.esg_percentage}
+          onChange={(e) => {
+            const value = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
+            if (isAdding) {
+              setNewBond({...newBond, esg_percentage: value});
+            } else {
+              setEditingBond({...editingBond, esg_percentage: value});
+            }
+          }}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          min="0"
+          max="100"
+          step="1"
+          placeholder="0"
+          required
+        />
+      </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Data de Emissão</label>
-            <div className="relative">
-              <input
-                type="date"
-                value={bond.issue_date}
-                onChange={(e) => isAdding ? 
-                  setNewBond({...newBond, issue_date: e.target.value}) : 
-                  setEditingBond({...editingBond, issue_date: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                required
-              />
-              <span className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-gray-500">
-                Data de Emissão
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Taxa de Juros</label>
-            <input
-              type="number"
-              value={bond.interest_rate}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, interest_rate: parseFloat(e.target.value)}) : 
-                setEditingBond({...editingBond, interest_rate: parseFloat(e.target.value)})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              placeholder="0,00%"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Valor da Garantia</label>
-            <input
-              type="number"
-              value={bond.guarantee_value}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, guarantee_value: parseFloat(e.target.value)}) : 
-                setEditingBond({...editingBond, guarantee_value: parseFloat(e.target.value)})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              placeholder="R$ 0,00"
-              required
-            />
-          </div>
+      <div>
+        <RequiredFieldLabel htmlFor="issue_date">Data de Emissão</RequiredFieldLabel>
+        <div className="relative">
+          <input
+            id="issue_date"
+            type="date"
+            value={bond.issue_date}
+            onChange={(e) => isAdding ? 
+              setNewBond({...newBond, issue_date: e.target.value}) : 
+              setEditingBond({...editingBond, issue_date: e.target.value})}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+            required
+          />
+          <span className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-gray-500">
+            Data de Emissão
+          </span>
         </div>
       </div>
 
-      {/* Informações do Emissor */}
-      <div className="col-span-2 bg-gray-50 p-4 rounded-lg mb-4">
-        <h4 className="font-bold mb-3">Informações do Emissor</h4>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Nome do Emissor</label>
-            <input
-              type="text"
-              value={bond.issuer_name}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, issuer_name: e.target.value}) : 
-                setEditingBond({...editingBond, issuer_name: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              required
-            />
-          </div>
+      <div>
+        <RequiredFieldLabel htmlFor="interest_rate">Taxa de Juros (%)</RequiredFieldLabel>
+        <input
+          id="interest_rate"
+          type="number"
+          value={formatInterestRate(bond.interest_rate)}
+          onChange={(e) => {
+            const value = parseFloat(e.target.value) || 0;
+            if (isAdding) {
+              setNewBond({...newBond, interest_rate: value});
+            } else {
+              setEditingBond({...editingBond, interest_rate: value});
+            }
+          }}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          min="0"
+          step="0.01"
+          placeholder="0.00"
+          required
+        />
+        <span className="text-sm text-gray-500">
+          Ex: 5.25 para 5,25%
+        </span>
+      </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">CNPJ do Emissor</label>
-            <input
-              type="text"
-              value={bond.issuer_cnpj}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, issuer_cnpj: e.target.value}) : 
-                setEditingBond({...editingBond, issuer_cnpj: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              required
-              pattern="\d{14}"
-              title="CNPJ deve conter 14 dígitos"
-            />
-          </div>
+      <div>
+        <RequiredFieldLabel htmlFor="guarantee_value">Valor da Garantia</RequiredFieldLabel>
+        <input
+          id="guarantee_value"
+          type="text"
+          value={bond.guarantee_value_formatted || formatCurrencyInput(String(bond.guarantee_value || 0))}
+          onChange={(e) => handleCurrencyInput(e, 'guarantee_value', isAdding)}
+          onBlur={(e) => handleCurrencyBlur(e, 'guarantee_value', isAdding)}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          placeholder="R$ 0,00"
+          required
+        />
+      </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Endereço do Emissor</label>
-            <input
-              type="text"
-              value={bond.issuer_address}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, issuer_address: e.target.value}) : 
-                setEditingBond({...editingBond, issuer_address: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              required
-            />
-          </div>
+      <div>
+        <RequiredFieldLabel htmlFor="issuer_name">Nome do Emissor</RequiredFieldLabel>
+        <input
+          id="issuer_name"
+          type="text"
+          value={bond.issuer_name}
+          onChange={(e) => isAdding ? 
+            setNewBond({...newBond, issuer_name: e.target.value}) : 
+            setEditingBond({...editingBond, issuer_name: e.target.value})}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          required
+        />
+      </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Contato do Emissor</label>
-            <input
-              type="text"
-              value={bond.issuer_contact}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, issuer_contact: e.target.value}) : 
-                setEditingBond({...editingBond, issuer_contact: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              required
-            />
-          </div>
+      <div>
+        <RequiredFieldLabel htmlFor="issuer_cnpj">CNPJ do Emissor</RequiredFieldLabel>
+        <input
+          id="issuer_cnpj"
+          type="text"
+          value={bond.issuer_cnpj_formatted || formatCNPJ(bond.issuer_cnpj || '')}
+          onChange={(e) => handleCNPJInput(e, 'issuer_cnpj', isAdding)}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          placeholder="00.000.000/0000-00"
+          maxLength={18}
+          required
+        />
+      </div>
+
+      <div>
+        <RequiredFieldLabel htmlFor="issuer_address">Endereço do Emissor</RequiredFieldLabel>
+        <input
+          id="issuer_address"
+          type="text"
+          value={bond.issuer_address}
+          onChange={(e) => isAdding ? 
+            setNewBond({...newBond, issuer_address: e.target.value}) : 
+            setEditingBond({...editingBond, issuer_address: e.target.value})}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          required
+        />
+      </div>
+
+      <div>
+        <RequiredFieldLabel htmlFor="issuer_contact">Contato do Emissor</RequiredFieldLabel>
+        <input
+          id="issuer_contact"
+          type="text"
+          value={bond.issuer_contact}
+          onChange={(e) => isAdding ? 
+            setNewBond({...newBond, issuer_contact: e.target.value}) : 
+            setEditingBond({...editingBond, issuer_contact: e.target.value})}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          required
+        />
+      </div>
+
+      <div>
+        <RequiredFieldLabel htmlFor="intermediary_name">Nome do Intermediário</RequiredFieldLabel>
+        <input
+          id="intermediary_name"
+          type="text"
+          value={bond.intermediary_name}
+          onChange={(e) => isAdding ? 
+            setNewBond({...newBond, intermediary_name: e.target.value}) : 
+            setEditingBond({...editingBond, intermediary_name: e.target.value})}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          required
+        />
+      </div>
+
+      <div>
+        <RequiredFieldLabel htmlFor="intermediary_cnpj">CNPJ do Intermediário</RequiredFieldLabel>
+        <input
+          id="intermediary_cnpj"
+          type="text"
+          value={bond.intermediary_cnpj_formatted || formatCNPJ(bond.intermediary_cnpj || '')}
+          onChange={(e) => handleCNPJInput(e, 'intermediary_cnpj', isAdding)}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          placeholder="00.000.000/0000-00"
+          maxLength={18}
+          required
+        />
+      </div>
+
+      <div>
+        <RequiredFieldLabel htmlFor="intermediary_contact">Contato do Intermediário</RequiredFieldLabel>
+        <input
+          id="intermediary_contact"
+          type="text"
+          value={bond.intermediary_contact}
+          onChange={(e) => isAdding ? 
+            setNewBond({...newBond, intermediary_contact: e.target.value}) : 
+            setEditingBond({...editingBond, intermediary_contact: e.target.value})}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          required
+        />
+      </div>
+
+      <div>
+        <RequiredFieldLabel htmlFor="financial_institution_name">Nome da Instituição</RequiredFieldLabel>
+        <input
+          id="financial_institution_name"
+          type="text"
+          value={bond.financial_institution_name}
+          onChange={(e) => isAdding ? 
+            setNewBond({...newBond, financial_institution_name: e.target.value}) : 
+            setEditingBond({...editingBond, financial_institution_name: e.target.value})}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          required
+        />
+      </div>
+
+      <div>
+        <RequiredFieldLabel htmlFor="financial_institution_cnpj">CNPJ da Instituição</RequiredFieldLabel>
+        <input
+          id="financial_institution_cnpj"
+          type="text"
+          value={bond.financial_institution_cnpj_formatted || formatCNPJ(bond.financial_institution_cnpj || '')}
+          onChange={(e) => handleCNPJInput(e, 'financial_institution_cnpj', isAdding)}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          placeholder="00.000.000/0000-00"
+          maxLength={18}
+          required
+        />
+      </div>
+
+      <div>
+        <RequiredFieldLabel htmlFor="financial_institution_contact">Contato da Instituição</RequiredFieldLabel>
+        <input
+          id="financial_institution_contact"
+          type="text"
+          value={bond.financial_institution_contact}
+          onChange={(e) => isAdding ? 
+            setNewBond({...newBond, financial_institution_contact: e.target.value}) : 
+            setEditingBond({...editingBond, financial_institution_contact: e.target.value})}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          required
+        />
+      </div>
+
+      <div>
+        <RequiredFieldLabel htmlFor="project_description">Descrição do Projeto</RequiredFieldLabel>
+        <textarea
+          id="project_description"
+          value={bond.project_description}
+          onChange={(e) => isAdding ? 
+            setNewBond({...newBond, project_description: e.target.value}) : 
+            setEditingBond({...editingBond, project_description: e.target.value})}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          required
+          rows="3"
+        />
+      </div>
+
+      <div>
+        <RequiredFieldLabel htmlFor="project_eligibility">Elegibilidade do Projeto</RequiredFieldLabel>
+        <input
+          id="project_eligibility"
+          type="text"
+          value={bond.project_eligibility}
+          onChange={(e) => isAdding ? 
+            setNewBond({...newBond, project_eligibility: e.target.value}) : 
+            setEditingBond({...editingBond, project_eligibility: e.target.value})}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          required
+        />
+      </div>
+
+      <div>
+        <RequiredFieldLabel htmlFor="project_selection_date">Data de Seleção do Projeto</RequiredFieldLabel>
+        <div className="relative">
+          <input
+            id="project_selection_date"
+            type="date"
+            value={bond.project_selection_date}
+            onChange={(e) => isAdding ? 
+              setNewBond({...newBond, project_selection_date: e.target.value}) : 
+              setEditingBond({...editingBond, project_selection_date: e.target.value})}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+            required
+          />
+          <span className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-gray-500">
+            Data de Seleção
+          </span>
         </div>
       </div>
 
-      {/* Informações do Intermediário */}
-      <div className="col-span-2 bg-gray-50 p-4 rounded-lg mb-4">
-        <h4 className="font-bold mb-3">Informações do Intermediário</h4>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Nome do Intermediário</label>
-            <input
-              type="text"
-              value={bond.intermediary_name}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, intermediary_name: e.target.value}) : 
-                setEditingBond({...editingBond, intermediary_name: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              required
-            />
-          </div>
+      <div>
+        <RequiredFieldLabel htmlFor="social_impact_type">Tipo de Impacto Social</RequiredFieldLabel>
+        <input
+          id="social_impact_type"
+          type="text"
+          value={bond.social_impact_type}
+          onChange={(e) => isAdding ? 
+            setNewBond({...newBond, social_impact_type: e.target.value}) : 
+            setEditingBond({...editingBond, social_impact_type: e.target.value})}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          required
+        />
+      </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">CNPJ do Intermediário</label>
-            <input
-              type="text"
-              value={bond.intermediary_cnpj}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, intermediary_cnpj: e.target.value}) : 
-                setEditingBond({...editingBond, intermediary_cnpj: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              required
-              pattern="\d{14}"
-            />
-          </div>
+      <div>
+        <RequiredFieldLabel htmlFor="estimated_social_impact">Impacto Social Estimado</RequiredFieldLabel>
+        <input
+          id="estimated_social_impact"
+          type="text"
+          value={bond.estimated_social_impact}
+          onChange={(e) => isAdding ? 
+            setNewBond({...newBond, estimated_social_impact: e.target.value}) : 
+            setEditingBond({...editingBond, estimated_social_impact: e.target.value})}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          required
+        />
+      </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Contato do Intermediário</label>
-            <input
-              type="text"
-              value={bond.intermediary_contact}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, intermediary_contact: e.target.value}) : 
-                setEditingBond({...editingBond, intermediary_contact: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              required
-            />
-          </div>
+      <div>
+        <RequiredFieldLabel htmlFor="social_impact_achieved">Impacto Social Alcançado</RequiredFieldLabel>
+        <input
+          id="social_impact_achieved"
+          type="text"
+          value={bond.social_impact_achieved}
+          onChange={(e) => isAdding ? 
+            setNewBond({...newBond, social_impact_achieved: e.target.value}) : 
+            setEditingBond({...editingBond, social_impact_achieved: e.target.value})}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          required
+        />
+      </div>
+
+      <div>
+        <label htmlFor="social_impact_measured_date" className="block text-sm font-medium text-gray-700">
+          Data de Medição do Impacto Social
+        </label>
+        <div className="relative">
+          <input
+            id="social_impact_measured_date"
+            type="date"
+            value={bond.social_impact_measured_date || ''}
+            onChange={(e) => isAdding ? 
+              setNewBond({...newBond, social_impact_measured_date: e.target.value}) : 
+              setEditingBond({...editingBond, social_impact_measured_date: e.target.value})}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          />
+          <span className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-gray-500">
+            Data de Medição
+          </span>
         </div>
       </div>
 
-      {/* Informações da Instituição Financeira */}
-      <div className="col-span-2 bg-gray-50 p-4 rounded-lg mb-4">
-        <h4 className="font-bold mb-3">Informações da Instituição Financeira</h4>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Nome da Instituição</label>
-            <input
-              type="text"
-              value={bond.financial_institution_name}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, financial_institution_name: e.target.value}) : 
-                setEditingBond({...editingBond, financial_institution_name: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              required
-            />
-          </div>
+      <div>
+        <RequiredFieldLabel htmlFor="regulator">Regulador</RequiredFieldLabel>
+        <input
+          id="regulator"
+          type="text"
+          value={bond.regulator}
+          onChange={(e) => isAdding ? 
+            setNewBond({...newBond, regulator: e.target.value}) : 
+            setEditingBond({...editingBond, regulator: e.target.value})}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          required
+        />
+      </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">CNPJ da Instituição</label>
-            <input
-              type="text"
-              value={bond.financial_institution_cnpj}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, financial_institution_cnpj: e.target.value}) : 
-                setEditingBond({...editingBond, financial_institution_cnpj: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              required
-              pattern="\d{14}"
-            />
-          </div>
+      <div>
+        <RequiredFieldLabel htmlFor="resource_manager">Gestor de Recursos</RequiredFieldLabel>
+        <input
+          id="resource_manager"
+          type="text"
+          value={bond.resource_manager}
+          onChange={(e) => isAdding ? 
+            setNewBond({...newBond, resource_manager: e.target.value}) : 
+            setEditingBond({...editingBond, resource_manager: e.target.value})}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+          required
+        />
+      </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Contato da Instituição</label>
-            <input
-              type="text"
-              value={bond.financial_institution_contact}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, financial_institution_contact: e.target.value}) : 
-                setEditingBond({...editingBond, financial_institution_contact: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              required
-            />
-          </div>
+      <div>
+        <label htmlFor="report_frequency" className="block text-sm font-medium text-gray-700">
+          Frequência de Relatórios
+        </label>
+        <input
+          id="report_frequency"
+          type="text"
+          value={bond.report_frequency || ''}
+          onChange={(e) => isAdding ? 
+            setNewBond({...newBond, report_frequency: e.target.value}) : 
+            setEditingBond({...editingBond, report_frequency: e.target.value})}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+        />
+      </div>
+
+      <div>
+        <label htmlFor="audit_result" className="block text-sm font-medium text-gray-700">
+          Resultado da Auditoria
+        </label>
+        <input
+          id="audit_result"
+          type="text"
+          value={bond.audit_result || ''}
+          onChange={(e) => isAdding ? 
+            setNewBond({...newBond, audit_result: e.target.value}) : 
+            setEditingBond({...editingBond, audit_result: e.target.value})}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+        />
+      </div>
+
+      <div className="col-span-2 grid grid-cols-2 gap-4">
+        <div className="flex items-center">
+          <input
+            id="compliance_verified"
+            type="checkbox"
+            checked={bond.compliance_verified}
+            onChange={(e) => isAdding ? 
+              setNewBond({...newBond, compliance_verified: e.target.checked}) : 
+              setEditingBond({...editingBond, compliance_verified: e.target.checked})}
+            className="h-4 w-4 text-blue-600 rounded"
+          />
+          <label htmlFor="compliance_verified" className="ml-2 block text-sm text-gray-900">
+            Compliance Verificado
+          </label>
+        </div>
+
+        <div className="flex items-center">
+          <input
+            id="social_report_issued"
+            type="checkbox"
+            checked={bond.social_report_issued}
+            onChange={(e) => isAdding ? 
+              setNewBond({...newBond, social_report_issued: e.target.checked}) : 
+              setEditingBond({...editingBond, social_report_issued: e.target.checked})}
+            className="h-4 w-4 text-blue-600 rounded"
+          />
+          <label htmlFor="social_report_issued" className="ml-2 block text-sm text-gray-900">
+            Relatório Social Emitido
+          </label>
+        </div>
+
+        <div className="flex items-center">
+          <input
+            id="resource_allocation_approved"
+            type="checkbox"
+            checked={bond.resource_allocation_approved}
+            onChange={(e) => isAdding ? 
+              setNewBond({...newBond, resource_allocation_approved: e.target.checked}) : 
+              setEditingBond({...editingBond, resource_allocation_approved: e.target.checked})}
+            className="h-4 w-4 text-blue-600 rounded"
+          />
+          <label htmlFor="resource_allocation_approved" className="ml-2 block text-sm text-gray-900">
+            Alocação de Recursos Aprovada
+          </label>
+        </div>
+
+        <div className="flex items-center">
+          <input
+            id="separate_account"
+            type="checkbox"
+            checked={bond.separate_account}
+            onChange={(e) => isAdding ? 
+              setNewBond({...newBond, separate_account: e.target.checked}) : 
+              setEditingBond({...editingBond, separate_account: e.target.checked})}
+            className="h-4 w-4 text-blue-600 rounded"
+          />
+          <label htmlFor="separate_account" className="ml-2 block text-sm text-gray-900">
+            Conta Separada
+          </label>
+        </div>
+
+        <div className="flex items-center">
+          <input
+            id="audit_completed"
+            type="checkbox"
+            checked={bond.audit_completed}
+            onChange={(e) => isAdding ? 
+              setNewBond({...newBond, audit_completed: e.target.checked}) : 
+              setEditingBond({...editingBond, audit_completed: e.target.checked})}
+            className="h-4 w-4 text-blue-600 rounded"
+          />
+          <label htmlFor="audit_completed" className="ml-2 block text-sm text-gray-900">
+            Auditoria Concluída
+          </label>
         </div>
       </div>
 
-      {/* Informações do Projeto e Impacto Social */}
-      <div className="col-span-2 bg-gray-50 p-4 rounded-lg mb-4">
-        <h4 className="font-bold mb-3">Informações do Projeto e Impacto Social</h4>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Descrição do Projeto</label>
-            <textarea
-              value={bond.project_description}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, project_description: e.target.value}) : 
-                setEditingBond({...editingBond, project_description: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              required
-              rows="3"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Elegibilidade do Projeto</label>
-            <input
-              type="text"
-              value={bond.project_eligibility}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, project_eligibility: e.target.value}) : 
-                setEditingBond({...editingBond, project_eligibility: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Data de Seleção do Projeto</label>
-            <div className="relative">
-              <input
-                type="date"
-                value={bond.project_selection_date}
-                onChange={(e) => isAdding ? 
-                  setNewBond({...newBond, project_selection_date: e.target.value}) : 
-                  setEditingBond({...editingBond, project_selection_date: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-                required
-              />
-              <span className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-gray-500">
-                Data de Seleão
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Tipo de Impacto Social</label>
-            <input
-              type="text"
-              value={bond.social_impact_type}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, social_impact_type: e.target.value}) : 
-                setEditingBond({...editingBond, social_impact_type: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Impacto Social Estimado</label>
-            <input
-              type="text"
-              value={bond.estimated_social_impact}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, estimated_social_impact: e.target.value}) : 
-                setEditingBond({...editingBond, estimated_social_impact: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Impacto Social Alcançado</label>
-            <input
-              type="text"
-              value={bond.social_impact_achieved}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, social_impact_achieved: e.target.value}) : 
-                setEditingBond({...editingBond, social_impact_achieved: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Data de Medição do Impacto Social</label>
-            <div className="relative">
-              <input
-                type="date"
-                value={bond.social_impact_measured_date || ''}
-                onChange={(e) => isAdding ? 
-                  setNewBond({...newBond, social_impact_measured_date: e.target.value}) : 
-                  setEditingBond({...editingBond, social_impact_measured_date: e.target.value})}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              />
-              <span className="absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-gray-500">
-                Data de Medição
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Informações de Compliance e Auditoria */}
-      <div className="col-span-2 bg-gray-50 p-4 rounded-lg mb-4">
-        <h4 className="font-bold mb-3">Compliance e Auditoria</h4>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Regulador</label>
-            <input
-              type="text"
-              value={bond.regulator}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, regulator: e.target.value}) : 
-                setEditingBond({...editingBond, regulator: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Gestor de Recursos</label>
-            <input
-              type="text"
-              value={bond.resource_manager}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, resource_manager: e.target.value}) : 
-                setEditingBond({...editingBond, resource_manager: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Frequência de Relatórios</label>
-            <input
-              type="text"
-              value={bond.report_frequency || ''}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, report_frequency: e.target.value}) : 
-                setEditingBond({...editingBond, report_frequency: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Resultado da Auditoria</label>
-            <input
-              type="text"
-              value={bond.audit_result || ''}
-              onChange={(e) => isAdding ? 
-                setNewBond({...newBond, audit_result: e.target.value}) : 
-                setEditingBond({...editingBond, audit_result: e.target.value})}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
-            />
-          </div>
-
-          <div className="col-span-2 grid grid-cols-2 gap-4">
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                checked={bond.compliance_verified}
-                onChange={(e) => isAdding ? 
-                  setNewBond({...newBond, compliance_verified: e.target.checked}) : 
-                  setEditingBond({...editingBond, compliance_verified: e.target.checked})}
-                className="h-4 w-4 text-blue-600 rounded"
-              />
-              <label className="ml-2 block text-sm text-gray-900">
-                Compliance Verificado
-              </label>
-            </div>
-
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                checked={bond.social_report_issued}
-                onChange={(e) => isAdding ? 
-                  setNewBond({...newBond, social_report_issued: e.target.checked}) : 
-                  setEditingBond({...editingBond, social_report_issued: e.target.checked})}
-                className="h-4 w-4 text-blue-600 rounded"
-              />
-              <label className="ml-2 block text-sm text-gray-900">
-                Relatório Social Emitido
-              </label>
-            </div>
-
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                checked={bond.resource_allocation_approved}
-                onChange={(e) => isAdding ? 
-                  setNewBond({...newBond, resource_allocation_approved: e.target.checked}) : 
-                  setEditingBond({...editingBond, resource_allocation_approved: e.target.checked})}
-                className="h-4 w-4 text-blue-600 rounded"
-              />
-              <label className="ml-2 block text-sm text-gray-900">
-                Alocação de Recursos Aprovada
-              </label>
-            </div>
-
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                checked={bond.separate_account}
-                onChange={(e) => isAdding ? 
-                  setNewBond({...newBond, separate_account: e.target.checked}) : 
-                  setEditingBond({...editingBond, separate_account: e.target.checked})}
-                className="h-4 w-4 text-blue-600 rounded"
-              />
-              <label className="ml-2 block text-sm text-gray-900">
-                Conta Separada
-              </label>
-            </div>
-
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                checked={bond.audit_completed}
-                onChange={(e) => isAdding ? 
-                  setNewBond({...newBond, audit_completed: e.target.checked}) : 
-                  setEditingBond({...editingBond, audit_completed: e.target.checked})}
-                className="h-4 w-4 text-blue-600 rounded"
-              />
-              <label className="ml-2 block text-sm text-gray-900">
-                Auditoria Concluída
-              </label>
-            </div>
-          </div>
-        </div>
+      {/* Legenda dos campos obrigatórios */}
+      <div className="col-span-2 mt-4 flex items-center gap-2 text-sm text-gray-500">
+        <FaAsterisk size={8} className="text-red-500" />
+        <span>Campos obrigatórios</span>
       </div>
     </div>
   );
@@ -635,6 +921,11 @@ function BondManagement({ sidebarColor, buttonColor }) {
   const currentBonds = filteredBonds.slice(indexOfFirstBond, indexOfLastBond);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  // Na tabela, exibir CNPJ formatado
+  const displayCNPJ = (cnpj) => {
+    return formatCNPJ(cnpj || '');
+  };
 
   if (isLoading) {
     return <div>Carregando...</div>;
@@ -712,7 +1003,7 @@ function BondManagement({ sidebarColor, buttonColor }) {
               <tr key={bond.id}>
                 <td className="px-4 py-2 border">{bond.name}</td>
                 <td className="px-4 py-2 border">{bond.type}</td>
-                <td className="px-4 py-2 border">{bond.value}</td>
+                <td className="px-4 py-2 border">{formatCurrencyInput(String(bond.value))}</td>
                 <td className="px-4 py-2 border">{bond.esg_percentage}%</td>
                 <td className="px-4 py-2 border">{bond.issue_date}</td>
                 <td className="px-4 py-2 border">
@@ -748,6 +1039,18 @@ function BondManagement({ sidebarColor, buttonColor }) {
           </button>
         ))}
       </div>
+
+      {/* Exibição de erros de validação */}
+      {validationErrors.length > 0 && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+          <strong className="font-bold">Erros de validação:</strong>
+          <ul className="list-disc list-inside">
+            {validationErrors.map((error, index) => (
+              <li key={index}>{error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

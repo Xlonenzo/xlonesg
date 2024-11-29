@@ -37,6 +37,12 @@ from langchain.schema import HumanMessage, SystemMessage
 from langchain.callbacks import AsyncIteratorCallbackHandler
 import asyncio
 import aiofiles  # Adicionar esta linha no início do arquivo com as outras importações
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+from langchain.callbacks.base import BaseCallbackHandler
+from langchain.schema.messages import BaseMessage
+from typing import Any, Dict, List, Optional, Union
+from starlette.background import BackgroundTasks
+from asyncio import CancelledError
 
 from . import models, schemas  # Certifique-se de que o caminho está correto
 from .database import SessionLocal, engine
@@ -115,13 +121,12 @@ if not api_key:
 # Usa a chave explicitamente
 embeddings = OpenAIEmbeddings(openai_api_key=api_key)
 
-# Inicializar o modelo ChatOpenAI (coloque isso junto com as outras inicializações)
+# Configuração do modelo LLM (colocar no início do arquivo após as importações)
 chat_model = ChatOpenAI(
-    model_name="gpt-3.5-turbo-16k",  # Modelo com maior contexto
-    temperature=0.5,  # Reduzir para respostas mais consistentes
-    max_tokens=2000,  # Aumentar limite de tokens
-    request_timeout=120,  # Aumentar timeout
-    openai_api_key=os.getenv('OPENAI_API_KEY')
+    model_name="gpt-3.5-turbo",
+    temperature=0.5,
+    max_tokens=2000,
+    request_timeout=60,
 )
 
 # Adicionar o modelo de streaming separadamente
@@ -362,6 +367,7 @@ def read_companies(skip: int = 0, limit: int = 100, db: Session = Depends(get_db
     try:
         companies = db.query(models.Company).offset(skip).limit(limit).all()
         return companies
+        
     except Exception as e:
         logger.error(f"Erro ao buscar empresas: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1172,8 +1178,7 @@ async def upload_document(
         if file_ext not in ALLOWED_EXTENSIONS:
             raise HTTPException(
                 status_code=400,
-                detail=f"Tipo de arquivo não permitido. Permitidos: {', '.join(ALLOWED_EXTENSIONS)}"
-            )
+                detail=f"Tipo de arquivo não permitido. Permitidos: {', '.join(ALLOWED_EXTENSIONS)}")
 
         # Gerar nome único para o arquivo
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1423,7 +1428,7 @@ def process_document(file_path: str, file_ext: str):
     
     return text_splitter.split_documents(documents)
 
-# Criar um wrapper para a função de embedding
+# Criar um wrapper para a fun��ão de embedding
 class OpenAIEmbeddingFunction(EmbeddingFunction):
     def __init__(self, openai_embeddings: OpenAIEmbeddings):
         self.openai_embeddings = openai_embeddings
@@ -1772,25 +1777,14 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
 @app.post("/api/emissions", response_model=schemas.EmissionData)
 def create_emission(emission: schemas.EmissionDataCreate, db: Session = Depends(get_db)):
     try:
-        logger.info(f"Criando nova emissão: {emission.dict()}")
+        logger.info("Criando novo registro de emissão")
         
-        # Criar o objeto com apenas os campos necessários
-        emission_dict = {
-            'company_id': emission.company_id,
-            'scope': emission.scope,
-            'emission_type': emission.emission_type,
-            'value': emission.value,
-            'unit': emission.unit,
-            'source': emission.source,
-            'calculation_method': emission.calculation_method,
-            'uncertainty_level': emission.uncertainty_level,
-            'timestamp': emission.timestamp,
-            'calculated_emission': emission.calculated_emission,
-            'reporting_standard': emission.reporting_standard
-        }
-        
-        db_emission = models.EmissionData(**emission_dict)
-        
+        # Verificar se o projeto existe
+        project = db.query(models.ProjectTracking).filter(models.ProjectTracking.id == emission.project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Projeto não encontrado")
+            
+        db_emission = models.EmissionData(**emission.dict())
         db.add(db_emission)
         db.commit()
         db.refresh(db_emission)
@@ -1799,85 +1793,125 @@ def create_emission(emission: schemas.EmissionDataCreate, db: Session = Depends(
         return db_emission
         
     except Exception as e:
-        db.rollback()
         logger.error(f"Erro ao criar emissão: {str(e)}")
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=400, detail=str(e))
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/emissions", response_model=List[schemas.EmissionData])
-def read_emissions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+async def read_emissions(db: Session = Depends(get_db)):
     try:
-        emissions = db.query(models.EmissionData)\
-            .options(joinedload(models.EmissionData.company))\
-            .offset(skip)\
-            .limit(limit)\
-            .all()
-        return emissions
+        logger.info("Iniciando busca de emissões")
+        
+        # Verificar se a tabela existe
+        try:
+            db.execute(text("SELECT 1 FROM xlonesg.emission_data LIMIT 1"))
+            logger.info("Tabela emission_data existe")
+        except SQLAlchemyError as e:
+            logger.error(f"Erro ao verificar tabela: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail="Tabela de emissões não encontrada. Verifique se a migração foi executada.")
+        
+        # Tentar buscar os dados
+        try:
+            emissions = (
+                db.query(models.EmissionData)
+                .order_by(models.EmissionData.timestamp.desc())
+                .all()
+            )
+            logger.info(f"Encontradas {len(emissions)} emissões")
+            
+            # Log para debug
+            for emission in emissions:
+                logger.debug(f"Emissão ID {emission.id}: {emission.emission_type}")
+            
+            return emissions
+            
+        except SQLAlchemyError as e:
+            logger.error(f"Erro ao consultar dados: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro ao consultar dados: {str(e)}")
+            
     except Exception as e:
-        logger.error(f"Erro ao buscar emissões: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/api/emissions/{emission_id}", response_model=schemas.EmissionData)
-def read_emission(emission_id: int, db: Session = Depends(get_db)):
-    try:
-        db_emission = db.query(models.EmissionData).filter(models.EmissionData.id == emission_id).first()
-        if db_emission is None:
-            raise HTTPException(status_code=404, detail="Registro de emissão não encontrado")
-        return db_emission
-    except Exception as e:
-        logger.error(f"Erro ao buscar emissão: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Erro não esperado: {str(e)}")
+        logger.error(f"Traceback completo: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro interno do servidor: {str(e)}")
 
 @app.put("/api/emissions/{emission_id}", response_model=schemas.EmissionData)
-def update_emission(emission_id: int, emission: schemas.EmissionDataCreate, db: Session = Depends(get_db)):
+def update_emission(
+    emission_id: int,
+    emission: schemas.EmissionDataCreate,
+    db: Session = Depends(get_db)
+):
     try:
+        logger.info(f"Atualizando emissão ID {emission_id}")
         db_emission = db.query(models.EmissionData).filter(models.EmissionData.id == emission_id).first()
-        if db_emission is None:
-            raise HTTPException(status_code=404, detail="Registro de emissão não encontrado")
-        
-        # Atualiza os campos
-        for key, value in emission.dict(exclude_unset=True).items():
-            if hasattr(db_emission, key):
-                setattr(db_emission, key, value)
-        
-        # O updated_at será atualizado automaticamente pelo onupdate
+        if not db_emission:
+            raise HTTPException(status_code=404, detail="Emissão não encontrada")
+            
+        for key, value in emission.dict().items():
+            setattr(db_emission, key, value)
+            
         db.commit()
         db.refresh(db_emission)
         return db_emission
-        
     except Exception as e:
         db.rollback()
         logger.error(f"Erro ao atualizar emissão: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
-@app.delete("/api/emissions/{emission_id}", response_model=schemas.EmissionData)
-def delete_emission(emission_id: int, db: Session = Depends(get_db)):
+@app.delete("/api/emissions/{emission_id}")
+def delete_emission(
+    emission_id: int,
+    db: Session = Depends(get_db)
+):
     try:
+        logger.info(f"Removendo emissão ID {emission_id}")
         db_emission = db.query(models.EmissionData).filter(models.EmissionData.id == emission_id).first()
-        if db_emission is None:
-            raise HTTPException(status_code=404, detail="Registro de emissão não encontrado")
-        
+        if not db_emission:
+            raise HTTPException(status_code=404, detail="Emissão não encontrada")
+            
         db.delete(db_emission)
         db.commit()
-        return db_emission
+        return {"message": "Emissão removida com sucesso"}
     except Exception as e:
         db.rollback()
-        logger.error(f"Erro ao deletar emissão: {str(e)}")
+        logger.error(f"Erro ao remover emissão: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
+
+# Rota para buscar emissões por projeto
+@app.get("/api/emissions/project/{project_id}", response_model=List[schemas.EmissionData])
+async def read_emissions_by_project(project_id: int, db: Session = Depends(get_db)):
+    try:
+        emissions = (
+            db.query(models.EmissionData)  # Usando EmissionData
+            .filter(models.EmissionData.project_id == project_id)
+            .all()
+        )
+        return emissions
+    except Exception as e:
+        logger.error(f"Erro ao buscar emissões do projeto: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Rotas para Fornecedores
 
 @app.post("/api/suppliers", response_model=schemas.Supplier)
 async def create_supplier(supplier: schemas.SupplierCreate, db: Session = Depends(get_db)):
-    logger.info("Iniciando criaço de fornecedor")
+    logger.info("Iniciando criação de fornecedor")
     logger.info(f"Dados recebidos: {supplier.dict()}")
     
     try:
-        # Verifica se a empresa existe
-        company = db.query(models.Company).filter(models.Company.id == supplier.company_id).first()
-        if not company:
-            logger.error(f"Empresa {supplier.company_id} não encontrada")
-            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+        # Verifica se o projeto existe
+        project = db.query(models.ProjectTracking).filter(
+            models.ProjectTracking.id == supplier.project_id
+        ).first()
+        if not project:
+            logger.error(f"Projeto {supplier.project_id} não encontrado")
+            raise HTTPException(status_code=404, detail="Projeto não encontrado")
 
         db_supplier = models.Supplier(**supplier.dict())
         db.add(db_supplier)
@@ -1917,22 +1951,35 @@ def read_supplier(supplier_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/suppliers/{supplier_id}", response_model=schemas.Supplier)
-def update_supplier(
+async def update_supplier(
     supplier_id: int,
-    supplier: schemas.SupplierCreate,
+    supplier: schemas.SupplierUpdate,
     db: Session = Depends(get_db)
 ):
     try:
-        db_supplier = db.query(models.Supplier).filter(models.Supplier.id == supplier_id).first()
+        # Busca o fornecedor existente
+        db_supplier = db.query(models.Supplier).filter(
+            models.Supplier.id == supplier_id
+        ).first()
+        
         if not db_supplier:
             raise HTTPException(status_code=404, detail="Fornecedor não encontrado")
-        
+
+        # Verifica se o projeto existe
+        project = db.query(models.ProjectTracking).filter(
+            models.ProjectTracking.id == supplier.project_id
+        ).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Projeto não encontrado")
+
+        # Atualiza os campos
         for key, value in supplier.dict().items():
             setattr(db_supplier, key, value)
-            
+
         db.commit()
         db.refresh(db_supplier)
         return db_supplier
+
     except Exception as e:
         db.rollback()
         logger.error(f"Erro ao atualizar fornecedor: {str(e)}")
@@ -1968,10 +2015,13 @@ async def create_supplier(
 ):
     logger.info(f"Recebendo requisição POST /api/suppliers: {supplier.dict()}")
     try:
-        company = db.query(models.Company).filter(models.Company.id == supplier.company_id).first()
-        if not company:
-            logger.error(f"Empresa {supplier.company_id} não encontrada")
-            raise HTTPException(status_code=404, detail="Empresa não encontrada")
+        # Verifica se o projeto existe
+        project = db.query(models.ProjectTracking).filter(
+            models.ProjectTracking.id == supplier.project_id
+        ).first()
+        if not project:
+            logger.error(f"Projeto {supplier.project_id} não encontrado")
+            raise HTTPException(status_code=404, detail="Projeto não encontrado")
 
         db_supplier = models.Supplier(**supplier.dict())
         db.add(db_supplier)
@@ -1988,43 +2038,38 @@ async def create_supplier(
 
 # Rotas para Avaliação de Materialidade
 @app.post("/api/materiality", response_model=schemas.MaterialityAssessment)
-def create_materiality(materiality: schemas.MaterialityAssessmentCreate, db: Session = Depends(get_db)):
+def create_materiality(
+    materiality: schemas.MaterialityAssessmentCreate, 
+    db: Session = Depends(get_db)
+):
     try:
-        logger.info(f"Criando nova avaliação de materialidade: {materiality.dict()}")
-        
         db_materiality = models.MaterialityAssessment(**materiality.dict())
-        db_materiality.last_updated = datetime.now(timezone.utc)  # Definir timezone
-        
         db.add(db_materiality)
         db.commit()
         db.refresh(db_materiality)
-        
-        logger.info(f"Avaliação de materialidade criada com sucesso: ID {db_materiality.id}")
         return db_materiality
-        
-    except Exception as e:
+    except SQLAlchemyError as e:
         db.rollback()
-        logger.error(f"Erro ao criar avaliaão de materialidade: {str(e)}")
-        logger.error(traceback.format_exc())
+        logger.error(f"Error creating materiality: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/api/materiality", response_model=List[schemas.MaterialityAssessment])
 def read_materiality(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     try:
         materiality_list = db.query(models.MaterialityAssessment)\
-            .options(joinedload(models.MaterialityAssessment.company))\
+            .options(joinedload(models.MaterialityAssessment.project))\
             .offset(skip)\
             .limit(limit)\
             .all()
         return materiality_list
     except Exception as e:
-        logger.error(f"Erro ao buscar avaliações de materialidade: {str(e)}")
+        logger.error(f"Error fetching materiality: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/materiality/{materiality_id}", response_model=schemas.MaterialityAssessment)
 def read_materiality_by_id(materiality_id: int, db: Session = Depends(get_db)):
     db_materiality = db.query(models.MaterialityAssessment)\
-        .options(joinedload(models.MaterialityAssessment.company))\
+        .options(joinedload(models.MaterialityAssessment.project))\
         .filter(models.MaterialityAssessment.id == materiality_id)\
         .first()
     
@@ -2456,81 +2501,177 @@ async def fetch_document_details(bond_name: str, db: Session) -> List[dict]:
 async def get_document_details(bond_name: str, db: Session = Depends(get_db)):
     return await fetch_document_details(bond_name, db)
 
+# Adicionar no início do arquivo, junto com as outras importações
+from .constants import (
+    ODS_GRI_IFC_MAPPING,
+    IFC_PERFORMANCE_STANDARDS,
+    get_complete_mapping,
+    get_gri_indicators_for_ods,
+    get_ifc_standards_for_ods,
+    get_ifc_descriptions_for_ods
+)
+
+# Definir uma classe personalizada para callback
+class CustomAsyncCallbackHandler(BaseCallbackHandler):
+    """Callback handler personalizado para streaming assíncrono"""
+    
+    def __init__(self):
+        self.tokens = []
+        self._done = asyncio.Event()
+        self.queue = asyncio.Queue(maxsize=1000)  # Buffer limitado
+        self.start_time = time.time()
+        self.token_count = 0
+        self._cancel = False  # Flag de cancelamento
+        self._task = None  # Referência à task principal
+        self._llm_task = None  # Nova referência para a task do LLM
+
+    def cancel(self):
+        """Cancela a geração em andamento"""
+        self._cancel = True
+        if self._task:
+            self._task.cancel()
+        if self._llm_task:  # Cancelar também a task do LLM
+            self._llm_task.cancel()
+        self._done.set()
+        self.queue.put_nowait("[CANCELADO] Geração interrompida pelo usuário")
+
+    async def on_llm_start(self, *args, **kwargs):
+        """Chamado quando LLM inicia"""
+        self._cancel = False
+        self._done.clear()
+
+    async def on_llm_new_token(self, token: str, **kwargs) -> None:
+        if self._cancel:
+            raise CancelledError("Geração cancelada pelo usuário")
+        
+        try:
+            await self.queue.put(token)
+            self.token_count += 1
+        except asyncio.QueueFull:
+            # Se a fila estiver cheia, esperar um pouco
+            await asyncio.sleep(0.1)
+            await self.queue.put(token)
+
+    async def on_llm_end(self, *args, **kwargs) -> None:
+        """Chamado quando LLM termina a geração"""
+        elapsed = time.time() - self.start_time
+        logger.info(f"Geração concluída: {self.token_count} tokens em {elapsed:.2f}s")
+        await self.queue.put(None)
+        self._done.set()
+
+    async def on_llm_error(self, error: Union[Exception, KeyboardInterrupt], **kwargs) -> None:
+        """Chamado em caso de erro"""
+        logger.error(f"Erro LLM: {str(error)}")
+        await self.queue.put(f"[ERRO] {str(error)}")
+        self._done.set()
+
+    async def aiter(self):
+        """Async iterator para os tokens"""
+        buffer = []
+        buffer_size = 0
+        max_buffer_size = 1000  # Tamanho máximo do buffer em caracteres
+
+        try:
+            while not self._done.is_set() or not self.queue.empty():
+                if self._cancel:
+                    yield "[CANCELADO] Geração interrompida pelo usuário"
+                    break
+
+                try:
+                    token = await asyncio.wait_for(self.queue.get(), timeout=1.0)
+                    if token is None:
+                        break
+                    
+                    buffer.append(token)
+                    buffer_size += len(token)
+
+                    if buffer_size >= max_buffer_size:
+                        yield ''.join(buffer)
+                        buffer = []
+                        buffer_size = 0
+                        
+                except asyncio.TimeoutError:
+                    if buffer:  # Enviar buffer mesmo se timeout
+                        yield ''.join(buffer)
+                        buffer = []
+                        buffer_size = 0
+                    continue
+
+            if buffer:  # Enviar buffer restante
+                yield ''.join(buffer)
+
+        except CancelledError:
+            yield "[CANCELADO] Geração interrompida pelo usuário"
+        except Exception as e:
+            logger.error(f"Erro no iterator: {str(e)}")
+            yield f"[ERRO] {str(e)}"
+
+# Dicionário para armazenar handlers ativos
+active_handlers = {}
+
 @app.post("/api/generate-report/stream")
 async def generate_report_stream(
     request: ReportRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
-) -> StreamingResponse:
-    """Gera um relatório simplificado focado no impacto social"""
+):
+    report_type = request.report_type  # 'summary' ou 'complete'
     
+    # Ajustar o prompt baseado no tipo
+    if report_type == 'summary':
+        system_message = "Analise apenas os aspectos básicos do título e seus ODS..."
+    else:
+        system_message = "Realize uma análise completa e detalhada..."
+    
+    handler_id = str(uuid4())
+    callback_handler = CustomAsyncCallbackHandler()
+    active_handlers[handler_id] = callback_handler
+
+    async def cleanup():
+        """Remove o handler após conclusão"""
+        if handler_id in active_handlers:
+            del active_handlers[handler_id]
+
+    background_tasks.add_task(cleanup)
+
     async def generate():
         try:
-            # Debug da API key
-            current_api_key = os.getenv('OPENAI_API_KEY')
-            logger.info(f"Verificando API key no momento da requisição:")
-            logger.info(f"- API key presente: {'Sim' if current_api_key else 'Não'}")
-            logger.info(f"- Formato correto: {'Sim' if current_api_key.startswith('sk-') else 'Não'}")
-            logger.info(f"- Comprimento: {len(current_api_key) if current_api_key else 0}")
+            logger.info(f"[DEBUG] Iniciando geração para bond_id: {request.bond_id}")
+            start_time = time.time()
 
-            # 1. Validar título
-            bond = db.query(models.Bond).filter(models.Bond.id == request.bond_id).first()
-            if not bond:
-                logger.error(f"Título não encontrado: ID {request.bond_id}")
-                yield "data: [ERRO] Título não encontrado\n\n"
-                return
+            chat_model_streaming = ChatOpenAI(
+                model_name="gpt-3.5-turbo",
+                streaming=True,
+                temperature=0.5,
+                max_tokens=2000,
+                request_timeout=60,
+                callbacks=[callback_handler]
+            )
 
-            # 2. Configurar streaming com debug
+            # Criar e armazenar a task do LLM
+            llm_task = asyncio.create_task(chat_model_streaming.agenerate(messages=messages))
+            callback_handler._llm_task = llm_task
+            
             try:
-                callback_handler = AsyncIteratorCallbackHandler()
-                chat_model = ChatOpenAI(
-                    model_name="gpt-3.5-turbo",
-                    streaming=True,
-                    temperature=0.7,
-                    callbacks=[callback_handler],
-                    openai_api_key=current_api_key
-                )
-                logger.info("Chat model configurado com sucesso")
-            except Exception as model_error:
-                logger.error(f"Erro ao configurar chat model: {str(model_error)}")
-                yield f"data: [ERRO] Erro na configuração: {str(model_error)}\n\n"
-                return
+                async for chunk in callback_handler.aiter():
+                    if callback_handler._cancel:
+                        yield "data: [CANCELADO] Geração interrompida pelo usuário\n\n"
+                        return
+                    yield f"data: {chunk}\n\n"
+                    await asyncio.sleep(0.001)
 
-            # 3. Tentar gerar relatório
-            try:
-                messages = [
-                    SystemMessage(content="Você é um especialista em análise de impacto social."),
-                    HumanMessage(content=f"""
-                        Gere um relatório conciso sobre o impacto social esperado para:
-                        Título: {bond.name}
-                        Tipo: {bond.type}
-                        Valor: R$ {bond.value:,.2f}
-                    """)
-                ]
-
-                logger.info("Iniciando geração com OpenAI")
-                task = asyncio.create_task(chat_model.agenerate(messages=[messages]))
-                
-                async for token in callback_handler.aiter():
-                    if isinstance(token, str):
-                        yield f"data: {token}\n\n"
-                    await asyncio.sleep(0.01)
-                
-                await task
-                logger.info("Geração concluída com sucesso")
+                await llm_task
+                elapsed_time = time.time() - start_time
+                logger.info(f"[DEBUG] Relatório concluído em {elapsed_time:.2f}s")
                 yield "data: [FIM]\n\n"
-                
-            except Exception as stream_error:
-                logger.error(f"Erro detalhado no streaming:")
-                logger.error(f"- Tipo do erro: {type(stream_error)}")
-                logger.error(f"- Mensagem: {str(stream_error)}")
-                logger.error(f"- Traceback: {traceback.format_exc()}")
-                yield f"data: [ERRO] Erro no streaming: {str(stream_error)}\n\n"
+
+            except CancelledError:
+                logger.info(f"[DEBUG] Geração cancelada para bond_id: {request.bond_id}")
+                yield "data: [CANCELADO] Geração interrompida pelo usuário\n\n"
+                return
 
         except Exception as e:
-            logger.error(f"Erro geral na geração:")
-            logger.error(f"- Tipo: {type(e)}")
-            logger.error(f"- Mensagem: {str(e)}")
-            logger.error(f"- Traceback: {traceback.format_exc()}")
+            logger.error(f"[DEBUG] Erro: {str(e)}\n{traceback.format_exc()}")
             yield f"data: [ERRO] {str(e)}\n\n"
 
     return StreamingResponse(
@@ -2539,14 +2680,18 @@ async def generate_report_stream(
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no"
+            "X-Handler-ID": handler_id
         }
     )
 
-# Inicialização da aplicação
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+@app.post("/api/generate-report/cancel/{handler_id}")
+async def cancel_report_generation(handler_id: str):
+    """Cancela uma geração em andamento"""
+    if handler_id in active_handlers:
+        handler = active_handlers[handler_id]
+        handler.cancel()
+        return {"message": "Geração cancelada com sucesso"}
+    raise HTTPException(status_code=404, detail="Handler não encontrado")
 
 @app.get("/api/generic-documents/{entity_name}/{entity_id}", response_model=List[schemas.GenericDocumentResponse])
 async def list_entity_documents(
@@ -2814,7 +2959,6 @@ async def validate_environmental_impact_study_description(
         ]
         
         response = await chat_model.agenerate([messages])
-        
         result = json.loads(response.generations[0][0].text)
         
         logger.info("=== Resultado da validação ===")
@@ -2834,8 +2978,7 @@ async def validate_environmental_impact_study_description(
         logger.error(f"Erro na validação: {str(e)}")
         raise HTTPException(
             status_code=500, 
-            detail=f"Erro ao validar descrição: {str(e)}"
-        )
+            detail=f"Erro ao validar descrição: {str(e)}")
 
 
 
