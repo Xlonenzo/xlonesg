@@ -324,72 +324,80 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   const startReportGeneration = async (type) => {
-    setShowReportTypeModal(false);
-    if (!selectedBondForReport) return;
-
     try {
-      setReport('Iniciando geração do relatório...');
-      setIsLoading(true);
-      setIsGenerating(true);
-      setShowStopButton(true);
+        setShowReportTypeModal(false);
+        setSelectedBondForReport(null);
+        
+        setIsGenerating(true);
+        setShowStopButton(true);
+        setReport('Iniciando geração do relatório...\n');
+        
+        const endpoint = type === 'summary' 
+            ? `${API_URL}/generate-report/stream/summary`
+            : `${API_URL}/generate-report/stream`;
 
-      const response = await fetch(`${API_URL}/generate-report/stream`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          bond_id: selectedBondForReport.id,
-          report_type: type // Adicionar tipo do relatório
-        })
-      });
-      
-      const handlerId = response.headers.get('X-Handler-ID');
-      setCurrentHandlerId(handlerId);
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                bond_id: selectedBondForReport.id,
+                report_type: type 
+            })
+        });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+        const handlerId = response.headers.get('X-Handler-ID');
+        setCurrentHandlerId(handlerId);
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let fullReport = '';
-      let isCancelled = false;
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[FIM]') {
-              break;
-            } else if (data.startsWith('[CANCELADO]')) {
-              isCancelled = true;
-              setReport(fullReport + '\n\n' + data);
-              return;
-            } else if (data.startsWith('[ERRO]')) {
-              throw new Error(data);
-            } else {
-              fullReport += data;
-              setReport(fullReport);
-            }
-          }
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
-      }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let fullReport = 'Iniciando geração do relatório...\n';
+
+        const reportContainer = document.querySelector('.report-container');
+
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    const data = line.slice(6);
+                    if (data === '[FIM]') {
+                        setIsGenerating(false);
+                        setShowStopButton(false);
+                        break;
+                    } else if (data.startsWith('[CANCELADO]')) {
+                        fullReport += '\n\nGeração cancelada.';
+                        setReport(fullReport);
+                        setIsGenerating(false);
+                        setShowStopButton(false);
+                        return;
+                    } else if (data.startsWith('[ERRO]')) {
+                        throw new Error(data);
+                    } else {
+                        fullReport += data;
+                        setReport(fullReport);
+                        
+                        if (reportContainer) {
+                            setTimeout(() => {
+                                reportContainer.scrollTop = reportContainer.scrollHeight;
+                            }, 0);
+                        }
+                    }
+                }
+            }
+        }
     } catch (error) {
-      console.error('Erro:', error);
-      setReport('Erro ao gerar relatório. Por favor, tente novamente.');
-    } finally {
-      setIsLoading(false);
-      setCurrentHandlerId(null);
-      setIsGenerating(false);
-      setShowStopButton(false);
-      setSelectedBondForReport(null);
+        console.error('Erro:', error);
+        setReport(prev => prev + '\n\nErro ao gerar relatório: ' + error.message);
     }
   };
 
@@ -425,6 +433,19 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
         </div>
       </div>
     );
+  };
+
+  const handleStop = async () => {
+    if (currentHandlerId) {
+        try {
+            await axios.post(`${API_URL}/generate-report/cancel/${currentHandlerId}`);
+            setReport(prev => prev + '\n\nCancelando geração...');
+            setIsGenerating(false);
+            setShowStopButton(false);
+        } catch (error) {
+            console.error('Erro ao cancelar geração:', error);
+        }
+    }
   };
 
   if (isLoading) {
@@ -519,14 +540,14 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
             <div className="mt-8">
                 <div className="bg-white rounded-lg shadow p-4 relative">
                     {isGenerating && (
-                        <div className="flex items-center mb-4">
+                        <div className="flex items-center mb-4 p-4 bg-blue-50 rounded">
                             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-3"></div>
-                            <h3 className="text-lg font-semibold">Gerando relatório...</h3>
+                            <span className="text-blue-600">Gerando relatório...</span>
                             
                             {showStopButton && (
                                 <button
-                                    onClick={handleStopGeneration}
-                                    className="absolute top-4 right-4 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md flex items-center"
+                                    onClick={handleStop}
+                                    className="ml-auto bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md flex items-center"
                                     title="Parar geração"
                                 >
                                     <FaStop className="mr-1" /> Parar
@@ -534,8 +555,71 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
                             )}
                         </div>
                     )}
+
                     {report && (
-                        <pre className="whitespace-pre-wrap text-gray-700">{report}</pre>
+                        <div className="mt-8 p-4 bg-white rounded-lg shadow relative transition-all duration-300 overflow-auto report-container"
+                             style={{ maxHeight: '80vh' }}
+                        >
+                            <h3 className="text-lg font-semibold mb-4 sticky top-0 bg-white z-10 py-2">
+                                Relatório de Sustentabilidade
+                            </h3>
+                            {showStopButton && (
+                                <button
+                                    onClick={handleStop}
+                                    className="absolute top-4 right-4 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md flex items-center"
+                                    title="Parar geração"
+                                >
+                                    <FaStop className="mr-1" /> Parar
+                                </button>
+                            )}
+                            <div className="whitespace-pre-wrap font-sans text-gray-700 leading-relaxed overflow-y-auto">
+                                {report.split('\n').map((line, index) => {
+                                    // Se for título de seção (números de 1 a 4 seguidos de ponto)
+                                    if (/^[1-4]\.\s[A-Z]/.test(line)) {
+                                        return (
+                                            <div key={index} className="text-xl font-bold mt-6 mb-3 text-blue-800">
+                                                {line}
+                                            </div>
+                                        );
+                                    }
+                                    // Se for subtítulo (começa com hífen)
+                                    else if (line.trim().startsWith('-')) {
+                                        return (
+                                            <div key={index} className="text-base font-semibold ml-4 my-2 text-gray-700">
+                                                {line}
+                                            </div>
+                                        );
+                                    }
+                                    // Se for mensagem de log
+                                    else if (line.startsWith('Gerando') || 
+                                            line.startsWith('Analisando') || 
+                                            line.startsWith('Processando') || 
+                                            line.startsWith('Iniciando') || 
+                                            line.startsWith('Buscando') || 
+                                            line.startsWith('Preparando')) {
+                                        return (
+                                            <div key={index} className="text-blue-600 my-1">
+                                                {line}
+                                            </div>
+                                        );
+                                    }
+                                    // Parágrafo normal do relatório
+                                    else if (line.trim()) {
+                                        return (
+                                            <div key={index} className="my-2 text-gray-700">
+                                                {line}
+                                            </div>
+                                        );
+                                    }
+                                    // Linha vazia
+                                    return line.trim() ? (
+                                        <div key={index} className="my-1">{line}</div>
+                                    ) : (
+                                        <div key={index} className="h-2"></div>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     )}
                 </div>
             </div>
@@ -652,18 +736,68 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
       </div>
 
       {report && (
-        <div className="mt-8 p-4 bg-white rounded-lg shadow relative">
-          <h3 className="text-lg font-semibold mb-4">Relatório de Sustentabilidade</h3>
-          {showStopButton && (
-            <button
-              onClick={handleStopGeneration}
-              className="absolute top-4 right-4 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md flex items-center"
-              title="Parar geração"
-            >
-              <FaStop className="mr-1" /> Parar
-            </button>
-          )}
-          <pre className="whitespace-pre-wrap">{report}</pre>
+        <div className="mt-8 p-4 bg-white rounded-lg shadow relative transition-all duration-300 overflow-auto report-container"
+             style={{ maxHeight: '80vh' }}
+        >
+            <h3 className="text-lg font-semibold mb-4 sticky top-0 bg-white z-10 py-2">
+                Relatório de Sustentabilidade
+            </h3>
+            {showStopButton && (
+                <button
+                    onClick={handleStop}
+                    className="absolute top-4 right-4 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md flex items-center"
+                    title="Parar geração"
+                >
+                    <FaStop className="mr-1" /> Parar
+                </button>
+            )}
+            <div className="whitespace-pre-wrap font-sans text-gray-700 leading-relaxed overflow-y-auto">
+                {report.split('\n').map((line, index) => {
+                    // Se for título de seção (números de 1 a 4 seguidos de ponto)
+                    if (/^[1-4]\.\s[A-Z]/.test(line)) {
+                        return (
+                            <div key={index} className="text-xl font-bold mt-6 mb-3 text-blue-800">
+                                {line}
+                            </div>
+                        );
+                    }
+                    // Se for subtítulo (começa com hífen)
+                    else if (line.trim().startsWith('-')) {
+                        return (
+                            <div key={index} className="text-base font-semibold ml-4 my-2 text-gray-700">
+                                {line}
+                            </div>
+                        );
+                    }
+                    // Se for mensagem de log
+                    else if (line.startsWith('Gerando') || 
+                            line.startsWith('Analisando') || 
+                            line.startsWith('Processando') || 
+                            line.startsWith('Iniciando') || 
+                            line.startsWith('Buscando') || 
+                            line.startsWith('Preparando')) {
+                        return (
+                            <div key={index} className="text-blue-600 my-1">
+                                {line}
+                            </div>
+                        );
+                    }
+                    // Parágrafo normal do relatório
+                    else if (line.trim()) {
+                        return (
+                            <div key={index} className="my-2 text-gray-700">
+                                {line}
+                            </div>
+                        );
+                    }
+                    // Linha vazia
+                    return line.trim() ? (
+                        <div key={index} className="my-1">{line}</div>
+                    ) : (
+                        <div key={index} className="h-2"></div>
+                    );
+                })}
+            </div>
         </div>
       )}
 

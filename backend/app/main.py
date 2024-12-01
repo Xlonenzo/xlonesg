@@ -1,6 +1,6 @@
 # main.py
 
-from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File, Request, Form, Body
+from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File, Request, Form, Body, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session, joinedload
@@ -41,12 +41,35 @@ from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.schema.messages import BaseMessage
 from typing import Any, Dict, List, Optional, Union
-from starlette.background import BackgroundTasks
-from asyncio import CancelledError
 
 from . import models, schemas  # Certifique-se de que o caminho está correto
 from .database import SessionLocal, engine
 from .schemas import ReportRequest, BaseResponse
+
+# Queries compartilhadas para ambos os endpoints (mover para o início do arquivo)
+bond_base_query = text("""
+    SELECT 
+        b.id,
+        b.name,
+        b.type,
+        b.value,
+        b.issue_date,
+        b.esg_percentage,
+        b.issuer_cnpj
+    FROM xlonesg.bonds b
+    WHERE b.id = :bond_id
+""")
+
+projects_view_query = text("""
+    SELECT 
+        vw.project_name,
+        vw.ods1, vw.ods2, vw.ods3, vw.ods4, vw.ods5,
+        vw.ods6, vw.ods7, vw.ods8, vw.ods9, vw.ods10,
+        vw.ods11, vw.ods12, vw.ods13, vw.ods14, vw.ods15,
+        vw.ods16, vw.ods17
+    FROM xlonesg.vw_bonds_projects_ods vw
+    WHERE vw.bond_id = :bond_id
+""")
 
 # Configuração de logging
 logging.basicConfig(
@@ -121,23 +144,13 @@ if not api_key:
 # Usa a chave explicitamente
 embeddings = OpenAIEmbeddings(openai_api_key=api_key)
 
-# Configuração do modelo LLM (colocar no início do arquivo após as importações)
+# Inicializar o modelo ChatOpenAI (coloque isso junto com as outras inicializações)
 chat_model = ChatOpenAI(
-    model_name="gpt-3.5-turbo",
-    temperature=0.5,
-    max_tokens=2000,
-    request_timeout=60,
-)
-
-# Adicionar o modelo de streaming separadamente
-chat_model_streaming = ChatOpenAI(
-    model_name="gpt-3.5-turbo-16k",
-    streaming=True,
-    temperature=0.5,
-    max_tokens=2000,
-    request_timeout=120,
-    openai_api_key=os.getenv('OPENAI_API_KEY'),
-    callbacks=[AsyncIteratorCallbackHandler()]
+    model_name="gpt-3.5-turbo-16k",  # Modelo com maior contexto
+    temperature=0.5,  # Reduzir para respostas mais consistentes
+    max_tokens=2000,  # Aumentar limite de tokens
+    request_timeout=120,  # Aumentar timeout
+    openai_api_key=os.getenv('OPENAI_API_KEY')
 )
 
 # Dependency
@@ -616,6 +629,7 @@ def create_kpi_entry(kpi_entry: schemas.KPIEntryCreate, db: Session = Depends(ge
         raise HTTPException(
             status_code=400,
             detail=f"Erro ao criar entrada de KPI: {str(e)}")
+
 @app.put("/api/kpi-entries/{kpi_entry_id}", response_model=schemas.KPIEntry)
 def update_kpi_entry(kpi_entry_id: int, kpi_entry: schemas.KPIEntryCreate, db: Session = Depends(get_db)):
     try:
@@ -1428,7 +1442,7 @@ def process_document(file_path: str, file_ext: str):
     
     return text_splitter.split_documents(documents)
 
-# Criar um wrapper para a fun��ão de embedding
+# Criar um wrapper para a função de embedding
 class OpenAIEmbeddingFunction(EmbeddingFunction):
     def __init__(self, openai_embeddings: OpenAIEmbeddings):
         self.openai_embeddings = openai_embeddings
@@ -1549,7 +1563,7 @@ def monitor_chroma_metrics():
                 fp = os.path.join(dirpath, f)
                 total_size += os.path.getsize(fp)
         
-        # Métricas da collection
+        # Mtricas da collection
         collection_stats = {
             "count": collection.count(),
             "size_mb": total_size / (1024 * 1024),
@@ -2454,6 +2468,7 @@ def delete_relationship(relation_id: int, db: Session = Depends(get_db)):
 # Modelo para a requisição de geração de relatório
 class ReportRequest(BaseModel):
     bond_id: int
+    report_type: str = 'complete'  # default para manter compatibilidade
 
     class Config:
         from_attributes = True  # Para compatibilidade com SQLAlchemy
@@ -2513,185 +2528,160 @@ from .constants import (
 
 # Definir uma classe personalizada para callback
 class CustomAsyncCallbackHandler(BaseCallbackHandler):
-    """Callback handler personalizado para streaming assíncrono"""
+    """Callback handler for streaming LLM responses."""
     
     def __init__(self):
-        self.tokens = []
-        self._done = asyncio.Event()
-        self.queue = asyncio.Queue(maxsize=1000)  # Buffer limitado
-        self.start_time = time.time()
-        self.token_count = 0
-        self._cancel = False  # Flag de cancelamento
-        self._task = None  # Referência à task principal
-        self._llm_task = None  # Nova referência para a task do LLM
-
-    def cancel(self):
-        """Cancela a geração em andamento"""
-        self._cancel = True
-        if self._task:
-            self._task.cancel()
-        if self._llm_task:  # Cancelar também a task do LLM
-            self._llm_task.cancel()
-        self._done.set()
-        self.queue.put_nowait("[CANCELADO] Geração interrompida pelo usuário")
-
-    async def on_llm_start(self, *args, **kwargs):
-        """Chamado quando LLM inicia"""
-        self._cancel = False
-        self._done.clear()
-
-    async def on_llm_new_token(self, token: str, **kwargs) -> None:
-        if self._cancel:
-            raise CancelledError("Geração cancelada pelo usuário")
+        self.queue = asyncio.Queue()
+        self.is_cancelled = False
         
-        try:
+    async def on_llm_new_token(self, token: str, **kwargs) -> None:
+        """Run on new LLM token. Only available when streaming is enabled."""
+        if not self.is_cancelled:
             await self.queue.put(token)
-            self.token_count += 1
-        except asyncio.QueueFull:
-            # Se a fila estiver cheia, esperar um pouco
-            await asyncio.sleep(0.1)
-            await self.queue.put(token)
-
+        
     async def on_llm_end(self, *args, **kwargs) -> None:
-        """Chamado quando LLM termina a geração"""
-        elapsed = time.time() - self.start_time
-        logger.info(f"Geração concluída: {self.token_count} tokens em {elapsed:.2f}s")
+        """Run when LLM ends running."""
         await self.queue.put(None)
-        self._done.set()
-
-    async def on_llm_error(self, error: Union[Exception, KeyboardInterrupt], **kwargs) -> None:
-        """Chamado em caso de erro"""
-        logger.error(f"Erro LLM: {str(error)}")
+        
+    async def on_llm_error(self, error: Exception, **kwargs) -> None:
+        """Run when LLM errors."""
         await self.queue.put(f"[ERRO] {str(error)}")
-        self._done.set()
-
+        
+    def cancel(self):
+        """Cancel the streaming."""
+        self.is_cancelled = True
+        asyncio.create_task(self.queue.put("[CANCELADO]"))
+        
+    def on_chat_model_start(self, *args, **kwargs) -> None:
+        """Run when chat model starts."""
+        pass
+        
     async def aiter(self):
-        """Async iterator para os tokens"""
-        buffer = []
-        buffer_size = 0
-        max_buffer_size = 1000  # Tamanho máximo do buffer em caracteres
-
-        try:
-            while not self._done.is_set() or not self.queue.empty():
-                if self._cancel:
-                    yield "[CANCELADO] Geração interrompida pelo usuário"
-                    break
-
-                try:
-                    token = await asyncio.wait_for(self.queue.get(), timeout=1.0)
-                    if token is None:
-                        break
-                    
-                    buffer.append(token)
-                    buffer_size += len(token)
-
-                    if buffer_size >= max_buffer_size:
-                        yield ''.join(buffer)
-                        buffer = []
-                        buffer_size = 0
-                        
-                except asyncio.TimeoutError:
-                    if buffer:  # Enviar buffer mesmo se timeout
-                        yield ''.join(buffer)
-                        buffer = []
-                        buffer_size = 0
-                    continue
-
-            if buffer:  # Enviar buffer restante
-                yield ''.join(buffer)
-
-        except CancelledError:
-            yield "[CANCELADO] Geração interrompida pelo usuário"
-        except Exception as e:
-            logger.error(f"Erro no iterator: {str(e)}")
-            yield f"[ERRO] {str(e)}"
-
-# Dicionário para armazenar handlers ativos
-active_handlers = {}
+        """Async iterator for getting tokens."""
+        while True:
+            if self.is_cancelled:
+                break
+            token = await self.queue.get()
+            if token in [None, "[CANCELADO]"]:
+                break
+            yield token
+            self.queue.task_done()
 
 @app.post("/api/generate-report/stream")
-async def generate_report_stream(
-    request: ReportRequest,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
-):
-    report_type = request.report_type  # 'summary' ou 'complete'
-    
-    # Ajustar o prompt baseado no tipo
-    if report_type == 'summary':
-        system_message = "Analise apenas os aspectos básicos do título e seus ODS..."
-    else:
-        system_message = "Realize uma análise completa e detalhada..."
-    
-    handler_id = str(uuid4())
-    callback_handler = CustomAsyncCallbackHandler()
-    active_handlers[handler_id] = callback_handler
-
-    async def cleanup():
-        """Remove o handler após conclusão"""
-        if handler_id in active_handlers:
-            del active_handlers[handler_id]
-
-    background_tasks.add_task(cleanup)
-
+async def generate_report_stream(request: ReportRequest, db: Session = Depends(get_db)):
     async def generate():
         try:
-            logger.info(f"[DEBUG] Iniciando geração para bond_id: {request.bond_id}")
+            logger.info(f"[DEBUG] Iniciando geração do relatório para bond_id: {request.bond_id}")
             start_time = time.time()
+            callback_handler = CustomAsyncCallbackHandler()
+            buffer = ""
 
-            chat_model_streaming = ChatOpenAI(
-                model_name="gpt-3.5-turbo",
-                streaming=True,
-                temperature=0.5,
-                max_tokens=2000,
-                request_timeout=60,
-                callbacks=[callback_handler]
-            )
+            # Buscar dados do título
+            bond = db.query(models.Bond).filter(models.Bond.id == request.bond_id).first()
+            if not bond:
+                raise HTTPException(status_code=404, detail="Título não encontrado")
 
-            # Criar e armazenar a task do LLM
-            llm_task = asyncio.create_task(chat_model_streaming.agenerate(messages=messages))
-            callback_handler._llm_task = llm_task
+            # Construir o prompt para o relatório completo
+            prompt = f"""
+            Analise os dados do título verde/sustentável e gere um relatório detalhado seguindo a estrutura abaixo.
+
+            Dados do Título:
+            - Nome: {bond.name}
+            - Tipo: {bond.type}
+            - Valor: {bond.value}
+            - Percentual ESG: {bond.esg_percentage}%
+            - Data de Emissão: {bond.issue_date}
+
+            Estruture o relatório nas seguintes seções:
+
+            1. ANÁLISE DE IMPACTO AMBIENTAL
+            - Avaliação dos benefícios ambientais diretos
+            - Análise de mitigação de riscos ambientais
+            - Conformidade com padrões ambientais
+            - Métricas de impacto ambiental
+
+            2. ANÁLISE DE IMPACTO SOCIAL
+            - Benefícios sociais do projeto
+            - Engajamento com stakeholders
+            - Impacto nas comunidades locais
+            - Métricas de impacto social
+
+            3. GOVERNANÇA E COMPLIANCE
+            - Estrutura de governança do projeto
+            - Processos de monitoramento e reporte
+            - Conformidade com regulamentações
+            - Gestão de riscos ESG
+
+            4. ALINHAMENTO COM PADRÕES INTERNACIONAIS
+            - Princípios de Green Bonds (GBP)
+            - Objetivos de Desenvolvimento Sustentável (ODS)
+            - Taxonomia verde aplicável
+            - Standards de mercado relevantes
+
+            Para cada seção:
+            - Forneça análise detalhada baseada nos dados disponíveis
+            - Identifique pontos fortes e áreas de melhoria
+            - Inclua recomendações específicas quando aplicável
+            - Use linguagem técnica apropriada para relatórios ESG
+
+            Formate o relatório de maneira profissional e clara, usando marcadores e subtópicos quando apropriado.
+            """
+
+            messages = [
+                SystemMessage(content="Você é um especialista em análise de títulos verdes e sustentáveis, com profundo conhecimento em frameworks ESG e padrões internacionais de sustentabilidade."),
+                HumanMessage(content=prompt)
+            ]
             
-            try:
-                async for chunk in callback_handler.aiter():
-                    if callback_handler._cancel:
-                        yield "data: [CANCELADO] Geração interrompida pelo usuário\n\n"
-                        return
-                    yield f"data: {chunk}\n\n"
-                    await asyncio.sleep(0.001)
+            # Configurar o modelo para o relatório completo
+            chat_model_streaming = ChatOpenAI(
+                model="gpt-4-turbo-preview",
+                streaming=True,
+                temperature=0.7,
+                max_tokens=4000,
+                request_timeout=180,
+                callbacks=[callback_handler],
+                openai_api_key=os.getenv('OPENAI_API_KEY')
+            )
+            
+            # Gerar o relatório usando o modelo
+            task = asyncio.create_task(chat_model_streaming.agenerate([messages]))
+            
+            # Streaming da resposta
+            async for token in callback_handler.aiter():
+                if isinstance(token, str):
+                    buffer += token
+                    if len(buffer) >= 100:
+                        yield f"data: {buffer}\n\n"
+                        buffer = ""
+                await asyncio.sleep(0.005)
 
-                await llm_task
-                elapsed_time = time.time() - start_time
-                logger.info(f"[DEBUG] Relatório concluído em {elapsed_time:.2f}s")
-                yield "data: [FIM]\n\n"
+            if buffer:
+                yield f"data: {buffer}\n\n"
 
-            except CancelledError:
-                logger.info(f"[DEBUG] Geração cancelada para bond_id: {request.bond_id}")
-                yield "data: [CANCELADO] Geração interrompida pelo usuário\n\n"
-                return
+            # Aguardar a conclusão da tarefa
+            await task
+            elapsed_time = time.time() - start_time
+            logger.info(f"[DEBUG] Relatório concluído em {elapsed_time:.2f} segundos")
+            
+            yield "data: [FIM]\n\n"
 
         except Exception as e:
-            logger.error(f"[DEBUG] Erro: {str(e)}\n{traceback.format_exc()}")
+            logger.error(f"[DEBUG] Erro na geração: {str(e)}")
+            logger.error(f"[DEBUG] Traceback: {traceback.format_exc()}")
             yield f"data: [ERRO] {str(e)}\n\n"
 
     return StreamingResponse(
         generate(),
         media_type="text/event-stream",
         headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Handler-ID": handler_id
+            "X-Handler-ID": str(uuid4())
         }
     )
 
-@app.post("/api/generate-report/cancel/{handler_id}")
-async def cancel_report_generation(handler_id: str):
-    """Cancela uma geração em andamento"""
-    if handler_id in active_handlers:
-        handler = active_handlers[handler_id]
-        handler.cancel()
-        return {"message": "Geração cancelada com sucesso"}
-    raise HTTPException(status_code=404, detail="Handler não encontrado")
+# Inicialização da aplicação
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 
 @app.get("/api/generic-documents/{entity_name}/{entity_id}", response_model=List[schemas.GenericDocumentResponse])
 async def list_entity_documents(
@@ -2958,7 +2948,18 @@ async def validate_environmental_impact_study_description(
             HumanMessage(content=prompt)
         ]
         
-        response = await chat_model.agenerate([messages])
+        chat_model_streaming = ChatOpenAI(
+            model="gpt-3.5-turbo-16k",  # Bom para resumos, mais rápido e mais barato
+            streaming=True,
+            temperature=0.5,  # Menor temperatura para maior consistência
+            max_tokens=2000,
+            request_timeout=120,
+            callbacks=[callback_handler],
+            openai_api_key=os.getenv('OPENAI_API_KEY')
+        )
+        
+        # Use the model
+        response = chat_model_streaming.agenerate([messages])
         result = json.loads(response.generations[0][0].text)
         
         logger.info("=== Resultado da validação ===")
@@ -2980,6 +2981,94 @@ async def validate_environmental_impact_study_description(
             status_code=500, 
             detail=f"Erro ao validar descrição: {str(e)}")
 
+@app.post("/api/generate-report/stream/summary")
+async def generate_summary_report_stream(request: ReportRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    request_id = str(uuid4())
+    callback_handler = CustomAsyncCallbackHandler()
+    active_streams[request_id] = callback_handler
+    start_time = time.time()
+
+    # Configurar o modelo para o sumário
+    chat_model_streaming = ChatOpenAI(
+        model="gpt-3.5-turbo-16k",  # Bom para resumos, mais rápido e mais barato
+        streaming=True,
+        temperature=0.5,
+        max_tokens=2000,
+        request_timeout=120,
+        callbacks=[callback_handler],
+        openai_api_key=os.getenv('OPENAI_API_KEY')
+    )
+
+    async def generate():
+        try:
+            # Mensagens de log em linhas separadas
+            yield "data: Iniciando análise do título\n\n\n"
+            await asyncio.sleep(0.5)
+            
+            # Gerar o sumário usando o modelo
+            task = asyncio.create_task(chat_model_streaming.agenerate([messages]))
+            
+            # Streaming do relatório com formatação de parágrafos
+            buffer = ""
+            last_char = ""
+            new_paragraph = False
+
+            async for token in callback_handler.aiter():
+                if callback_handler.is_cancelled:
+                    yield "data: [CANCELADO]\n\n"
+                    break
+                
+                if last_char == "." and token.strip() and token[0].isupper():
+                    buffer += "\n\n"
+                    new_paragraph = True
+                
+                if new_paragraph and token.strip():
+                    buffer += token
+                    new_paragraph = False
+                else:
+                    buffer += token
+                
+                last_char = token[-1] if token else ""
+                
+                if len(buffer) >= 30 or "\n\n" in buffer:
+                    yield f"data: {buffer}\n\n"
+                    buffer = ""
+                
+                await asyncio.sleep(0.005)
+
+            if buffer:
+                yield f"data: {buffer}\n\n"
+
+            if not callback_handler.is_cancelled:
+                elapsed_time = time.time() - start_time
+                yield f"data: \n\nRelatório concluído em {elapsed_time:.2f} segundos\n\n"
+                yield "data: [FIM]\n\n"
+
+        except Exception as e:
+            logger.error(f"[DEBUG] Erro na geração do sumário: {str(e)}")
+            yield f"data: [ERRO] {str(e)}\n\n"
+        finally:
+            if request_id in active_streams:
+                del active_streams[request_id]
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "X-Handler-ID": request_id
+        }
+    )
+
+# Adicionar endpoint para cancelamento
+@app.post("/api/generate-report/cancel/{request_id}")
+async def cancel_report_generation(request_id: str):
+    if request_id in active_streams:
+        active_streams[request_id].cancel()
+        return {"status": "cancelled"}
+    return {"status": "not_found"}
+
+# Armazenar streams ativos
+active_streams: Dict[str, CustomAsyncCallbackHandler] = {}
 
 
 
