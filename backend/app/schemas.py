@@ -728,7 +728,6 @@ class BondProjectRelation(BondProjectRelationBase):
 
 class ReportRequest(BaseModel):
     bond_id: int
-
     class Config:
         from_attributes = True
 
@@ -819,3 +818,4 @@ class EnvironmentalImpactStudyWithDocument(EnvironmentalImpactStudy):
 
     class Config:
         from_attributes = True
+

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { FaSearch, FaFileAlt, FaUpload, FaFolder, FaDownload, FaTrash, FaStop } from 'react-icons/fa';
 import { API_URL } from '../config';
@@ -11,7 +11,6 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [report, setReport] = useState('');
-  const fileInputRef = useRef(null);
   const [uploadStatus, setUploadStatus] = useState('');
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
   const [currentDocuments, setCurrentDocuments] = useState([]);
@@ -40,90 +39,19 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
     fetchBonds();
   }, [fetchBonds]);
 
-  
-  const handleGenerateReport = async (bond) => {
-    if (isGenerating) {
-        alert('Já existe uma geração em andamento. Por favor, aguarde ou cancele a geração atual.');
-        return;
-    }
-
-    try {
-        setReport('Iniciando geração do relatório...');
-        setIsLoading(true);
-        setIsGenerating(true);
-        setShowStopButton(true);
-
-        const response = await fetch(`${API_URL}/generate-report/stream`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ bond_id: bond.id })
+  const handleStop = async () => {
+    if (currentHandlerId) {
+      try {
+        const response = await fetch(`${API_URL}/api/generate-report/cancel/${currentHandlerId}`, {
+          method: 'POST'
         });
         
-        const handlerId = response.headers.get('X-Handler-ID');
-        setCurrentHandlerId(handlerId);
-
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+          throw new Error('Falha ao cancelar geração');
         }
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let fullReport = '';
-        let isCancelled = false;
-
-        while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n');
-
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    const data = line.slice(6);
-                    if (data === '[FIM]') {
-                        break;
-                    } else if (data.startsWith('[CANCELADO]')) {
-                        isCancelled = true;
-                        setReport(fullReport + '\n\n' + data);
-                        return;
-                    } else if (data.startsWith('[ERRO]')) {
-                        throw new Error(data);
-                    } else {
-                        fullReport += data;
-                        setReport(fullReport);
-                    }
-                }
-            }
-        }
-    } catch (error) {
-        console.error('Erro:', error);
-        setReport('Erro ao gerar relatório. Por favor, tente novamente.');
-    } finally {
-        setIsLoading(false);
-        setCurrentHandlerId(null);
-        setIsGenerating(false);
-        setShowStopButton(false);
-    }
-  };
-
-  const handleStopGeneration = async () => {
-    if (currentHandlerId) {
-        try {
-            const response = await fetch(`${API_URL}/generate-report/cancel/${currentHandlerId}`, {
-                method: 'POST'
-            });
-            
-            if (!response.ok) {
-                throw new Error('Falha ao cancelar geração');
-            }
-            
-            setReport(prev => prev + '\n\nCancelando geração...');
-        } catch (error) {
-            console.error('Erro ao cancelar geração:', error);
-        }
+      } catch (error) {
+        console.error('Erro ao cancelar:', error);
+      }
     }
   };
 
@@ -272,7 +200,7 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tamanho</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data Upload</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Açes</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -325,16 +253,13 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
 
   const startReportGeneration = async (type) => {
     try {
-        setShowReportTypeModal(false);
-        setSelectedBondForReport(null);
-        
         setIsGenerating(true);
         setShowStopButton(true);
-        setReport('Iniciando geração do relatório...\n');
+        setReport('');
         
-        const endpoint = type === 'summary' 
-            ? `${API_URL}/generate-report/stream/summary`
-            : `${API_URL}/generate-report/stream`;
+        const endpoint = type === 'summary' ? 
+            `${API_URL}/generate-report/stream/summary` : 
+            `${API_URL}/generate-report/stream/complete`;
 
         const response = await fetch(endpoint, {
             method: 'POST',
@@ -342,62 +267,58 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({ 
-                bond_id: selectedBondForReport.id,
-                report_type: type 
+                bond_id: selectedBondForReport.id
             })
         });
-
-        const handlerId = response.headers.get('X-Handler-ID');
-        setCurrentHandlerId(handlerId);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
+        // Pegar o ID do handler para cancelamento
+        const handlerId = response.headers.get('X-Handler-ID');
+        setCurrentHandlerId(handlerId);
+
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let fullReport = 'Iniciando geração do relatório...\n';
-
-        const reportContainer = document.querySelector('.report-container');
 
         while (true) {
             const { value, done } = await reader.read();
             if (done) break;
 
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n');
+            const text = decoder.decode(value);
+            const lines = text.split('\n');
 
             for (const line of lines) {
                 if (line.startsWith('data: ')) {
-                    const data = line.slice(6);
-                    if (data === '[FIM]') {
+                    const content = line.slice(6);
+                    if (content === '[FIM]') {
                         setIsGenerating(false);
                         setShowStopButton(false);
                         break;
-                    } else if (data.startsWith('[CANCELADO]')) {
-                        fullReport += '\n\nGeração cancelada.';
-                        setReport(fullReport);
+                    } else if (content === '[CANCELADO]') {
+                        setReport(prev => prev + '\n\nGeração cancelada pelo usuário.');
                         setIsGenerating(false);
                         setShowStopButton(false);
-                        return;
-                    } else if (data.startsWith('[ERRO]')) {
-                        throw new Error(data);
+                        break;
+                    } else if (content.startsWith('[ERRO]')) {
+                        setReport(prev => prev + '\n\n' + content);
+                        setIsGenerating(false);
+                        setShowStopButton(false);
+                        break;
                     } else {
-                        fullReport += data;
-                        setReport(fullReport);
-                        
-                        if (reportContainer) {
-                            setTimeout(() => {
-                                reportContainer.scrollTop = reportContainer.scrollHeight;
-                            }, 0);
-                        }
+                        setReport(prev => prev + content);
                     }
                 }
             }
         }
     } catch (error) {
         console.error('Erro:', error);
-        setReport(prev => prev + '\n\nErro ao gerar relatório: ' + error.message);
+        setReport('Erro ao gerar relatório: ' + error.message);
+        setIsGenerating(false);
+        setShowStopButton(false);
+    } finally {
+        setShowReportTypeModal(false);
     }
   };
 
@@ -435,17 +356,101 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
     );
   };
 
-  const handleStop = async () => {
-    if (currentHandlerId) {
-        try {
-            await axios.post(`${API_URL}/generate-report/cancel/${currentHandlerId}`);
-            setReport(prev => prev + '\n\nCancelando geração...');
-            setIsGenerating(false);
-            setShowStopButton(false);
-        } catch (error) {
-            console.error('Erro ao cancelar geração:', error);
+  const formatReportContent = (content) => {
+    // Limpa e estrutura o texto
+    let cleanContent = content
+        // Remove texto inicial
+        .replace(/^Iniciando análise do título/, '')
+        // Adiciona quebras duplas antes dos títulos das seções
+        .replace(/(ANÁLISE FINANCEIRA E DE MERCADO|ANÁLISE DE IMPACTO AMBIENTAL|ANÁLISE DE IMPACTO SOCIAL|GOVERNANÇA E COMPLIANCE|ALINHAMENTO COM FRAMEWORKS|RECOMENDAÇÕES E CONCLUSÕES)/g, '\n\n$1: ')
+        // Corrige espaços e pontuação
+        .replace(/\s+/g, ' ')
+        .replace(/\s+\./g, '.')
+        .replace(/\s+,/g, ',')
+        // Garante quebra de linha após cada ponto final
+        .replace(/\.\s+([A-Z])/g, '.\n\n$1')
+        // Remove múltiplas quebras de linha
+        .replace(/\n{3,}/g, '\n\n');
+
+    const sections = cleanContent.split('\n').map(line => line.trim()).filter(Boolean);
+    
+    return sections.map((line, index) => {
+        const isSectionTitle = [
+            'ANÁLISE FINANCEIRA E DE MERCADO',
+            'ANÁLISE DE IMPACTO AMBIENTAL',
+            'ANÁLISE DE IMPACTO SOCIAL',
+            'GOVERNANÇA E COMPLIANCE',
+            'ALINHAMENTO COM FRAMEWORKS',
+            'RECOMENDAÇÕES E CONCLUSÕES'
+        ].some(title => line.startsWith(title));
+
+        if (isSectionTitle) {
+            return (
+                <div key={`text-${index}`} className="mb-6">
+                    <p className="text-sm text-gray-700 leading-relaxed font-semibold">
+                        {line}
+                    </p>
+                </div>
+            );
         }
-    }
+
+        // Texto normal (explicação)
+        return (
+            <div key={`text-${index}`} className="mb-6">
+                <p className="text-sm text-gray-700 leading-relaxed">
+                    {line}
+                </p>
+            </div>
+        );
+    });
+  };
+
+  const ReportContent = ({ report, showStopButton, onStop }) => {
+    return (
+        <div className="mt-8 p-6 bg-white rounded-lg shadow-lg relative">
+            <style>
+                {`
+                    .prose-sm {
+                        max-width: 65ch;
+                        margin: 0 auto;
+                        font-size: 0.875rem;
+                        line-height: 1.7;
+                    }
+
+                    .prose-sm h1,
+                    .prose-sm h2 {
+                        font-weight: 600;
+                        line-height: 1.4;
+                    }
+
+                    .prose-sm p {
+                        margin-bottom: 1.25em;
+                    }
+
+                    .prose-sm > div {
+                        margin-bottom: 1.25em;
+                    }
+
+                    @media (max-width: 640px) {
+                        .prose-sm {
+                            font-size: 0.8125rem;
+                        }
+                    }
+                `}
+            </style>
+            {showStopButton && (
+                <button
+                    onClick={onStop}
+                    className="absolute top-4 right-4 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md flex items-center gap-2 text-sm"
+                >
+                    <FaStop className="text-sm" /> Parar
+                </button>
+            )}
+            <div className="prose prose-sm max-w-none">
+                {formatReportContent(report)}
+            </div>
+        </div>
+    );
   };
 
   if (isLoading) {
@@ -557,69 +562,11 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
                     )}
 
                     {report && (
-                        <div className="mt-8 p-4 bg-white rounded-lg shadow relative transition-all duration-300 overflow-auto report-container"
-                             style={{ maxHeight: '80vh' }}
-                        >
-                            <h3 className="text-lg font-semibold mb-4 sticky top-0 bg-white z-10 py-2">
-                                Relatório de Sustentabilidade
-                            </h3>
-                            {showStopButton && (
-                                <button
-                                    onClick={handleStop}
-                                    className="absolute top-4 right-4 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md flex items-center"
-                                    title="Parar geração"
-                                >
-                                    <FaStop className="mr-1" /> Parar
-                                </button>
-                            )}
-                            <div className="whitespace-pre-wrap font-sans text-gray-700 leading-relaxed overflow-y-auto">
-                                {report.split('\n').map((line, index) => {
-                                    // Se for título de seção (números de 1 a 4 seguidos de ponto)
-                                    if (/^[1-4]\.\s[A-Z]/.test(line)) {
-                                        return (
-                                            <div key={index} className="text-xl font-bold mt-6 mb-3 text-blue-800">
-                                                {line}
-                                            </div>
-                                        );
-                                    }
-                                    // Se for subtítulo (começa com hífen)
-                                    else if (line.trim().startsWith('-')) {
-                                        return (
-                                            <div key={index} className="text-base font-semibold ml-4 my-2 text-gray-700">
-                                                {line}
-                                            </div>
-                                        );
-                                    }
-                                    // Se for mensagem de log
-                                    else if (line.startsWith('Gerando') || 
-                                            line.startsWith('Analisando') || 
-                                            line.startsWith('Processando') || 
-                                            line.startsWith('Iniciando') || 
-                                            line.startsWith('Buscando') || 
-                                            line.startsWith('Preparando')) {
-                                        return (
-                                            <div key={index} className="text-blue-600 my-1">
-                                                {line}
-                                            </div>
-                                        );
-                                    }
-                                    // Parágrafo normal do relatório
-                                    else if (line.trim()) {
-                                        return (
-                                            <div key={index} className="my-2 text-gray-700">
-                                                {line}
-                                            </div>
-                                        );
-                                    }
-                                    // Linha vazia
-                                    return line.trim() ? (
-                                        <div key={index} className="my-1">{line}</div>
-                                    ) : (
-                                        <div key={index} className="h-2"></div>
-                                    );
-                                })}
-                            </div>
-                        </div>
+                        <ReportContent 
+                            report={report}
+                            showStopButton={showStopButton}
+                            onStop={handleStop}
+                        />
                     )}
                 </div>
             </div>
@@ -736,69 +683,11 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
       </div>
 
       {report && (
-        <div className="mt-8 p-4 bg-white rounded-lg shadow relative transition-all duration-300 overflow-auto report-container"
-             style={{ maxHeight: '80vh' }}
-        >
-            <h3 className="text-lg font-semibold mb-4 sticky top-0 bg-white z-10 py-2">
-                Relatório de Sustentabilidade
-            </h3>
-            {showStopButton && (
-                <button
-                    onClick={handleStop}
-                    className="absolute top-4 right-4 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md flex items-center"
-                    title="Parar geração"
-                >
-                    <FaStop className="mr-1" /> Parar
-                </button>
-            )}
-            <div className="whitespace-pre-wrap font-sans text-gray-700 leading-relaxed overflow-y-auto">
-                {report.split('\n').map((line, index) => {
-                    // Se for título de seção (números de 1 a 4 seguidos de ponto)
-                    if (/^[1-4]\.\s[A-Z]/.test(line)) {
-                        return (
-                            <div key={index} className="text-xl font-bold mt-6 mb-3 text-blue-800">
-                                {line}
-                            </div>
-                        );
-                    }
-                    // Se for subtítulo (começa com hífen)
-                    else if (line.trim().startsWith('-')) {
-                        return (
-                            <div key={index} className="text-base font-semibold ml-4 my-2 text-gray-700">
-                                {line}
-                            </div>
-                        );
-                    }
-                    // Se for mensagem de log
-                    else if (line.startsWith('Gerando') || 
-                            line.startsWith('Analisando') || 
-                            line.startsWith('Processando') || 
-                            line.startsWith('Iniciando') || 
-                            line.startsWith('Buscando') || 
-                            line.startsWith('Preparando')) {
-                        return (
-                            <div key={index} className="text-blue-600 my-1">
-                                {line}
-                            </div>
-                        );
-                    }
-                    // Parágrafo normal do relatório
-                    else if (line.trim()) {
-                        return (
-                            <div key={index} className="my-2 text-gray-700">
-                                {line}
-                            </div>
-                        );
-                    }
-                    // Linha vazia
-                    return line.trim() ? (
-                        <div key={index} className="my-1">{line}</div>
-                    ) : (
-                        <div key={index} className="h-2"></div>
-                    );
-                })}
-            </div>
-        </div>
+        <ReportContent 
+            report={report}
+            showStopButton={showStopButton}
+            onStop={handleStop}
+        />
       )}
 
       {uploadStatus && (

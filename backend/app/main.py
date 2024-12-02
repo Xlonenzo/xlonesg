@@ -2567,7 +2567,7 @@ class CustomAsyncCallbackHandler(BaseCallbackHandler):
             yield token
             self.queue.task_done()
 
-@app.post("/api/generate-report/stream")
+@app.post("/api/generate-report/stream/complete") 
 async def generate_report_stream(request: ReportRequest, db: Session = Depends(get_db)):
     async def generate():
         try:
@@ -2581,64 +2581,68 @@ async def generate_report_stream(request: ReportRequest, db: Session = Depends(g
             if not bond:
                 raise HTTPException(status_code=404, detail="Título não encontrado")
 
-            # Construir o prompt para o relatório completo
-            prompt = f"""
-            Analise os dados do título verde/sustentável e gere um relatório detalhado seguindo a estrutura abaixo.
+            # Buscar projetos e ODS relacionados
+            projects = db.execute(projects_view_query, {"bond_id": bond.id}).fetchall()
+            
+            # Formatar análise de ODS com seus relacionamentos
+            ods_analysis = []
+            for project in projects:
+                ods_numbers = [i for i in range(1, 18) if getattr(project, f'ods{i}', False)]
+                for ods in ods_numbers:
+                    ods_code = f"ODS{ods}"
+                    mapping = get_complete_mapping(ods_code)
+                    
+                    ods_analysis.append(f"""
+                    {mapping['name']} (ODS {ods}) - Projeto {project.project_name}:
+                    - Indicadores GRI: {', '.join(mapping['gri_indicators'])}
+                    - Padrões IFC: {', '.join(mapping['ifc_standards'])}
+                    - Aspectos IFC: {', '.join(mapping['ifc_descriptions'])}
+                    """)
 
-            Dados do Título:
+            prompt = f"""
+            Como analista especializado em títulos verdes e sustentáveis, gere um sumário executivo 
+            conciso e objetivo do título, abordando os seguintes aspectos:
+
+            DADOS DO TÍTULO:
             - Nome: {bond.name}
             - Tipo: {bond.type}
             - Valor: {bond.value}
             - Percentual ESG: {bond.esg_percentage}%
             - Data de Emissão: {bond.issue_date}
 
-            Estruture o relatório nas seguintes seções:
+            ANÁLISE DE ODS E FRAMEWORKS:
+            {chr(10).join(ods_analysis)}
 
-            1. ANÁLISE DE IMPACTO AMBIENTAL
-            - Avaliação dos benefícios ambientais diretos
-            - Análise de mitigação de riscos ambientais
-            - Conformidade com padrões ambientais
-            - Métricas de impacto ambiental
+            O sumário executivo deve incluir:
 
-            2. ANÁLISE DE IMPACTO SOCIAL
-            - Benefícios sociais do projeto
-            - Engajamento com stakeholders
-            - Impacto nas comunidades locais
-            - Métricas de impacto social
+            1. VISÃO GERAL FINANCEIRA
+            - Análise do valor e condições financeiras do título
+            - Avaliação do percentual ESG e sua relevância
+            - Indicadores financeiros chave
 
-            3. GOVERNANÇA E COMPLIANCE
-            - Estrutura de governança do projeto
-            - Processos de monitoramento e reporte
-            - Conformidade com regulamentações
-            - Gestão de riscos ESG
+            2. IMPACTO ESG E FRAMEWORKS
+            - Análise dos ODS impactados e seus indicadores GRI
+            - Alinhamento com padrões IFC
+            - Benefícios ambientais e sociais esperados
 
-            4. ALINHAMENTO COM PADRÕES INTERNACIONAIS
-            - Princípios de Green Bonds (GBP)
-            - Objetivos de Desenvolvimento Sustentável (ODS)
-            - Taxonomia verde aplicável
-            - Standards de mercado relevantes
-
-            Para cada seção:
-            - Forneça análise detalhada baseada nos dados disponíveis
-            - Identifique pontos fortes e áreas de melhoria
-            - Inclua recomendações específicas quando aplicável
-            - Use linguagem técnica apropriada para relatórios ESG
-
-            Formate o relatório de maneira profissional e clara, usando marcadores e subtópicos quando apropriado.
+            3. CONCLUSÃO
+            - Pontos fortes do título
+            - Principais desafios e oportunidades
+            - Recomendação geral
             """
 
             messages = [
-                SystemMessage(content="Você é um especialista em análise de títulos verdes e sustentáveis, com profundo conhecimento em frameworks ESG e padrões internacionais de sustentabilidade."),
+                SystemMessage(content="Você é um analista especializado em títulos verdes e sustentáveis, com profundo conhecimento em análise financeira e frameworks ESG."),
                 HumanMessage(content=prompt)
             ]
             
             # Configurar o modelo para o relatório completo
             chat_model_streaming = ChatOpenAI(
-                model="gpt-4-turbo-preview",
+                model="gpt-3.5-turbo-16k",
                 streaming=True,
-                temperature=0.7,
-                max_tokens=4000,
-                request_timeout=180,
+                temperature=0.5,
+                max_tokens=2000,
+                request_timeout=120,
                 callbacks=[callback_handler],
                 openai_api_key=os.getenv('OPENAI_API_KEY')
             )
@@ -2981,16 +2985,19 @@ async def validate_environmental_impact_study_description(
             status_code=500, 
             detail=f"Erro ao validar descrição: {str(e)}")
 
-@app.post("/api/generate-report/stream/summary")
-async def generate_summary_report_stream(request: ReportRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+@app.post("/api/generate-report/stream/summary") 
+async def generate_summary_report_stream(
+    request: ReportRequest,
+    db: Session = Depends(get_db)
+):
     request_id = str(uuid4())
     callback_handler = CustomAsyncCallbackHandler()
     active_streams[request_id] = callback_handler
     start_time = time.time()
 
-    # Configurar o modelo para o sumário
+    # Configuração para sumário
     chat_model_streaming = ChatOpenAI(
-        model="gpt-3.5-turbo-16k",  # Bom para resumos, mais rápido e mais barato
+        model="gpt-3.5-turbo-16k",
         streaming=True,
         temperature=0.5,
         max_tokens=2000,
@@ -3001,35 +3008,78 @@ async def generate_summary_report_stream(request: ReportRequest, background_task
 
     async def generate():
         try:
-            # Mensagens de log em linhas separadas
-            yield "data: Iniciando análise do título\n\n\n"
+            bond = db.query(models.Bond).filter(models.Bond.id == request.bond_id).first()
+            if not bond:
+                yield "data: [ERRO] Título não encontrado\n\n"
+                return
+
+            yield "data: Iniciando análise do título\n\n"
             await asyncio.sleep(0.5)
+
+            # Buscar projetos e ODS relacionados
+            projects = db.execute(projects_view_query, {"bond_id": bond.id}).fetchall()
             
-            # Gerar o sumário usando o modelo
+            # Formatar análise de ODS com seus relacionamentos
+            ods_analysis = []
+            for project in projects:
+                ods_numbers = [i for i in range(1, 18) if getattr(project, f'ods{i}', False)]
+                for ods in ods_numbers:
+                    ods_code = f"ODS{ods}"
+                    mapping = get_complete_mapping(ods_code)
+                    
+                    ods_analysis.append(f"""
+                    {mapping['name']} (ODS {ods}) - Projeto {project.project_name}:
+                    - Indicadores GRI: {', '.join(mapping['gri_indicators'])}
+                    - Padrões IFC: {', '.join(mapping['ifc_standards'])}
+                    - Aspectos IFC: {', '.join(mapping['ifc_descriptions'])}
+                    """)
+
+            prompt = f"""
+            Como analista especializado em títulos verdes e sustentáveis, gere um sumário executivo 
+            conciso e objetivo do título, abordando os seguintes aspectos:
+
+            DADOS DO TÍTULO:
+            - Nome: {bond.name}
+            - Tipo: {bond.type}
+            - Valor: {bond.value}
+            - Percentual ESG: {bond.esg_percentage}%
+            - Data de Emissão: {bond.issue_date}
+
+            ANÁLISE DE ODS E FRAMEWORKS:
+            {chr(10).join(ods_analysis)}
+
+            O sumário executivo deve incluir:
+
+             VISÃO GERAL FINANCEIRA
+            - Análise do valor e condições financeiras do título
+            - Avaliação do percentual ESG e sua relevância
+            - Indicadores financeiros chave
+
+             IMPACTO ESG E FRAMEWORKS
+            - Análise dos ODS impactados e seus indicadores GRI
+            - Alinhamento com padrões IFC
+            - Benefícios ambientais e sociais esperados
+
+             CONCLUSÃO
+            - Pontos fortes do título
+            - Principais desafios e oportunidades
+            - Recomendação geral
+            """
+
+            messages = [
+                SystemMessage(content="Você é um analista especializado em títulos verdes e sustentáveis, com profundo conhecimento em análise financeira e frameworks ESG."),
+                HumanMessage(content=prompt)
+            ]
+
             task = asyncio.create_task(chat_model_streaming.agenerate([messages]))
             
-            # Streaming do relatório com formatação de parágrafos
             buffer = ""
-            last_char = ""
-            new_paragraph = False
-
             async for token in callback_handler.aiter():
                 if callback_handler.is_cancelled:
                     yield "data: [CANCELADO]\n\n"
                     break
                 
-                if last_char == "." and token.strip() and token[0].isupper():
-                    buffer += "\n\n"
-                    new_paragraph = True
-                
-                if new_paragraph and token.strip():
-                    buffer += token
-                    new_paragraph = False
-                else:
-                    buffer += token
-                
-                last_char = token[-1] if token else ""
-                
+                buffer += token
                 if len(buffer) >= 30 or "\n\n" in buffer:
                     yield f"data: {buffer}\n\n"
                     buffer = ""
@@ -3054,9 +3104,444 @@ async def generate_summary_report_stream(request: ReportRequest, background_task
     return StreamingResponse(
         generate(),
         media_type="text/event-stream",
-        headers={
-            "X-Handler-ID": request_id
-        }
+        headers={"X-Handler-ID": request_id}
+    )
+
+@app.post("/api/generate-report/stream/complete")
+async def generate_complete_report_stream(
+    request: ReportRequest,
+    db: Session = Depends(get_db)
+):
+    request_id = str(uuid4())
+    callback_handler = CustomAsyncCallbackHandler()
+    active_streams[request_id] = callback_handler
+    start_time = time.time()
+
+    chat_model_streaming = ChatOpenAI(
+        model="gpt-4-turbo-preview",
+        streaming=True,
+        temperature=0.7,
+        max_tokens=4000,
+        request_timeout=180,
+        callbacks=[callback_handler],
+        openai_api_key=os.getenv('OPENAI_API_KEY')
+    )
+
+    async def generate():
+        try:
+            bond = db.query(models.Bond).filter(models.Bond.id == request.bond_id).first()
+            if not bond:
+                yield "data: [ERRO] Título não encontrado\n\n"
+                return
+
+            yield "data: Iniciando análise detalhada do título\n\n"
+            await asyncio.sleep(0.5)
+
+            # Buscar projetos e ODS relacionados
+            projects = db.execute(projects_view_query, {"bond_id": bond.id}).fetchall()
+            documents = await fetch_document_details(bond.name, db)
+            
+            # Formatar análise detalhada de ODS com frameworks
+            ods_analysis = []
+            for project in projects:
+                ods_numbers = [i for i in range(1, 18) if getattr(project, f'ods{i}', False)]
+                for ods in ods_numbers:
+                    ods_code = f"ODS{ods}"
+                    mapping = get_complete_mapping(ods_code)
+                    
+                    ifc_details = []
+                    for std in mapping['ifc_standards']:
+                        ifc_details.append(f"{std}: {IFC_PERFORMANCE_STANDARDS[std]}")
+                    
+                    ods_analysis.append(f"""
+                    {mapping['name']} (ODS {ods}) - Projeto {project.project_name}:
+                    
+                    Indicadores GRI Aplicáveis:
+                    {chr(10).join([f"- {indicator}" for indicator in mapping['gri_indicators']])}
+                    
+                    Padrões IFC Relacionados:
+                    {chr(10).join([f"- {detail}" for detail in ifc_details])}
+                    
+                    Aspectos de Implementação:
+                    {chr(10).join([f"- {desc}" for desc in mapping['ifc_descriptions']])}
+                    """)
+
+            prompt = f"""
+            Analise os dados do título verde/sustentável e gere um relatório detalhado seguindo a estrutura abaixo.
+
+            DADOS DO TÍTULO:
+            - Nome: {bond.name}
+            - Tipo: {bond.type}
+            - Valor: {bond.value}
+            - Percentual ESG: {bond.esg_percentage}%
+            - Data de Emissão: {bond.issue_date}
+
+            ANÁLISE DETALHADA DE ODS E FRAMEWORKS:
+            {chr(10).join(ods_analysis)}
+
+            DOCUMENTAÇÃO RELACIONADA:
+            {chr(10).join(f"- {doc['title']}: {doc['type']}" for doc in documents)}
+
+            Estruture o relatório nas seguintes seções:
+
+             ANÁLISE FINANCEIRA E DE MERCADO
+             ANÁLISE DE IMPACTO AMBIENTAL
+             ANÁLISE DE IMPACTO SOCIAL
+             GOVERNANÇA E COMPLIANCE
+             ALINHAMENTO COM FRAMEWORKS
+             RECOMENDAÇÕES E CONCLUSÕES
+            """
+
+            messages = [
+                SystemMessage(content="Você é um especialista em análise de títulos verdes e sustentáveis, com profundo conhecimento em frameworks ESG, análise financeira e padrões internacionais de sustentabilidade."),
+                HumanMessage(content=prompt)
+            ]
+
+            task = asyncio.create_task(chat_model_streaming.agenerate([messages]))
+            
+            # Streaming da resposta
+            buffer = ""
+            async for token in callback_handler.aiter():
+                if callback_handler.is_cancelled:
+                    yield "data: [CANCELADO]\n\n"
+                    break
+                
+                buffer += token
+                if len(buffer) >= 30 or "\n\n" in buffer:
+                    yield f"data: {buffer}\n\n"
+                    buffer = ""
+                
+                await asyncio.sleep(0.005)
+
+            if buffer:
+                yield f"data: {buffer}\n\n"
+
+            if not callback_handler.is_cancelled:
+                elapsed_time = time.time() - start_time
+                yield f"data: \n\nRelatório concluído em {elapsed_time:.2f} segundos\n\n"
+                yield "data: [FIM]\n\n"
+
+        except Exception as e:
+            logger.error(f"[DEBUG] Erro na geração do relatório: {str(e)}")
+            yield f"data: [ERRO] {str(e)}\n\n"
+        finally:
+            if request_id in active_streams:
+                del active_streams[request_id]
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"X-Handler-ID": request_id}
+    )
+
+@app.post("/api/generate-report/stream/summary")
+async def generate_summary_report_stream(
+    request: ReportRequest,
+    db: Session = Depends(get_db)
+):
+    request_id = str(uuid4())
+    callback_handler = CustomAsyncCallbackHandler()
+    active_streams[request_id] = callback_handler
+    start_time = time.time()
+
+    # Configuração para sumário
+    chat_model_streaming = ChatOpenAI(
+        model="gpt-3.5-turbo-16k",
+        streaming=True,
+        temperature=0.5,
+        max_tokens=2000,
+        request_timeout=120,
+        callbacks=[callback_handler],
+        openai_api_key=os.getenv('OPENAI_API_KEY')
+    )
+
+    async def generate():
+        try:
+            bond = db.query(models.Bond).filter(models.Bond.id == request.bond_id).first()
+            if not bond:
+                yield "data: [ERRO] Título não encontrado\n\n"
+                return
+
+            yield "data: Iniciando análise do título\n\n"
+            await asyncio.sleep(0.5)
+
+            # Buscar projetos e ODS relacionados
+            projects = db.execute(projects_view_query, {"bond_id": bond.id}).fetchall()
+            
+            # Formatar análise de ODS com seus relacionamentos
+            ods_analysis = []
+            for project in projects:
+                ods_numbers = [i for i in range(1, 18) if getattr(project, f'ods{i}', False)]
+                for ods in ods_numbers:
+                    ods_code = f"ODS{ods}"
+                    mapping = get_complete_mapping(ods_code)
+                    
+                    ods_analysis.append(f"""
+                    {mapping['name']} (ODS {ods}) - Projeto {project.project_name}:
+                    - Indicadores GRI: {', '.join(mapping['gri_indicators'])}
+                    - Padrões IFC: {', '.join(mapping['ifc_standards'])}
+                    - Aspectos IFC: {', '.join(mapping['ifc_descriptions'])}
+                    """)
+
+            prompt = f"""
+            Como analista especializado em títulos verdes e sustentáveis, gere um sumário executivo 
+            conciso e objetivo do título, abordando os seguintes aspectos:
+
+            DADOS DO TÍTULO:
+            - Nome: {bond.name}
+            - Tipo: {bond.type}
+            - Valor: {bond.value}
+            - Percentual ESG: {bond.esg_percentage}%
+            - Data de Emissão: {bond.issue_date}
+
+            ANÁLISE DE ODS E FRAMEWORKS:
+            {chr(10).join(ods_analysis)}
+
+            O sumário executivo deve incluir:
+
+            1. VISÃO GERAL FINANCEIRA
+            - Análise do valor e condições financeiras do título
+            - Avaliação do percentual ESG e sua relevância
+            - Indicadores financeiros chave
+
+            2. IMPACTO ESG E FRAMEWORKS
+            - Análise dos ODS impactados e seus indicadores GRI
+            - Alinhamento com padrões IFC
+            - Benefícios ambientais e sociais esperados
+
+            3. CONCLUSÃO
+            - Pontos fortes do título
+            - Principais desafios e oportunidades
+            - Recomendação geral
+            """
+
+            messages = [
+                SystemMessage(content="Você é um analista especializado em títulos verdes e sustentáveis, com profundo conhecimento em análise financeira e frameworks ESG."),
+                HumanMessage(content=prompt)
+            ]
+
+            task = asyncio.create_task(chat_model_streaming.agenerate([messages]))
+            
+            buffer = ""
+            async for token in callback_handler.aiter():
+                if callback_handler.is_cancelled:
+                    yield "data: [CANCELADO]\n\n"
+                    break
+                
+                buffer += token
+                if len(buffer) >= 30 or "\n\n" in buffer:
+                    yield f"data: {buffer}\n\n"
+                    buffer = ""
+                
+                await asyncio.sleep(0.005)
+
+            if buffer:
+                yield f"data: {buffer}\n\n"
+
+            if not callback_handler.is_cancelled:
+                elapsed_time = time.time() - start_time
+                yield f"data: \n\nRelatório concluído em {elapsed_time:.2f} segundos\n\n"
+                yield "data: [FIM]\n\n"
+
+        except Exception as e:
+            logger.error(f"[DEBUG] Erro na geração do sumário: {str(e)}")
+            yield f"data: [ERRO] {str(e)}\n\n"
+        finally:
+            if request_id in active_streams:
+                del active_streams[request_id]
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"X-Handler-ID": request_id}
+    )
+
+@app.post("/api/generate-report/stream/complete")
+async def generate_complete_report_stream(
+    request: ReportRequest,
+    db: Session = Depends(get_db)
+):
+    request_id = str(uuid4())
+    callback_handler = CustomAsyncCallbackHandler()
+    active_streams[request_id] = callback_handler
+    start_time = time.time()
+
+    # Configuração para relatório completo
+    chat_model_streaming = ChatOpenAI(
+        model="gpt-4-turbo-preview",
+        streaming=True,
+        temperature=0.7,
+        max_tokens=4000,
+        request_timeout=180,
+        callbacks=[callback_handler],
+        openai_api_key=os.getenv('OPENAI_API_KEY')
+    )
+
+    async def generate():
+        try:
+            bond = db.query(models.Bond).filter(models.Bond.id == request.bond_id).first()
+            if not bond:
+                yield "data: [ERRO] Título não encontrado\n\n"
+                return
+
+            yield "data: Iniciando análise detalhada do título\n\n"
+            await asyncio.sleep(0.5)
+
+            # Buscar projetos e ODS relacionados
+            projects = db.execute(projects_view_query, {"bond_id": bond.id}).fetchall()
+            documents = await fetch_document_details(bond.name, db)
+            
+            # Formatar análise detalhada de ODS com frameworks
+            ods_analysis = []
+            for project in projects:
+                ods_numbers = [i for i in range(1, 18) if getattr(project, f'ods{i}', False)]
+                for ods in ods_numbers:
+                    ods_code = f"ODS{ods}"
+                    mapping = get_complete_mapping(ods_code)
+                    
+                    ifc_details = []
+                    for std in mapping['ifc_standards']:
+                        ifc_details.append(f"{std}: {IFC_PERFORMANCE_STANDARDS[std]}")
+                    
+                    ods_analysis.append(f"""
+                    {mapping['name']} (ODS {ods}) - Projeto {project.project_name}:
+                    
+                    Indicadores GRI Aplicáveis:
+                    {chr(10).join([f"- {indicator}" for indicator in mapping['gri_indicators']])}
+                    
+                    Padrões IFC Relacionados:
+                    {chr(10).join([f"- {detail}" for detail in ifc_details])}
+                    
+                    Aspectos de Implementação:
+                    {chr(10).join([f"- {desc}" for desc in mapping['ifc_descriptions']])}
+                    """)
+
+            prompt = f"""
+            Analise os dados do título verde/sustentável e gere um relatório detalhado seguindo a estrutura abaixo.
+
+            DADOS DO TÍTULO:
+            - Nome: {bond.name}
+            - Tipo: {bond.type}
+            - Valor: {bond.value}
+            - Percentual ESG: {bond.esg_percentage}%
+            - Data de Emissão: {bond.issue_date}
+
+            ANÁLISE DETALHADA DE ODS E FRAMEWORKS:
+            {chr(10).join(ods_analysis)}
+
+            DOCUMENTAÇÃO RELACIONADA:
+            {chr(10).join(f"- {doc['title']}: {doc['type']}" for doc in documents)}
+
+            Estruture o relatório detalhadamente nas seguintes seções:
+
+            1. ANÁLISE FINANCEIRA E DE MERCADO
+            - Avaliação detalhada das condições financeiras do título
+            - Análise do valor e precificação em relação ao mercado
+            - Comparação com benchmarks de títulos verdes similares
+            - Análise de risco-retorno e liquidez
+            - Estrutura de taxas e custos
+            - Perspectivas de valorização
+            - Impacto do rating ESG na precificação
+
+            2. ANÁLISE DE IMPACTO AMBIENTAL
+            - Quantificação dos benefícios ambientais diretos
+            - Métricas de redução de emissões de GEE
+            - Análise de eficiência energética e recursos
+            - Avaliação do ciclo de vida do projeto
+            - Gestão de resíduos e economia circular
+            - Conformidade com certificações ambientais
+            - Riscos ambientais e medidas mitigatórias
+
+            3. ANÁLISE DE IMPACTO SOCIAL
+            - Benefícios sociais quantificáveis dos projetos
+            - Impacto nas comunidades locais e stakeholders
+            - Geração de empregos e desenvolvimento local
+            - Programas de engajamento comunitário
+            - Saúde e segurança ocupacional
+            - Direitos humanos e trabalhistas
+            - Diversidade e inclusão
+
+            4. GOVERNANÇA E COMPLIANCE
+            - Estrutura de governança do projeto
+            - Framework de gestão ESG
+            - Processos de monitoramento e reporte
+            - Política de transparência e divulgação
+            - Gestão de riscos ESG
+            - Conformidade regulatória
+            - Auditoria e verificação externa
+
+            5. ALINHAMENTO COM FRAMEWORKS
+            - Detalhamento dos ODS impactados:
+                {chr(10).join([f"* {mapping['name']}" for mapping in [get_complete_mapping(f"ODS{i}") for i in range(1, 18) if getattr(projects[0], f'ods{i}', False)]])}
+            - Indicadores GRI aplicáveis e métricas
+            - Padrões de Performance IFC
+            - Princípios de Green Bonds (GBP)
+            - Taxonomia verde aplicável
+            - Alinhamento com acordos climáticos
+            - Certificações e verificações externas
+
+            6. RECOMENDAÇÕES E CONCLUSÕES
+            - Pontos fortes e diferenciais competitivos
+            - Áreas de melhoria e riscos identificados
+            - Oportunidades de desenvolvimento
+            - Recomendações específicas por área:
+                * Financeira
+                * Ambiental
+                * Social
+                * Governança
+            - Próximos passos sugeridos
+            - Conclusão geral sobre a qualidade do título
+
+            Para cada seção:
+            - Forneça análise detalhada baseada nos dados disponíveis
+            - Inclua métricas quantitativas sempre que possível
+            - Compare com benchmarks do setor quando relevante
+            - Identifique riscos e oportunidades específicos
+            - Sugira melhorias práticas e acionáveis
+            - Use linguagem técnica apropriada para relatórios ESG e financeiros
+
+            Formate o relatório de maneira profissional e clara, usando marcadores e subtópicos para facilitar a leitura e compreensão.
+            """
+
+            messages = [
+                SystemMessage(content="Você é um especialista em análise de títulos verdes e sustentáveis, com profundo conhecimento em frameworks ESG, análise financeira e padrões internacionais de sustentabilidade."),
+                HumanMessage(content=prompt)
+            ]
+
+            task = asyncio.create_task(chat_model_streaming.agenerate([messages]))
+            
+            buffer = ""
+            async for token in callback_handler.aiter():
+                if callback_handler.is_cancelled:
+                    yield "data: [CANCELADO]\n\n"
+                    break
+                
+                buffer += token
+                if len(buffer) >= 30 or "\n\n" in buffer:
+                    yield f"data: {buffer}\n\n"
+                    buffer = ""
+                
+                await asyncio.sleep(0.005)
+
+            if buffer:
+                yield f"data: {buffer}\n\n"
+
+            if not callback_handler.is_cancelled:
+                elapsed_time = time.time() - start_time
+                yield f"data: \n\nRelatório concluído em {elapsed_time:.2f} segundos\n\n"
+                yield "data: [FIM]\n\n"
+
+        except Exception as e:
+            logger.error(f"[DEBUG] Erro na geração do relatório: {str(e)}")
+            yield f"data: [ERRO] {str(e)}\n\n"
+        finally:
+            if request_id in active_streams:
+                del active_streams[request_id]
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"X-Handler-ID": request_id}
     )
 
 # Adicionar endpoint para cancelamento
