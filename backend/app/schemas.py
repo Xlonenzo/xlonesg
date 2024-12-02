@@ -749,6 +749,8 @@ class GenericDocumentResponse(BaseModel):
     file_size: int
     mime_type: Optional[str]
     description: Optional[str]
+    document_type: Optional[str]
+    reference_date: Optional[date]
     upload_date: datetime
     updated_at: Optional[datetime]
 

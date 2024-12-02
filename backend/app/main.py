@@ -1169,6 +1169,8 @@ async def upload_document(
     entity_name: str = Form(...),
     entity_id: str = Form(...),
     description: Optional[str] = Form(None),
+    document_type: Optional[str] = Form(None),
+    reference_date: Optional[str] = Form(None),
     uploaded_by: str = Form('sistema'),
     db: Session = Depends(get_db)
 ):
@@ -1214,6 +1216,17 @@ async def upload_document(
                 detail=f"Erro ao salvar arquivo: {str(e)}")
 
         try:
+            # Converter reference_date se fornecido
+            parsed_reference_date = None
+            if reference_date:
+                try:
+                    parsed_reference_date = datetime.strptime(reference_date, '%Y-%m-%d').date()
+                except ValueError:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Formato de data inválido. Use YYYY-MM-DD"
+                    )
+
             # Criar registro no banco
             document = models.GenericDocument(
                 entity_name=entity_name,
@@ -1224,6 +1237,8 @@ async def upload_document(
                 file_size=os.path.getsize(file_path),
                 mime_type=file.content_type,
                 description=description,
+                document_type=document_type,
+                reference_date=parsed_reference_date,
                 uploaded_by=uploaded_by,
                 upload_date=datetime.now(timezone.utc)
             )

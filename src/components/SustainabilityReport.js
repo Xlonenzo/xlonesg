@@ -2,6 +2,111 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { FaSearch, FaFileAlt, FaUpload, FaFolder, FaDownload, FaTrash, FaStop } from 'react-icons/fa';
 import { API_URL } from '../config';
+import constants from '../data/constants.json';
+
+const UploadModal = ({ show, onClose, onUpload, bond }) => {
+  const [file, setFile] = useState(null);
+  const [documentType, setDocumentType] = useState('');
+  const [referenceDate, setReferenceDate] = useState('');
+  const [description, setDescription] = useState('');
+
+  if (!show || !bond) return null;
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!file || !documentType) {
+      alert('Por favor, selecione um arquivo e tipo de documento');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('entity_name', 'bonds');
+    formData.append('entity_id', bond.id.toString());
+    formData.append('description', description || `Documento para o título ${bond.name}`);
+    formData.append('document_type', documentType);
+    formData.append('reference_date', referenceDate || new Date().toISOString().split('T')[0]);
+    formData.append('uploaded_by', localStorage.getItem('username') || 'sistema');
+
+    await onUpload(formData);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg w-full max-w-md p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold">Upload de Documento</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">×</button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Arquivo *</label>
+            <input
+              type="file"
+              onChange={(e) => setFile(e.target.files[0])}
+              className="mt-1 block w-full"
+              accept=".pdf,.doc,.docx,.xls,.xlsx"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Tipo de Documento *</label>
+            <select
+              value={documentType}
+              onChange={(e) => setDocumentType(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              required
+            >
+              <option value="">Selecione um tipo</option>
+              {constants.DocumentBondTypes.map((type) => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Data de Referência</label>
+            <input
+              type="date"
+              value={referenceDate}
+              onChange={(e) => setReferenceDate(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Descrição</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              rows="3"
+            />
+          </div>
+
+          <div className="flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            >
+              Enviar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 function SustainabilityReport({ sidebarColor, buttonColor }) {
   const [bonds, setBonds] = useState([]);
@@ -20,6 +125,7 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
   const [showStopButton, setShowStopButton] = useState(false);
   const [showReportTypeModal, setShowReportTypeModal] = useState(false);
   const [selectedBondForReport, setSelectedBondForReport] = useState(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   const fetchBonds = useCallback(async () => {
     try {
@@ -55,46 +161,29 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
     }
   };
 
-  const handleUploadDocument = async (bond) => {
+  const handleUploadDocument = async (formData) => {
     try {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.pdf,.doc,.docx,.xls,.xlsx';
-      
-      input.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+      setUploadStatus('Enviando documento...');
 
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('entity_name', 'bonds');
-        formData.append('entity_id', bond.id.toString());
-        formData.append('description', `Documento para o título ${bond.name}`);
-        formData.append('uploaded_by', localStorage.getItem('username') || 'sistema');
-
-        setUploadStatus('Enviando documento...');
-
-        await axios.post(`${API_URL}/generic-documents`, formData, {
-          headers: { 
-            'Content-Type': 'multipart/form-data',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`  // Se estiver usando token
-          },
-          onUploadProgress: (progressEvent) => {
-            const percentCompleted = Math.round(
-              (progressEvent.loaded * 100) / progressEvent.total
-            );
-            setUploadStatus(`Enviando... ${percentCompleted}%`);
-          }
-        });
-
-        setUploadStatus('Documento enviado com sucesso!');
-        if (showDocumentsModal) {
-          await fetchDocuments('bonds', bond.id);
+      await axios.post(`${API_URL}/generic-documents`, formData, {
+        headers: { 
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / progressEvent.total
+          );
+          setUploadStatus(`Enviando... ${percentCompleted}%`);
         }
-        setTimeout(() => setUploadStatus(''), 3000);
-      };
+      });
 
-      input.click();
+      setUploadStatus('Documento enviado com sucesso!');
+      if (showDocumentsModal) {
+        await fetchDocuments('bonds', selectedBond.id);
+      }
+      setTimeout(() => setUploadStatus(''), 3000);
+      setShowUploadModal(false);
     } catch (error) {
       console.error('Erro ao fazer upload:', error);
       const errorMessage = error.response?.data?.detail || 'Erro ao enviar documento. Tente novamente.';
@@ -184,7 +273,7 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg w-full max-w-4xl p-6">
+        <div className="bg-white rounded-lg w-full max-w-6xl p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold">Documentos</h2>
             <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
@@ -196,39 +285,65 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tamanho</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data Upload</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Açes</th>
+                  <th className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nome</th>
+                  <th className="w-1/12 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                  <th className="w-1/4 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Categoria</th>
+                  <th className="w-1/12 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data Ref.</th>
+                  <th className="w-1/12 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tamanho</th>
+                  <th className="w-1/12 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data Upload</th>
+                  <th className="w-1/12 px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ações</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {documents.map((doc) => (
                   <tr key={doc.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">{doc.original_filename}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{doc.file_type}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {(doc.file_size / 1024).toFixed(2)} KB
+                    <td className="px-6 py-4">
+                      <div className="truncate" title={doc.original_filename}>
+                        {doc.original_filename}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {new Date(doc.upload_date).toLocaleDateString()}
+                    <td className="px-6 py-4">
+                      <div className="truncate" title={doc.file_type}>
+                        {doc.file_type}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button
-                        onClick={() => onDownload(doc.id, doc.original_filename)}
-                        className="text-blue-600 hover:text-blue-900 mr-3"
-                        title="Download"
-                      >
-                        <FaDownload />
-                      </button>
-                      <button
-                        onClick={() => onDelete(doc.id)}
-                        className="text-red-600 hover:text-red-900"
-                        title="Excluir"
-                      >
-                        <FaTrash />
-                      </button>
+                    <td className="px-6 py-4">
+                      <div className="truncate" title={doc.document_type || '-'}>
+                        {doc.document_type || '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="truncate">
+                        {doc.reference_date ? new Date(doc.reference_date).toLocaleDateString() : '-'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="truncate">
+                        {(doc.file_size / 1024).toFixed(2)} KB
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="truncate">
+                        {new Date(doc.upload_date).toLocaleDateString()}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => onDownload(doc.id, doc.original_filename)}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="Download"
+                        >
+                          <FaDownload />
+                        </button>
+                        <button
+                          onClick={() => onDelete(doc.id)}
+                          className="text-red-600 hover:text-red-900"
+                          title="Excluir"
+                        >
+                          <FaTrash />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -513,7 +628,12 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
                                             <FaFileAlt />
                                         </button>
                                         <button
-                                            onClick={() => handleUploadDocument(bond)}
+                                            onClick={() => {
+                                                if (!isGenerating) {
+                                                    setSelectedBond(bond);
+                                                    setShowUploadModal(true);
+                                                }
+                                            }}
                                             className={`text-green-600 hover:text-green-900 mr-3 ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             title={isGenerating ? "Geração em andamento" : "Adicionar Documentos"}
                                             disabled={isGenerating}
@@ -639,7 +759,12 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
                       <FaFileAlt />
                     </button>
                     <button
-                      onClick={() => handleUploadDocument(bond)}
+                      onClick={() => {
+                        if (!isGenerating) {
+                          setSelectedBond(bond);
+                          setShowUploadModal(true);
+                        }
+                      }}
                       className={`text-green-600 hover:text-green-900 mr-3 ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
                       title={isGenerating ? "Geração em andamento" : "Adicionar Documentos"}
                       disabled={isGenerating}
@@ -714,6 +839,16 @@ function SustainabilityReport({ sidebarColor, buttonColor }) {
           setSelectedBondForReport(null);
         }}
         onSelect={startReportGeneration}
+      />
+
+      <UploadModal
+        show={showUploadModal}
+        onClose={() => {
+          setShowUploadModal(false);
+          setSelectedBond(null);
+        }}
+        onUpload={handleUploadDocument}
+        bond={selectedBond}
       />
     </div>
   );

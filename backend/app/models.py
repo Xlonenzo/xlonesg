@@ -446,7 +446,7 @@ class BondProjectRelation(Base):
 
 class GenericDocument(Base):
     __tablename__ = "generic_documents"
-    __table_args__ = {'schema': 'xlonesg'}  # Especificar o schema
+    __table_args__ = {'schema': 'xlonesg'}
 
     id = Column(Integer, primary_key=True, index=True)
     entity_name = Column(String)
@@ -457,7 +457,9 @@ class GenericDocument(Base):
     file_size = Column(Integer)
     mime_type = Column(String)
     description = Column(String, nullable=True)
-    uploaded_by = Column(String(255), nullable=False, server_default='sistema')  # Alterado para String
+    document_type = Column(String, nullable=True)
+    reference_date = Column(Date, nullable=True)
+    uploaded_by = Column(String(255), nullable=False, server_default='sistema')
     upload_date = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), nullable=True)
 
