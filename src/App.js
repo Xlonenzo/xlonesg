@@ -32,6 +32,7 @@ import SustainabilityReport from './components/SustainabilityReport';
 import PortfolioODS from './components/PortfolioODS';
 import EnvironmentalDocuments from './components/EnvironmentalDocuments';
 import EnvironmentalImpactStudy from './components/EnvironmentalImpactStudy';
+import IoTConfigDashboard from './components/IoTConfigDashboard';
 
 // Importar dados e estilos
 import articlesData from './data/articles';
@@ -265,6 +266,13 @@ function App() {
       case '/esg-tracker/environmental-impact':
         return ['admin', 'editor'].includes(userRole) ? (
           <EnvironmentalImpactStudy 
+            sidebarColor={customization.sidebar_color} 
+            buttonColor={customization.button_color} 
+          />
+        ) : <UnauthorizedAccess />;
+      case '/admin/iot-config':
+        return userRole === 'admin' ? (
+          <IoTConfigDashboard 
             sidebarColor={customization.sidebar_color} 
             buttonColor={customization.button_color} 
           />

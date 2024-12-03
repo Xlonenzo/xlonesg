@@ -19,7 +19,8 @@ import {
   Wallet,
   Shield,
   Link,
-  LineChart
+  LineChart,
+  Network
 } from 'lucide-react';
 
 const menuItemsData = [
@@ -33,6 +34,7 @@ const menuItemsData = [
       { name: 'Perfis e Usuários', icon: <User size={20} />, path: '/admin/user-management' },
       { name: 'Personalização', icon: <Settings size={20} />, path: '/admin/customization' },
       { name: 'Empresas', icon: <Building size={20} />, path: '/admin/company-management' },
+      { name: 'Configurador IoT', icon: <Network size={20} />, path: '/admin/iot-config' },
     ]
   },
   {
