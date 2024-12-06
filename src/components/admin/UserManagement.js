@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaSearch, FaFilter } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaFilter, FaExclamationCircle } from 'react-icons/fa';
 import { API_URL } from '../../config';
 
 function UserManagement({ buttonColor }) {
@@ -16,7 +16,6 @@ function UserManagement({ buttonColor }) {
   const [editingUser, setEditingUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const [isAddingUser, setIsAddingUser] = useState(false);
 
   // Remova full_name dos filtros
@@ -265,190 +264,199 @@ function UserManagement({ buttonColor }) {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold mb-4">Gerenciamento de Usuários</h2>
-      
-      <div className="flex flex-row-reverse justify-between items-center mb-4">
-        <button 
-          onClick={handleAddNewUser}
-          className="text-white px-4 py-2 rounded hover:opacity-80"
-          style={{ backgroundColor: buttonColor }}
-        >
-          Adicionar Novo Usuário
-        </button>
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Pesquisar usuários..."
-            className="p-2 pl-8 border rounded"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <FaSearch className="absolute left-2 top-3 text-gray-400" />
+        <h2 className="text-2xl font-bold mb-4">Gerenciamento de Usuários</h2>
+        
+        <div className="flex flex-row-reverse justify-between items-center mb-4">
+            <button 
+                onClick={handleAddNewUser}
+                className="text-white px-4 py-2 rounded hover:opacity-80"
+                style={{ backgroundColor: buttonColor }}
+            >
+                Adicionar Novo Usuário
+            </button>
         </div>
-      </div>
 
-      {error && typeof error === 'string' && (
-        <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-          {error}
-        </div>
-      )}
-
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border">
-          <thead>
-            <tr>
-              <th className="px-4 py-2 border">{renderColumnFilter('username')}</th>
-              <th className="px-4 py-2 border">{renderColumnFilter('email')}</th>
-              <th className="px-4 py-2 border">
-                {renderColumnFilter('role', [
-                  { value: 'viewer', label: 'Viewer' },
-                  { value: 'editor', label: 'Editor' },
-                  { value: 'admin', label: 'Admin' }
-                ])}
-              </th>
-              <th className="px-4 py-2 border">
-                {renderColumnFilter('is_active', [
-                  { value: 'true', label: 'Ativo' },
-                  { value: 'false', label: 'Inativo' }
-                ])}
-              </th>
-              <th className="px-4 py-2 border">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredUsers.map(user => (
-              <tr key={user.id} className="border-b hover:bg-gray-50">
-                <td className="px-4 py-2 border">{user.username}</td>
-                <td className="px-4 py-2 border">{user.email}</td>
-                <td className="px-4 py-2 border capitalize">{user.role}</td>
-                <td className="px-4 py-2 border">
-                  <span 
-                    className={`px-2 py-1 rounded ${
-                      user.is_active === true ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}
-                  >
-                    {user.is_active === true ? 'Ativo' : 'Inativo'}
-                  </span>
-                </td>
-                <td className="px-4 py-2 border">
-                  <button
-                    onClick={() => handleEditUser(user)}
-                    className="text-blue-500 hover:text-blue-700 mr-2"
-                  >
-                    <FaEdit />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteUser(user.id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <FaTrash />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Formulário de Edição/Criação */}
-      {(editingUser !== null || isAddingUser) && (
-        <div className="mt-4 p-4 bg-gray-100 rounded">
-          <h3 className="text-lg font-bold mb-2">
-            {editingUser ? 'Editar Usuário' : 'Adicionar Novo Usuário'}
-          </h3>
-          <form onSubmit={editingUser ? handleUpdateUser : handleCreateUser} className="grid grid-cols-2 gap-4">
-            <div className="mt-4 col-span-2">
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block mb-2">Username</label>
-                        <input
-                            type="text"
-                            value={newUsername}
-                            onChange={(e) => setNewUsername(e.target.value)}
-                            className="w-full p-2 border rounded"
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label className="block mb-2">Email</label>
-                        <input
-                            type="email"
-                            value={newEmail}
-                            onChange={(e) => setNewEmail(e.target.value)}
-                            className="w-full p-2 border rounded"
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label className="block mb-2">Nome Completo</label>
-                        <input
-                            type="text"
-                            value={newFullName}
-                            onChange={(e) => setNewFullName(e.target.value)}
-                            className="w-full p-2 border rounded"
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label className="block mb-2">Senha</label>
-                        <input
-                            type="password"
-                            value={newPassword}
-                            onChange={(e) => setNewPassword(e.target.value)}
-                            className="w-full p-2 border rounded"
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label className="block mb-2">Função</label>
-                        <select
-                            value={newRole}
-                            onChange={(e) => setNewRole(e.target.value)}
-                            className="w-full p-2 border rounded"
-                            required
-                        >
-                            <option value="viewer">Viewer</option>
-                            <option value="editor">Editor</option>
-                            <option value="admin">Admin</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block mb-2">Status</label>
-                        <select
-                            value={isActive === true ? 'true' : 'false'}
-                            onChange={(e) => {
-                                const newValue = e.target.value === 'true';
-                                console.log('Novo valor de is_active:', newValue);
-                                setIsActive(newValue);
-                            }}
-                            className="w-full p-2 border rounded"
-                        >
-                            <option value="true">Ativo</option>
-                            <option value="false">Inativo</option>
-                        </select>
-                    </div>
-                </div>
+        {error && typeof error === 'string' && (
+            <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+                {error}
             </div>
-            <div className="mt-4 col-span-2">
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className="text-white px-4 py-2 rounded hover:opacity-80 mr-2"
-                    style={{ backgroundColor: buttonColor }}
-                >
-                    {loading ? 'Processando...' : (editingUser ? 'Atualizar' : 'Criar')}
-                </button>
-                <button
-                    type="button"
-                    onClick={resetForm}
-                    className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
-                >
-                    Cancelar
-                </button>
+        )}
+
+        {/* Formulário de Edição/Criação - Movido para cima */}
+        {(editingUser !== null || isAddingUser) && (
+            <div className="mb-6 p-4 bg-gray-100 rounded">
+                <h3 className="text-lg font-bold mb-2">
+                    {editingUser ? 'Editar Usuário' : 'Adicionar Novo Usuário'}
+                </h3>
+                <form onSubmit={editingUser ? handleUpdateUser : handleCreateUser} className="grid grid-cols-2 gap-4">
+                    <div className="mt-4 col-span-2">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block mb-2 flex items-center">
+                                    Username
+                                    <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newUsername}
+                                    onChange={(e) => setNewUsername(e.target.value)}
+                                    className="w-full p-2 border rounded"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block mb-2 flex items-center">
+                                    Email
+                                    <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                                </label>
+                                <input
+                                    type="email"
+                                    value={newEmail}
+                                    onChange={(e) => setNewEmail(e.target.value)}
+                                    className="w-full p-2 border rounded"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block mb-2 flex items-center">
+                                    Nome Completo
+                                    <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newFullName}
+                                    onChange={(e) => setNewFullName(e.target.value)}
+                                    className="w-full p-2 border rounded"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block mb-2 flex items-center">
+                                    Senha
+                                    <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                                </label>
+                                <input
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    className="w-full p-2 border rounded"
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="block mb-2 flex items-center">
+                                    Função
+                                    <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                                </label>
+                                <select
+                                    value={newRole}
+                                    onChange={(e) => setNewRole(e.target.value)}
+                                    className="w-full p-2 border rounded"
+                                    required
+                                >
+                                    <option value="viewer">Viewer</option>
+                                    <option value="editor">Editor</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block mb-2 flex items-center">
+                                    Status
+                                    <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                                </label>
+                                <select
+                                    value={isActive === true ? 'true' : 'false'}
+                                    onChange={(e) => {
+                                        const newValue = e.target.value === 'true';
+                                        console.log('Novo valor de is_active:', newValue);
+                                        setIsActive(newValue);
+                                    }}
+                                    className="w-full p-2 border rounded"
+                                >
+                                    <option value="true">Ativo</option>
+                                    <option value="false">Inativo</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="mt-4 col-span-2">
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="text-white px-4 py-2 rounded hover:opacity-80 mr-2"
+                            style={{ backgroundColor: buttonColor }}
+                        >
+                            {loading ? 'Processando...' : (editingUser ? 'Atualizar' : 'Criar')}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={resetForm}
+                            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                        >
+                            Cancelar
+                        </button>
+                    </div>
+                </form>
             </div>
-          </form>
+        )}
+
+        {/* Grid de Usuários */}
+        <div className="overflow-x-auto">
+            <table className="min-w-full bg-white border">
+                <thead>
+                    <tr>
+                        <th className="px-4 py-2 border">{renderColumnFilter('username')}</th>
+                        <th className="px-4 py-2 border">{renderColumnFilter('email')}</th>
+                        <th className="px-4 py-2 border">
+                            {renderColumnFilter('role', [
+                                { value: 'viewer', label: 'Viewer' },
+                                { value: 'editor', label: 'Editor' },
+                                { value: 'admin', label: 'Admin' }
+                            ])}
+                        </th>
+                        <th className="px-4 py-2 border">
+                            {renderColumnFilter('is_active', [
+                                { value: 'true', label: 'Ativo' },
+                                { value: 'false', label: 'Inativo' }
+                            ])}
+                        </th>
+                        <th className="px-4 py-2 border">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {filteredUsers.map(user => (
+                        <tr key={user.id} className="border-b hover:bg-gray-50">
+                            <td className="px-4 py-2 border">{user.username}</td>
+                            <td className="px-4 py-2 border">{user.email}</td>
+                            <td className="px-4 py-2 border capitalize">{user.role}</td>
+                            <td className="px-4 py-2 border">
+                                <span 
+                                    className={`px-2 py-1 rounded ${
+                                        user.is_active === true ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                    }`}
+                                >
+                                    {user.is_active === true ? 'Ativo' : 'Inativo'}
+                                </span>
+                            </td>
+                            <td className="px-4 py-2 border">
+                                <button
+                                    onClick={() => handleEditUser(user)}
+                                    className="text-blue-500 hover:text-blue-700 mr-2"
+                                >
+                                    <FaEdit />
+                                </button>
+                                <button
+                                    onClick={() => handleDeleteUser(user.id)}
+                                    className="text-red-500 hover:text-red-700"
+                                >
+                                    <FaTrash />
+                                </button>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         </div>
-      )}
     </div>
   );
 }
