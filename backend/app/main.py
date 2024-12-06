@@ -336,44 +336,52 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
 
 @app.post("/api/companies/hierarchy", response_model=schemas.Company)
 def add_company_to_hierarchy(company: schemas.CompanyCreate, db: Session = Depends(get_db)):
-    logger.info(f"Dados recebidos no backend: {company.dict()}")  # Log dos dados recebidos
+    logger.info(f"Dados recebidos no backend: {company.dict()}")
     
     try:
-        validated_cnpj = validate_cnpj(company.cnpj)
-    except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
-    
-    # Verifica se a empresa já existe
-    existing_company = db.query(models.Company).filter(models.Company.cnpj == validated_cnpj).first()
-    if existing_company:
-        raise HTTPException(status_code=400, detail="Empresa com este CNPJ já existe")
-    
-    new_company = models.Company(
-        cnpj=validated_cnpj,
-        name=company.name,
-        razao_social=company.razao_social,
-        endereco=company.endereco,
-        trade_name=company.trade_name,
-        registration_date=company.registration_date,
-        size=company.size,
-        sector=company.sector,
-        city=company.city,
-        state=company.state,
-        zip_code=company.zip_code,
-        phone=company.phone,
-        email=company.email,
-        website=company.website,
-        is_active=company.is_active
-    )
-    db.add(new_company)
-    try:
+        # Validar CNPJ
+        validated_cnpj = re.sub(r'\D', '', company.cnpj)
+        if len(validated_cnpj) != 14:
+            raise HTTPException(status_code=422, detail="CNPJ deve conter 14 dígitos")
+
+        # Verificar se a empresa já existe
+        existing_company = db.query(models.Company).filter(models.Company.cnpj == validated_cnpj).first()
+        if existing_company:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"CNPJ {company.cnpj} já está cadastrado para a empresa: {existing_company.name}"
+            )
+
+        # Criar nova empresa
+        new_company = models.Company(
+            cnpj=validated_cnpj,
+            name=company.name,
+            razao_social=company.razao_social,
+            endereco=company.endereco,
+            trade_name=company.trade_name,
+            registration_date=company.registration_date,
+            size=company.size,
+            sector=company.sector,
+            city=company.city,
+            state=company.state,
+            zip_code=company.zip_code,
+            phone=company.phone,
+            email=company.email,
+            website=company.website,
+            is_active=company.is_active if company.is_active is not None else True
+        )
+
+        db.add(new_company)
         db.commit()
         db.refresh(new_company)
-    except SQLAlchemyError as e:
+        return new_company
+
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
         db.rollback()
-        logger.error(f"Erro ao inserir empresa: {str(e)}")
-        raise HTTPException(status_code=400, detail="Erro ao inserir empresa")
-    return schemas.Company.from_orm(new_company)
+        logger.error(f"Erro ao criar empresa: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/api/companies", response_model=List[schemas.Company])
 def read_companies(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
@@ -1826,7 +1834,7 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
 @app.post("/api/emissions", response_model=schemas.EmissionData)
 def create_emission(emission: schemas.EmissionDataCreate, db: Session = Depends(get_db)):
     try:
-        logger.info("Criando novo registro de emissão")
+        logger.info("Criando novo registro de emiss��o")
         
         # Verificar se o projeto existe
         project = db.query(models.ProjectTracking).filter(models.ProjectTracking.id == emission.project_id).first()

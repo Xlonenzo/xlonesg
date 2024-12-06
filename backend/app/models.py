@@ -86,7 +86,7 @@ class Company(Base):
     id = Column(Integer, primary_key=True, index=True)
     cnpj = Column(String(14), unique=True, nullable=False, index=True)
     name = Column(String(255), nullable=False)
-    razao_social = Column(String(255))
+    razao_social = Column(Text)
     endereco = Column(Text)
     trade_name = Column(String(100))
     registration_date = Column(Date)
@@ -102,7 +102,6 @@ class Company(Base):
 
     # Adicionar relacionamento bidirecional
     kpi_entries = relationship("KPIEntry", back_populates="company", cascade="all, delete-orphan")
-    esg_projects = relationship("ESGProject", back_populates="company")
     project_tracking = relationship("ProjectTracking", back_populates="company", cascade="all, delete-orphan")
     investments = relationship("Investment", back_populates="company", cascade="all, delete-orphan")
     compliance_audits = relationship("ComplianceAudit", back_populates="company", cascade="all, delete-orphan")
@@ -265,13 +264,12 @@ class ESGProject(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
-    company_id = Column(Integer, ForeignKey("xlonesg.companies.id"), nullable=False)
-    project_type = Column(String, nullable=False)  # Environmental, Social ou Governance
+    project_type = Column(String, nullable=False)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     budget_allocated = Column(Float, nullable=False)
     currency = Column(String, default="BRL")
-    status = Column(String, nullable=False)  # Em andamento, Concluído, Cancelado, etc
+    status = Column(String, nullable=False)
     progress_percentage = Column(Float, default=0)
     expected_impact = Column(Text)
     actual_impact = Column(Text)
@@ -284,9 +282,6 @@ class ESGProject(Base):
         'ods11': 0, 'ods12': 0, 'ods13': 0, 'ods14': 0, 'ods15': 0,
         'ods16': 0, 'ods17': 0
     })
-
-    # Relacionamentos
-    company = relationship("Company", back_populates="esg_projects")
 
 class ProjectTracking(Base):
     __tablename__ = "project_tracking"

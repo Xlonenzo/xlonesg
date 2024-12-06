@@ -5,6 +5,7 @@ from datetime import date, datetime
 from typing import Optional, List, Dict, Any, Union
 from decimal import Decimal
 from enum import Enum
+import re
 
 
 class KPIBase(BaseModel):
@@ -116,6 +117,34 @@ class CompanyBase(BaseModel):
     email: Optional[str] = None
     website: Optional[str] = None
     is_active: Optional[bool] = True
+
+    @validator('cnpj')
+    def validate_cnpj(cls, v):
+        if not v:
+            raise ValueError("CNPJ é obrigatório")
+        # Remove caracteres não numéricos
+        v = re.sub(r'\D', '', v)
+        if len(v) != 14:
+            raise ValueError("CNPJ deve conter 14 dígitos")
+        return v
+
+    @validator('name')
+    def validate_name(cls, v):
+        if not v:
+            raise ValueError("Nome é obrigatório")
+        if len(v.strip()) < 2:
+            raise ValueError("Nome deve ter pelo menos 2 caracteres")
+        return v.strip()
+
+    @validator('registration_date')
+    def validate_date(cls, v):
+        if v is not None:
+            if isinstance(v, str):
+                try:
+                    return datetime.strptime(v, '%Y-%m-%d').date()
+                except ValueError:
+                    raise ValueError("Data inválida. Use o formato YYYY-MM-DD")
+        return v
 
     class Config:
         from_attributes = True

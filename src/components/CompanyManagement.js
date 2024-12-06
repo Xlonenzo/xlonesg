@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaFilter } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaFilter, FaExclamationCircle } from 'react-icons/fa';
 import { API_URL } from '../config';
 
 function CompanyManagement({ buttonColor }) {
@@ -118,18 +118,8 @@ function CompanyManagement({ buttonColor }) {
   };
 
   const handleAddCompany = async () => {
-    // Validar antes de enviar
-    if (newCompany.email && !validateEmail(newCompany.email)) {
-      setErrors(prev => ({ ...prev, email: 'Email inválido' }));
-      return;
-    }
-    if (newCompany.website && !validateWebsite(newCompany.website)) {
-      setErrors(prev => ({ ...prev, website: 'Website inválido' }));
-      return;
-    }
-
-    try {
-      const response = await axios.post(`${API_URL}/companies/hierarchy`, {
+    // Log dos dados antes da validação
+    console.log('Dados originais:', {
         cnpj: newCompany.cnpj,
         name: newCompany.name,
         razao_social: newCompany.razao_social,
@@ -145,29 +135,66 @@ function CompanyManagement({ buttonColor }) {
         email: newCompany.email,
         website: newCompany.website,
         is_active: newCompany.is_active
-      });
-      setCompanies([...companies, response.data]);
-      setNewCompany({ 
-        cnpj: '', 
-        name: '', 
-        razao_social: '', 
-        endereco: '', 
-        trade_name: '', 
-        registration_date: '', 
-        size: '', 
-        sector: '', 
-        city: '', 
-        state: '', 
-        zip_code: '', 
-        phone: '', 
-        email: '', 
-        website: '', 
-        is_active: true 
-      });
-      setIsAddingCompany(false);
+    });
+
+    // Validar campos obrigatórios
+    if (!newCompany.cnpj || !newCompany.name) {
+        alert('CNPJ e Nome são campos obrigatórios');
+        return;
+    }
+
+    // Validar antes de enviar
+    if (newCompany.email && !validateEmail(newCompany.email)) {
+        setErrors(prev => ({ ...prev, email: 'Email inválido' }));
+        return;
+    }
+    if (newCompany.website && !validateWebsite(newCompany.website)) {
+        setErrors(prev => ({ ...prev, website: 'Website inválido' }));
+        return;
+    }
+
+    try {
+        // Formatar os dados antes de enviar
+        const formattedCompany = {
+            ...newCompany,
+            cnpj: newCompany.cnpj.replace(/\D/g, ''), // Remove caracteres não numéricos
+            name: newCompany.name.trim(),
+            is_active: newCompany.is_active === undefined ? true : newCompany.is_active
+        };
+
+        // Log dos dados formatados antes do envio
+        console.log('Dados formatados para envio:', formattedCompany);
+
+        const response = await axios.post(`${API_URL}/companies/hierarchy`, formattedCompany);
+        console.log('Resposta do servidor:', response.data);
+
+        setCompanies([...companies, response.data]);
+        setNewCompany({ 
+            cnpj: '', 
+            name: '', 
+            razao_social: '', 
+            endereco: '', 
+            trade_name: '', 
+            registration_date: '', 
+            size: '', 
+            sector: '', 
+            city: '', 
+            state: '', 
+            zip_code: '', 
+            phone: '', 
+            email: '', 
+            website: '', 
+            is_active: true 
+        });
+        setIsAddingCompany(false);
     } catch (error) {
-      console.error('Erro ao adicionar empresa:', error);
-      alert(error.response?.data?.detail || 'Erro ao adicionar empresa. Verifique os dados e tente novamente.');
+        console.error('Erro detalhado:', {
+            status: error.response?.status,
+            data: error.response?.data,
+            message: error.message,
+            validationError: error.response?.data?.detail
+        });
+        alert(error.response?.data?.detail || 'Erro ao adicionar empresa. Verifique os dados e tente novamente.');
     }
   };
 
@@ -262,191 +289,251 @@ function CompanyManagement({ buttonColor }) {
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
-              type="text"
-              value={editingCompany ? editingCompany.cnpj : newCompany.cnpj}
-              onChange={(e) => editingCompany 
-                ? setEditingCompany({...editingCompany, cnpj: e.target.value})
-                : setNewCompany({...newCompany, cnpj: e.target.value})}
-              placeholder="CNPJ"
-              className="w-full p-2 border rounded-lg"
-            />
-            <input
-              type="text"
-              value={editingCompany ? editingCompany.name : newCompany.name}
-              onChange={(e) => editingCompany
-                ? setEditingCompany({...editingCompany, name: e.target.value})
-                : setNewCompany({...newCompany, name: e.target.value})}
-              placeholder="Nome da Empresa"
-              className="w-full p-2 border rounded-lg"
-            />
-            <input
-              type="text"
-              value={editingCompany ? editingCompany.razao_social : newCompany.razao_social}
-              onChange={(e) => editingCompany
-                ? setEditingCompany({...editingCompany, razao_social: e.target.value})
-                : setNewCompany({...newCompany, razao_social: e.target.value})}
-              placeholder="Razão Social"
-              className="w-full p-2 border rounded-lg"
-            />
-            <input
-              type="text"
-              value={editingCompany ? editingCompany.endereco : newCompany.endereco}
-              onChange={(e) => editingCompany
-                ? setEditingCompany({...editingCompany, endereco: e.target.value})
-                : setNewCompany({...newCompany, endereco: e.target.value})}
-              placeholder="Endereço"
-              className="w-full p-2 border rounded-lg"
-            />
-            <input
-              type="text"
-              value={editingCompany ? editingCompany.trade_name : newCompany.trade_name}
-              onChange={(e) => editingCompany
-                ? setEditingCompany({...editingCompany, trade_name: e.target.value})
-                : setNewCompany({...newCompany, trade_name: e.target.value})}
-              placeholder="Nome Fantasia"
-              className="w-full p-2 border rounded-lg"
-            />
-            <input
-              type="date"
-              value={editingCompany ? editingCompany.registration_date : newCompany.registration_date}
-              onChange={(e) => editingCompany
-                ? setEditingCompany({...editingCompany, registration_date: e.target.value})
-                : setNewCompany({...newCompany, registration_date: e.target.value})}
-              placeholder="Data de Registro"
-              className="w-full p-2 border rounded-lg"
-            />
-            <select
-              value={editingCompany ? editingCompany.sector : newCompany.sector}
-              onChange={(e) => editingCompany
-                ? setEditingCompany({...editingCompany, sector: e.target.value})
-                : setNewCompany({...newCompany, sector: e.target.value})}
-              className="w-full p-2 border rounded-lg bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="">Selecione o Setor</option>
-              {sectorOptions.map((sector) => (
-                <option key={sector} value={sector}>
-                  {sector}
-                </option>
-              ))}
-            </select>
-            <select
-              value={editingCompany ? editingCompany.size : newCompany.size}
-              onChange={(e) => editingCompany
-                ? setEditingCompany({...editingCompany, size: e.target.value})
-                : setNewCompany({...newCompany, size: e.target.value})}
-              className="w-full p-2 border rounded-lg bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="">Selecione o Tamanho</option>
-              {sizeOptions.map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
-            <input
-              type="text"
-              value={editingCompany ? editingCompany.city : newCompany.city}
-              onChange={(e) => editingCompany
-                ? setEditingCompany({...editingCompany, city: e.target.value})
-                : setNewCompany({...newCompany, city: e.target.value})}
-              placeholder="Cidade"
-              className="w-full p-2 border rounded-lg"
-            />
-            <input
-              type="text"
-              value={editingCompany ? editingCompany.state : newCompany.state}
-              onChange={(e) => editingCompany
-                ? setEditingCompany({...editingCompany, state: e.target.value})
-                : setNewCompany({...newCompany, state: e.target.value})}
-              placeholder="Estado"
-              className="w-full p-2 border rounded-lg"
-            />
-            <input
-              type="text"
-              value={editingCompany ? editingCompany.zip_code : newCompany.zip_code}
-              onChange={(e) => editingCompany
-                ? setEditingCompany({...editingCompany, zip_code: e.target.value})
-                : setNewCompany({...newCompany, zip_code: e.target.value})}
-              placeholder="CEP"
-              className="w-full p-2 border rounded-lg"
-            />
-            <input
-              type="text"
-              value={editingCompany ? editingCompany.phone : newCompany.phone}
-              onChange={(e) => editingCompany
-                ? setEditingCompany({...editingCompany, phone: e.target.value})
-                : setNewCompany({...newCompany, phone: e.target.value})}
-              placeholder="Telefone"
-              className="w-full p-2 border rounded-lg"
-            />
-            <div className="relative">
-              <input
-                type="email"
-                value={editingCompany ? editingCompany.email : newCompany.email}
-                onChange={(e) => handleEmailChange(e, !!editingCompany)}
-                placeholder="Email"
-                className={`w-full p-2 border rounded-lg ${
-                  errors.email ? 'border-red-500' : 'border-gray-300'
-                } focus:border-blue-500 focus:ring-1 focus:ring-blue-500`}
-              />
-              {errors.email && (
-                <span className="text-red-500 text-sm absolute -bottom-5 left-0">
-                  {errors.email}
-                </span>
-              )}
-            </div>
-            <div className="relative">
-              <input
-                type="url"
-                value={editingCompany ? editingCompany.website : newCompany.website}
-                onChange={(e) => handleWebsiteChange(e, !!editingCompany)}
-                placeholder="Website"
-                className={`w-full p-2 border rounded-lg ${
-                  errors.website ? 'border-red-500' : 'border-gray-300'
-                } focus:border-blue-500 focus:ring-1 focus:ring-blue-500`}
-              />
-              {errors.website && (
-                <span className="text-red-500 text-sm absolute -bottom-5 left-0">
-                  {errors.website}
-                </span>
-              )}
-            </div>
-            <div className="mb-2">
-              <label className="inline-flex items-center">
+            <div>
+                <label className="block mb-2 flex items-center">
+                    CNPJ
+                    <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </label>
                 <input
-                  type="checkbox"
-                  checked={editingCompany ? editingCompany.is_active : newCompany.is_active}
-                  onChange={(e) => editingCompany
-                    ? setEditingCompany({...editingCompany, is_active: e.target.checked})
-                    : setNewCompany({...newCompany, is_active: e.target.checked})}
-                  className="form-checkbox h-5 w-5"
-                  style={{ 
-                    borderColor: buttonColor,
-                    color: buttonColor 
-                  }}
+                    type="text"
+                    value={editingCompany ? editingCompany.cnpj : newCompany.cnpj}
+                    onChange={(e) => editingCompany 
+                        ? setEditingCompany({...editingCompany, cnpj: e.target.value})
+                        : setNewCompany({...newCompany, cnpj: e.target.value})}
+                    placeholder="CNPJ"
+                    className="w-full p-2 border rounded-lg"
+                    required
                 />
-                <span className="ml-2 text-gray-700">Ativo</span>
-              </label>
+            </div>
+
+            <div>
+                <label className="block mb-2 flex items-center">
+                    Nome da Empresa
+                    <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </label>
+                <input
+                    type="text"
+                    value={editingCompany ? editingCompany.name : newCompany.name}
+                    onChange={(e) => editingCompany
+                        ? setEditingCompany({...editingCompany, name: e.target.value})
+                        : setNewCompany({...newCompany, name: e.target.value})}
+                    placeholder="Nome da Empresa"
+                    className="w-full p-2 border rounded-lg"
+                    required
+                />
+            </div>
+
+            <div>
+                <label className="block mb-2 flex items-center">
+                    Data de Registro
+                    <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </label>
+                <input
+                    type="date"
+                    value={editingCompany ? editingCompany.registration_date : newCompany.registration_date}
+                    onChange={(e) => editingCompany
+                        ? setEditingCompany({...editingCompany, registration_date: e.target.value})
+                        : setNewCompany({...newCompany, registration_date: e.target.value})}
+                    placeholder="Data de Registro"
+                    className="w-full p-2 border rounded-lg"
+                    required
+                />
+            </div>
+
+            <div>
+                <label className="block mb-2">Razão Social</label>
+                <input
+                    type="text"
+                    value={editingCompany ? editingCompany.razao_social : newCompany.razao_social}
+                    onChange={(e) => editingCompany
+                        ? setEditingCompany({...editingCompany, razao_social: e.target.value})
+                        : setNewCompany({...newCompany, razao_social: e.target.value})}
+                    placeholder="Razão Social"
+                    className="w-full p-2 border rounded-lg"
+                />
+            </div>
+
+            <div>
+                <label className="block mb-2">Endereço</label>
+                <input
+                    type="text"
+                    value={editingCompany ? editingCompany.endereco : newCompany.endereco}
+                    onChange={(e) => editingCompany
+                        ? setEditingCompany({...editingCompany, endereco: e.target.value})
+                        : setNewCompany({...newCompany, endereco: e.target.value})}
+                    placeholder="Endereço"
+                    className="w-full p-2 border rounded-lg"
+                />
+            </div>
+
+            <div>
+                <label className="block mb-2">Nome Fantasia</label>
+                <input
+                    type="text"
+                    value={editingCompany ? editingCompany.trade_name : newCompany.trade_name}
+                    onChange={(e) => editingCompany
+                        ? setEditingCompany({...editingCompany, trade_name: e.target.value})
+                        : setNewCompany({...newCompany, trade_name: e.target.value})}
+                    placeholder="Nome Fantasia"
+                    className="w-full p-2 border rounded-lg"
+                />
+            </div>
+
+            <div>
+                <label className="block mb-2">Setor</label>
+                <select
+                    value={editingCompany ? editingCompany.sector : newCompany.sector}
+                    onChange={(e) => editingCompany
+                        ? setEditingCompany({...editingCompany, sector: e.target.value})
+                        : setNewCompany({...newCompany, sector: e.target.value})}
+                    className="w-full p-2 border rounded-lg bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                >
+                    <option value="">Selecione o Setor</option>
+                    {sectorOptions.map((sector) => (
+                        <option key={sector} value={sector}>
+                            {sector}
+                        </option>
+                    ))}
+                </select>
+            </div>
+
+            <div>
+                <label className="block mb-2">Tamanho</label>
+                <select
+                    value={editingCompany ? editingCompany.size : newCompany.size}
+                    onChange={(e) => editingCompany
+                        ? setEditingCompany({...editingCompany, size: e.target.value})
+                        : setNewCompany({...newCompany, size: e.target.value})}
+                    className="w-full p-2 border rounded-lg bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                >
+                    <option value="">Selecione o Tamanho</option>
+                    {sizeOptions.map((size) => (
+                        <option key={size} value={size}>
+                            {size}
+                        </option>
+                    ))}
+                </select>
+            </div>
+
+            <div>
+                <label className="block mb-2">Cidade</label>
+                <input
+                    type="text"
+                    value={editingCompany ? editingCompany.city : newCompany.city}
+                    onChange={(e) => editingCompany
+                        ? setEditingCompany({...editingCompany, city: e.target.value})
+                        : setNewCompany({...newCompany, city: e.target.value})}
+                    placeholder="Cidade"
+                    className="w-full p-2 border rounded-lg"
+                />
+            </div>
+
+            <div>
+                <label className="block mb-2">Estado</label>
+                <input
+                    type="text"
+                    value={editingCompany ? editingCompany.state : newCompany.state}
+                    onChange={(e) => editingCompany
+                        ? setEditingCompany({...editingCompany, state: e.target.value})
+                        : setNewCompany({...newCompany, state: e.target.value})}
+                    placeholder="Estado"
+                    className="w-full p-2 border rounded-lg"
+                />
+            </div>
+
+            <div>
+                <label className="block mb-2">CEP</label>
+                <input
+                    type="text"
+                    value={editingCompany ? editingCompany.zip_code : newCompany.zip_code}
+                    onChange={(e) => editingCompany
+                        ? setEditingCompany({...editingCompany, zip_code: e.target.value})
+                        : setNewCompany({...newCompany, zip_code: e.target.value})}
+                    placeholder="CEP"
+                    className="w-full p-2 border rounded-lg"
+                />
+            </div>
+
+            <div>
+                <label className="block mb-2">Telefone</label>
+                <input
+                    type="text"
+                    value={editingCompany ? editingCompany.phone : newCompany.phone}
+                    onChange={(e) => editingCompany
+                        ? setEditingCompany({...editingCompany, phone: e.target.value})
+                        : setNewCompany({...newCompany, phone: e.target.value})}
+                    placeholder="Telefone"
+                    className="w-full p-2 border rounded-lg"
+                />
+            </div>
+
+            <div>
+                <label className="block mb-2">Email</label>
+                <input
+                    type="email"
+                    value={editingCompany ? editingCompany.email : newCompany.email}
+                    onChange={(e) => handleEmailChange(e, !!editingCompany)}
+                    placeholder="Email"
+                    className={`w-full p-2 border rounded-lg ${
+                        errors.email ? 'border-red-500' : 'border-gray-300'
+                    } focus:border-blue-500 focus:ring-1 focus:ring-blue-500`}
+                />
+                {errors.email && (
+                    <span className="text-red-500 text-sm">{errors.email}</span>
+                )}
+            </div>
+
+            <div>
+                <label className="block mb-2">Website</label>
+                <input
+                    type="url"
+                    value={editingCompany ? editingCompany.website : newCompany.website}
+                    onChange={(e) => handleWebsiteChange(e, !!editingCompany)}
+                    placeholder="Website"
+                    className={`w-full p-2 border rounded-lg ${
+                        errors.website ? 'border-red-500' : 'border-gray-300'
+                    } focus:border-blue-500 focus:ring-1 focus:ring-blue-500`}
+                />
+                {errors.website && (
+                    <span className="text-red-500 text-sm">{errors.website}</span>
+                )}
+            </div>
+
+            <div className="mb-2">
+                <label className="inline-flex items-center">
+                    <input
+                        type="checkbox"
+                        checked={editingCompany ? editingCompany.is_active : newCompany.is_active}
+                        onChange={(e) => editingCompany
+                            ? setEditingCompany({...editingCompany, is_active: e.target.checked})
+                            : setNewCompany({...newCompany, is_active: e.target.checked})}
+                        className="form-checkbox h-5 w-5"
+                        style={{ 
+                            borderColor: buttonColor,
+                            color: buttonColor 
+                        }}
+                    />
+                    <span className="ml-2 text-gray-700">Ativo</span>
+                </label>
             </div>
 
             <div className="col-span-full flex justify-end space-x-2 mt-4">
-              <button
-                onClick={editingCompany ? handleUpdateCompany : handleAddCompany}
-                className="text-white px-6 py-2 rounded-lg hover:opacity-90 transition-all"
-                style={{ backgroundColor: buttonColor }}
-              >
-                {editingCompany ? 'Atualizar' : 'Adicionar'}
-              </button>
-              <button
-                onClick={() => {
-                  setIsAddingCompany(false);
-                  setEditingCompany(null);
-                }}
-                className="bg-red-500 text-white px-6 py-2 rounded-lg hover:opacity-90 transition-all"
-              >
-                Cancelar
-              </button>
+                <button
+                    onClick={editingCompany ? handleUpdateCompany : handleAddCompany}
+                    className="text-white px-6 py-2 rounded-lg hover:opacity-90 transition-all"
+                    style={{ backgroundColor: buttonColor }}
+                >
+                    {editingCompany ? 'Atualizar' : 'Adicionar'}
+                </button>
+                <button
+                    onClick={() => {
+                        setIsAddingCompany(false);
+                        setEditingCompany(null);
+                    }}
+                    className="bg-red-500 text-white px-6 py-2 rounded-lg hover:opacity-90 transition-all"
+                >
+                    Cancelar
+                </button>
             </div>
           </div>
         </div>

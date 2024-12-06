@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaStar, FaPlus, FaSearch, FaFilter, FaCopy } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaStar, FaPlus, FaSearch, FaFilter, FaCopy, FaExclamationCircle } from 'react-icons/fa';
 import { API_URL } from '../config';
 
 function KPITracker({ sidebarColor, buttonColor }) {
@@ -17,7 +17,7 @@ function KPITracker({ sidebarColor, buttonColor }) {
     year: new Date().getFullYear(),
     month: new Date().getMonth() + 1,
     isfavorite: false,
-    project_id: ''
+    project_id: null
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -108,7 +108,7 @@ function KPITracker({ sidebarColor, buttonColor }) {
         year: new Date().getFullYear(),
         month: new Date().getMonth() + 1,
         isfavorite: false,
-        project_id: ''
+        project_id: null
       });
     } catch (error) {
       console.error('Erro ao salvar entrada de KPI:', error);
@@ -126,7 +126,7 @@ function KPITracker({ sidebarColor, buttonColor }) {
       year: entry.year,
       month: entry.month,
       isfavorite: entry.isfavorite,
-      project_id: entry.project_id || ''
+      project_id: entry.project_id || null
     });
     setIsFormOpen(true);
   };
@@ -240,6 +240,21 @@ function KPITracker({ sidebarColor, buttonColor }) {
     }
   };
 
+  const resetForm = () => {
+    setNewEntry({
+      template_id: '',
+      cnpj: '',
+      actual_value: '',
+      target_value: '',
+      year: new Date().getFullYear(),
+      month: new Date().getMonth() + 1,
+      isfavorite: false,
+      project_id: null
+    });
+    setEditingEntry(null);
+    setIsFormOpen(false);
+  };
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold mb-4">KPI Tracker</h2>
@@ -272,7 +287,10 @@ function KPITracker({ sidebarColor, buttonColor }) {
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block mb-2">Template KPI</label>
+                <label className="block mb-2 flex items-center">
+                  Template KPI
+                  <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </label>
                 <select
                   name="template_id"
                   value={newEntry.template_id}
@@ -287,7 +305,10 @@ function KPITracker({ sidebarColor, buttonColor }) {
                 </select>
               </div>
               <div>
-                <label className="block mb-2">Empresa (CNPJ)</label>
+                <label className="block mb-2 flex items-center">
+                  Empresa (CNPJ)
+                  <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </label>
                 <select
                   name="cnpj"
                   value={newEntry.cnpj}
@@ -302,7 +323,10 @@ function KPITracker({ sidebarColor, buttonColor }) {
                 </select>
               </div>
               <div>
-                <label className="block mb-2">Valor Atual</label>
+                <label className="block mb-2 flex items-center">
+                  Valor Atual
+                  <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </label>
                 <input
                   type="number"
                   name="actual_value"
@@ -313,7 +337,10 @@ function KPITracker({ sidebarColor, buttonColor }) {
                 />
               </div>
               <div>
-                <label className="block mb-2">Valor Alvo</label>
+                <label className="block mb-2 flex items-center">
+                  Valor Alvo
+                  <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </label>
                 <input
                   type="number"
                   name="target_value"
@@ -324,7 +351,10 @@ function KPITracker({ sidebarColor, buttonColor }) {
                 />
               </div>
               <div>
-                <label className="block mb-2">Ano</label>
+                <label className="block mb-2 flex items-center">
+                  Ano
+                  <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </label>
                 <input
                   type="number"
                   name="year"
@@ -335,7 +365,10 @@ function KPITracker({ sidebarColor, buttonColor }) {
                 />
               </div>
               <div>
-                <label className="block mb-2">Mês</label>
+                <label className="block mb-2 flex items-center">
+                  Mês
+                  <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </label>
                 <input
                   type="number"
                   name="month"
@@ -363,11 +396,16 @@ function KPITracker({ sidebarColor, buttonColor }) {
                 <label className="block mb-2">Projeto</label>
                 <select
                   name="project_id"
-                  value={newEntry.project_id}
-                  onChange={handleInputChange}
+                  value={newEntry.project_id || ''}
+                  onChange={(e) => handleInputChange({
+                    target: {
+                      name: 'project_id',
+                      value: e.target.value ? Number(e.target.value) : null
+                    }
+                  })}
                   className="w-full p-2 border rounded"
                 >
-                  <option value="">Selecione um projeto (opcional)</option>
+                  <option value="">Selecione um projeto</option>
                   {projects.map(project => (
                     <option key={project.id} value={project.id}>
                       {project.name} - {companies.find(c => c.id === project.company_id)?.name}
@@ -386,20 +424,7 @@ function KPITracker({ sidebarColor, buttonColor }) {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setIsFormOpen(false);
-                  setEditingEntry(null);
-                  setNewEntry({
-                    template_id: '',
-                    cnpj: '',
-                    actual_value: '',
-                    target_value: '',
-                    year: new Date().getFullYear(),
-                    month: new Date().getMonth() + 1,
-                    isfavorite: false,
-                    project_id: ''
-                  });
-                }}
+                onClick={resetForm}
                 className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
               >
                 Cancelar

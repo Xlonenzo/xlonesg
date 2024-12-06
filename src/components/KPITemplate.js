@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaSearch, FaFilter, FaCopy } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaFilter, FaCopy, FaExclamationCircle } from 'react-icons/fa';
 import { MultiSelect } from "react-multi-select-component";
 import { API_URL } from '../config';
 
@@ -22,7 +22,6 @@ function KPITemplate({ sidebarColor, buttonColor }) {
     genero: '',
     raca: '',
   });
-  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [kpisPerPage] = useState(12);
   const [isLoading, setIsLoading] = useState(true);
@@ -103,19 +102,15 @@ function KPITemplate({ sidebarColor, buttonColor }) {
   };
 
   const filteredAndSearchedKPIs = kpis.filter(kpi => {
-    const matchesSearch = kpi.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          kpi.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          kpi.kpicode?.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesFilters = Object.keys(filters).every(key => {
+    return Object.keys(filters).every(key => {
       if (!filters[key]) return true;
       if (key === 'compliance') {
-        return kpi[key] && kpi[key].some(item => item.toLowerCase().includes(filters[key].toLowerCase()));
+        return kpi[key] && kpi[key].some(item => 
+          item.toLowerCase().includes(filters[key].toLowerCase())
+        );
       }
       return kpi[key]?.toString().toLowerCase().includes(filters[key].toLowerCase());
     });
-
-    return matchesSearch && matchesFilters;
   });
 
   const renderColumnFilter = (columnName) => (
@@ -156,7 +151,7 @@ function KPITemplate({ sidebarColor, buttonColor }) {
   const indexOfFirstKPI = indexOfLastKPI - kpisPerPage;
   const currentKPIs = filteredAndSearchedKPIs.slice(indexOfFirstKPI, indexOfLastKPI);
 
-  // Atualizar a função de paginação
+  // Atualizar a função de paginaç��o
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   const handleInputChange = (e) => {
@@ -246,152 +241,211 @@ function KPITemplate({ sidebarColor, buttonColor }) {
 
   const renderKPIForm = (kpi, isAdding) => (
     <div className="grid grid-cols-2 gap-4">
-      <div>
-        <label className="block mb-2">Nome</label>
-        <input
-          type="text"
-          name="name"
-          value={kpi.name}
-          onChange={handleInputChange}
-          className="w-full p-2 border rounded"
-        />
-      </div>
-      <div>
-        <label className="block mb-2">Unidade</label>
-        <select
-          name="unit"
-          value={kpi.unit}
-          onChange={handleInputChange}
-          className="w-full p-2 border rounded"
-        >
-          <option value="">Selecione uma unidade</option>
-          {units.map(unit => (
-            <option key={unit} value={unit}>{unit}</option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label className="block mb-2">Categoria</label>
-        <select
-          name="category"
-          value={kpi.category}
-          onChange={handleInputChange}
-          className="w-full p-2 border rounded"
-        >
-          <option value="environment">Ambiente</option>
-          <option value="social">Social</option>
-          <option value="governance">Governança</option>
-        </select>
-      </div>
-      <div>
-        <label className="block mb-2">Subcategoria</label>
-        <select
-          name="subcategory"
-          value={kpi.subcategory}
-          onChange={handleInputChange}
-          className="w-full p-2 border rounded"
-        >
-          <option value="">Selecione uma subcategoria</option>
-          {subcategories[kpi.category]?.map(sub => (
-            <option key={sub} value={sub}>{sub}</option>
-          ))}
-        </select>
-      </div>
-      <div className="col-span-2">
-        <label className="block mb-2">Descrição</label>
-        <textarea
-          name="description"
-          value={kpi.description}
-          onChange={handleInputChange}
-          className="w-full p-2 border rounded"
-          rows="3"
-        ></textarea>
-      </div>
-      <div>
-        <label className="block mb-2">Frequência</label>
-        <select
-          name="frequency"
-          value={kpi.frequency}
-          onChange={handleInputChange}
-          className="w-full p-2 border rounded"
-        >
-          <option value="">Selecione uma frequência</option>
-          {frequencies.map(freq => (
-            <option key={freq} value={freq}>{freq}</option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label className="block mb-2">Método de Coleta</label>
-        <select
-          name="collection_method"
-          value={kpi.collection_method}
-          onChange={handleInputChange}
-          className="w-full p-2 border rounded"
-        >
-          <option value="">Selecione um método</option>
-          {collectionMethods.map(method => (
-            <option key={method} value={method}>{method}</option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label className="block mb-2">Código KPI</label>
-        <input
-          type="text"
-          name="kpicode"
-          value={kpi.kpicode}
-          onChange={handleInputChange}
-          className="w-full p-2 border rounded"
-        />
-      </div>
-      <div>
-        <label className="block mb-2">Categoria da Empresa</label>
-        <input
-          type="text"
-          name="company_category"
-          value={kpi.company_category}
-          onChange={handleInputChange}
-          className="w-full p-2 border rounded"
-        />
-      </div>
-      <div>
-        <label className="block mb-2">Gênero</label>
-        <select
-          name="genero"
-          value={kpi.genero}
-          onChange={handleInputChange}
-          className="w-full p-2 border rounded"
-        >
-          <option value="">Selecione um gênero</option>
-          {genderOptions.map(gender => (
-            <option key={gender} value={gender}>{gender}</option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label className="block mb-2">Raça</label>
-        <select
-          name="raca"
-          value={kpi.raca}
-          onChange={handleInputChange}
-          className="w-full p-2 border rounded"
-        >
-          <option value="">Selecione uma raça</option>
-          {raceOptions.map(race => (
-            <option key={race} value={race}>{race}</option>
-          ))}
-        </select>
-      </div>
-      <div className="col-span-2">
-        <label className="block mb-2">Compliance</label>
-        <MultiSelect
-          options={complianceOptions}
-          value={kpi.compliance.map(c => ({ label: complianceFullNames[c], value: c }))}
-          onChange={handleComplianceChange}
-          labelledBy="Selecione"
-        />
-      </div>
+        <div>
+            <label className="block mb-2 flex items-center">
+                Nome
+                <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </label>
+            <input
+                type="text"
+                name="name"
+                value={kpi.name}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+                required
+            />
+        </div>
+
+        <div>
+            <label className="block mb-2 flex items-center">
+                Unidade
+                <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </label>
+            <select
+                name="unit"
+                value={kpi.unit}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+                required
+            >
+                <option value="">Selecione uma unidade</option>
+                {units.map(unit => (
+                    <option key={unit} value={unit}>{unit}</option>
+                ))}
+            </select>
+        </div>
+
+        <div>
+            <label className="block mb-2 flex items-center">
+                Categoria
+                <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </label>
+            <select
+                name="category"
+                value={kpi.category}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+                required
+            >
+                <option value="environment">Ambiente</option>
+                <option value="social">Social</option>
+                <option value="governance">Governança</option>
+            </select>
+        </div>
+
+        <div>
+            <label className="block mb-2 flex items-center">
+                Subcategoria
+                <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </label>
+            <select
+                name="subcategory"
+                value={kpi.subcategory}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+                required
+            >
+                <option value="">Selecione uma subcategoria</option>
+                {subcategories[kpi.category]?.map(sub => (
+                    <option key={sub} value={sub}>{sub}</option>
+                ))}
+            </select>
+        </div>
+
+        <div className="col-span-2">
+            <label className="block mb-2 flex items-center">
+                Descrição
+                <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </label>
+            <textarea
+                name="description"
+                value={kpi.description}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+                rows="3"
+                required
+            ></textarea>
+        </div>
+
+        <div>
+            <label className="block mb-2 flex items-center">
+                Frequência
+                <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </label>
+            <select
+                name="frequency"
+                value={kpi.frequency}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+                required
+            >
+                <option value="">Selecione uma frequência</option>
+                {frequencies.map(freq => (
+                    <option key={freq} value={freq}>{freq}</option>
+                ))}
+            </select>
+        </div>
+
+        <div>
+            <label className="block mb-2 flex items-center">
+                Método de Coleta
+                <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </label>
+            <select
+                name="collection_method"
+                value={kpi.collection_method}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+                required
+            >
+                <option value="">Selecione um método</option>
+                {collectionMethods.map(method => (
+                    <option key={method} value={method}>{method}</option>
+                ))}
+            </select>
+        </div>
+
+        <div>
+            <label className="block mb-2 flex items-center">
+                Código KPI
+                <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </label>
+            <input
+                type="text"
+                name="kpicode"
+                value={kpi.kpicode}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+                required
+            />
+        </div>
+
+        <div>
+            <label className="block mb-2 flex items-center">
+                Categoria da Empresa
+                <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </label>
+            <input
+                type="text"
+                name="company_category"
+                value={kpi.company_category}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+                required
+            />
+        </div>
+
+        <div>
+            <label className="block mb-2 flex items-center">
+                Gênero
+                <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </label>
+            <select
+                name="genero"
+                value={kpi.genero}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+                required
+            >
+                <option value="">Selecione um gênero</option>
+                {genderOptions.map(gender => (
+                    <option key={gender} value={gender}>{gender}</option>
+                ))}
+            </select>
+        </div>
+
+        <div>
+            <label className="block mb-2 flex items-center">
+                Raça
+                <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </label>
+            <select
+                name="raca"
+                value={kpi.raca}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded"
+                required
+            >
+                <option value="">Selecione uma raça</option>
+                {raceOptions.map(race => (
+                    <option key={race} value={race}>{race}</option>
+                ))}
+            </select>
+        </div>
+
+        <div className="col-span-2">
+            <label className="block mb-2 flex items-center">
+                Compliance
+                <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </label>
+            <MultiSelect
+                options={complianceOptions}
+                value={kpi.compliance.map(c => ({ label: complianceFullNames[c], value: c }))}
+                onChange={handleComplianceChange}
+                labelledBy="Selecione"
+                required
+            />
+        </div>
     </div>
   );
 
@@ -407,16 +461,6 @@ function KPITemplate({ sidebarColor, buttonColor }) {
         >
           {isAddingKPI ? 'Cancelar' : 'Adicionar Novo KPI'}
         </button>
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Pesquisar KPIs..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="p-2 pl-8 border rounded"
-          />
-          <FaSearch className="absolute left-2 top-3 text-gray-400" />
-        </div>
       </div>
 
       {isLoading && <p>Carregando KPIs...</p>}
