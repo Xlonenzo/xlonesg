@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaSearch, FaAsterisk } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaSearch, FaExclamationCircle } from 'react-icons/fa';
 import { API_URL } from '../config';
 
 // Definir bondTypes fora do componente para evitar recriação a cada render
@@ -20,14 +20,6 @@ const bondTypes = [
   'Letra de Crédito Imobiliário - LCI',
   'Letra Financeira - LF'
 ];
-
-// Função auxiliar para formatação de moeda
-const formatCurrency = (value) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(value);
-};
 
 // Função para formatar valor em moeda
 const formatCurrencyInput = (value) => {
@@ -131,14 +123,10 @@ const REQUIRED_FIELDS = {
 
 // Componente para label com indicador de obrigatório
 const RequiredFieldLabel = ({ htmlFor, children }) => (
-  <div className="flex items-center gap-1">
-    <label htmlFor={htmlFor} className="block text-sm font-medium text-gray-700">
-      {children}
+    <label htmlFor={htmlFor} className="block mb-2 flex items-center">
+        {children}
+        <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
     </label>
-    <div className="text-red-500 text-xs" title="Campo obrigatório">
-      <FaAsterisk size={8} />
-    </div>
-  </div>
 );
 
 function BondManagement({ sidebarColor, buttonColor }) {
@@ -904,7 +892,7 @@ function BondManagement({ sidebarColor, buttonColor }) {
 
       {/* Legenda dos campos obrigatórios */}
       <div className="col-span-2 mt-4 flex items-center gap-2 text-sm text-gray-500">
-        <FaAsterisk size={8} className="text-red-500" />
+        <FaExclamationCircle className="text-red-500 opacity-60" size={12} />
         <span>Campos obrigatórios</span>
       </div>
     </div>
@@ -921,11 +909,6 @@ function BondManagement({ sidebarColor, buttonColor }) {
   const currentBonds = filteredBonds.slice(indexOfFirstBond, indexOfLastBond);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
-
-  // Na tabela, exibir CNPJ formatado
-  const displayCNPJ = (cnpj) => {
-    return formatCNPJ(cnpj || '');
-  };
 
   if (isLoading) {
     return <div>Carregando...</div>;
