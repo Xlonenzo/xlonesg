@@ -9,7 +9,7 @@ from sqlalchemy.exc import OperationalError, ProgrammingError
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:xlonesg@localhost/xlonesg")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:xlon1234@localhost/xlonesg")
 
 if os.getenv("DOCKER_ENV"):
     DATABASE_URL = DATABASE_URL.replace("localhost", "db")

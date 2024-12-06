@@ -910,7 +910,7 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     hashed_password = get_password_hash(user.password)
-    db_user = models.User(username=user.username, email=user.email, hashed_password=hashed_password, role=user.role)
+    db_user = models.User(username=user.username, email=user.email, hashed_password=hashed_password, role=user.role, full_name=user.full_name)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
@@ -1001,12 +1001,32 @@ def update_user(
 
 @app.delete("/api/users/{user_id}", response_model=schemas.User)
 def delete_user(user_id: int, db: Session = Depends(get_db)):
-    db_user = db.query(models.User).filter(models.User.id == user_id).first()
-    if db_user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    db.delete(db_user)
-    db.commit()
-    return schemas.User.from_orm(db_user)
+    try:
+        db_user = db.query(models.User).filter(models.User.id == user_id).first()
+        if db_user is None:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        
+        # Armazenar os dados do usuário antes de deletar
+        user_data = {
+            "id": db_user.id,
+            "username": db_user.username,
+            "email": db_user.email,
+            "role": db_user.role,
+            "is_active": db_user.is_active,
+            "full_name": db_user.full_name or ''  # Garantir que não seja None
+        }
+        
+        # Deletar o usuário
+        db.delete(db_user)
+        db.commit()
+        
+        # Retornar os dados usando from_orm
+        return schemas.User(**user_data)
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao deletar usuário: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Rotas para Bonds (Títulos)
 

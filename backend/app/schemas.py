@@ -251,6 +251,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+    full_name: str
 
     class Config:
         from_attributes = True
