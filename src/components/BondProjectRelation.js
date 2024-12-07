@@ -218,11 +218,20 @@ const BondProjectRelation = ({ sidebarColor, buttonColor }) => {
             />
           </div>
           <div className="flex space-x-2">
-            <button type="button" onClick={handleCreateRelation} className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
-              Criar Relação
+            <button 
+                type="button" 
+                onClick={handleCreateRelation} 
+                className="text-white px-4 py-2 rounded hover:opacity-80"
+                style={{ backgroundColor: buttonColor }}
+            >
+                Criar Relação
             </button>
-            <button type="button" onClick={() => setIsFormOpen(false)} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
-              Cancelar
+            <button 
+                type="button" 
+                onClick={() => setIsFormOpen(false)} 
+                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+            >
+                Cancelar
             </button>
           </div>
         </form>
