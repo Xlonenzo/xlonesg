@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaPlus, FaExclamationCircle } from 'react-icons/fa';
 import { API_URL } from '../config';
 
 // Helper para gerenciar valores ODS
@@ -76,7 +76,6 @@ const ODSHelper = {
   }
 };
 
-// Constantes para tipos de projeto
 const PROJECT_TYPES = {
   AMBIENTAL: 'Ambiental',
   SOCIAL: 'Social',
@@ -307,8 +306,9 @@ function ESGProjects({ sidebarColor, buttonColor }) {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
               Nome do Projeto
+              <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} title="Campo obrigatório" />
             </label>
             <input
               type="text"
@@ -321,8 +321,9 @@ function ESGProjects({ sidebarColor, buttonColor }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
               Empresa
+              <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} title="Campo obrigatório" />
             </label>
             <select
               name="company_id"
@@ -341,8 +342,9 @@ function ESGProjects({ sidebarColor, buttonColor }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
               Tipo de Projeto
+              <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} title="Campo obrigatório" />
             </label>
             <select
               name="project_type"
@@ -352,15 +354,16 @@ function ESGProjects({ sidebarColor, buttonColor }) {
               required
             >
               <option value="">Selecione o tipo</option>
-              <option value="Ambiental">Ambiental</option>
-              <option value="Social">Social</option>
-              <option value="Governança">Governança</option>
+              {Object.values(PROJECT_TYPES).map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
               Status
+              <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} title="Campo obrigatório" />
             </label>
             <select
               name="status"
@@ -378,8 +381,9 @@ function ESGProjects({ sidebarColor, buttonColor }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
               Data de Início
+              <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} title="Campo obrigatório" />
             </label>
             <input
               type="date"
@@ -392,8 +396,9 @@ function ESGProjects({ sidebarColor, buttonColor }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
               Data de Término
+              <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} title="Campo obrigatório" />
             </label>
             <input
               type="date"
@@ -406,8 +411,9 @@ function ESGProjects({ sidebarColor, buttonColor }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
               Orçamento
+              <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} title="Campo obrigatório" />
             </label>
             <input
               type="number"
@@ -422,8 +428,9 @@ function ESGProjects({ sidebarColor, buttonColor }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
               Moeda
+              <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} title="Campo obrigatório" />
             </label>
             <select
               name="currency"
@@ -439,8 +446,9 @@ function ESGProjects({ sidebarColor, buttonColor }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
               Progresso (%)
+              <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} title="Campo obrigatório" />
             </label>
             <input
               type="number"
@@ -455,8 +463,9 @@ function ESGProjects({ sidebarColor, buttonColor }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
               Data da Última Auditoria
+              <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} title="Campo obrigatório" />
             </label>
             <input
               type="date"
@@ -464,12 +473,14 @@ function ESGProjects({ sidebarColor, buttonColor }) {
               value={newProject.last_audit_date}
               onChange={handleInputChange}
               className="p-2 border rounded w-full"
+              required
             />
           </div>
 
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
               Impacto Esperado
+              <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} title="Campo obrigatório" />
             </label>
             <textarea
               name="expected_impact"
@@ -477,12 +488,14 @@ function ESGProjects({ sidebarColor, buttonColor }) {
               onChange={handleInputChange}
               className="p-2 border rounded w-full"
               rows="3"
+              required
             />
           </div>
 
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
               Impacto Real
+              <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} title="Campo obrigatório" />
             </label>
             <textarea
               name="actual_impact"
@@ -490,6 +503,7 @@ function ESGProjects({ sidebarColor, buttonColor }) {
               onChange={handleInputChange}
               className="p-2 border rounded w-full"
               rows="3"
+              required
             />
           </div>
         </div>
@@ -699,12 +713,6 @@ function ESGProjects({ sidebarColor, buttonColor }) {
     if (value === 1.5) return "Alta Contribuição";
     if (value === 2) return "Contribuição Muito Alta";
     return "Desconhecido";
-  };
-
-  // Adicione esta função helper no início do componente
-  const truncateText = (text, maxLength = 15) => {
-    if (!text) return '-';
-    return text.length > maxLength ? `${text.substring(0, maxLength)}...` : text;
   };
 
   // Adicionar função handlePageChange
