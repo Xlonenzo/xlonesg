@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaEdit, FaTrash, FaPlus, FaSearch } from 'react-icons/fa';
+import { AlertCircle } from 'lucide-react';
 import { API_URL } from '../config';
 
 const Materiality = ({ sidebarColor, buttonColor }) => {
@@ -174,9 +175,21 @@ const Materiality = ({ sidebarColor, buttonColor }) => {
     e.preventDefault();
     setErrors({});
     
-    const validationErrors = validateMaterial(newMaterial);
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
+    // Lista de campos obrigatórios
+    const requiredFields = [
+      'project_id',
+      'topic',
+      'business_impact',
+      'external_impact',
+      'stakeholder_importance',
+      'priority_level'
+    ];
+
+    // Verificar campos vazios
+    const missingFields = requiredFields.filter(field => !newMaterial[field]);
+    
+    if (missingFields.length > 0) {
+      alert(`Por favor, preencha todos os campos obrigatórios: ${missingFields.join(', ')}`);
       return;
     }
     
@@ -247,7 +260,10 @@ const Materiality = ({ sidebarColor, buttonColor }) => {
         {/* Project */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Projeto *
+            <div className="flex items-center">
+              Projeto
+              <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </div>
           </label>
           <select
             name="project_id"
@@ -271,7 +287,10 @@ const Materiality = ({ sidebarColor, buttonColor }) => {
         {/* Tópico */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Tópico *
+            <div className="flex items-center">
+              Tópico
+              <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </div>
           </label>
           <input
             type="text"
@@ -289,7 +308,10 @@ const Materiality = ({ sidebarColor, buttonColor }) => {
         {/* Impacto no Negócio */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Impacto no Negócio (0-10) *
+            <div className="flex items-center">
+              Impacto no Negócio (0-10)
+              <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </div>
           </label>
           <input
             type="number"
@@ -309,7 +331,10 @@ const Materiality = ({ sidebarColor, buttonColor }) => {
         {/* Impacto Externo */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Impacto Externo (0-10) *
+            <div className="flex items-center">
+              Impacto Externo (0-10)
+              <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </div>
           </label>
           <input
             type="number"
@@ -329,7 +354,10 @@ const Materiality = ({ sidebarColor, buttonColor }) => {
         {/* Importância Stakeholder */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Importância para Stakeholders (0-10) *
+            <div className="flex items-center">
+              Importância para Stakeholders (0-10)
+              <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </div>
           </label>
           <input
             type="number"
@@ -349,7 +377,10 @@ const Materiality = ({ sidebarColor, buttonColor }) => {
         {/* Nível de Prioridade */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Nível de Prioridade *
+            <div className="flex items-center">
+              Nível de Prioridade
+              <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </div>
           </label>
           <select
             name="priority_level"
