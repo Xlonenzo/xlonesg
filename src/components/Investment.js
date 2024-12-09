@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaEdit, FaTrash, FaPlus, FaSearch } from 'react-icons/fa';
+import { AlertCircle } from 'lucide-react';
 import { API_URL } from '../config';
 
 const Investment = ({ sidebarColor, buttonColor }) => {
@@ -61,6 +62,27 @@ const Investment = ({ sidebarColor, buttonColor }) => {
     e.preventDefault();
     setLoading(true);
     try {
+      // Lista de campos obrigatórios
+      const requiredFields = [
+        'company_id',
+        'investment_type',
+        'amount_invested',
+        'currency',
+        'investment_date',
+        'expected_roi',
+        'actual_roi',
+        'impact_measured',
+        'last_assessment_date'
+      ];
+
+      // Verificar campos vazios
+      const missingFields = requiredFields.filter(field => !newInvestment[field]);
+      
+      if (missingFields.length > 0) {
+        alert(`Por favor, preencha todos os campos obrigatórios: ${missingFields.join(', ')}`);
+        return;
+      }
+
       if (editingInvestment) {
         await axios.put(`${API_URL}/investments/${editingInvestment.id}`, newInvestment);
       } else {
@@ -172,7 +194,12 @@ const Investment = ({ sidebarColor, buttonColor }) => {
         <form onSubmit={handleSubmit} className="mb-6 p-4 border rounded">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block mb-2">Empresa</label>
+              <label className="block mb-2">
+                <div className="flex items-center">
+                  Empresa
+                  <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </div>
+              </label>
               <select
                 value={newInvestment.company_id}
                 onChange={(e) => setNewInvestment({...newInvestment, company_id: e.target.value})}
@@ -187,7 +214,12 @@ const Investment = ({ sidebarColor, buttonColor }) => {
             </div>
 
             <div>
-              <label className="block mb-2">Tipo de Investimento</label>
+              <label className="block mb-2">
+                <div className="flex items-center">
+                  Tipo de Investimento
+                  <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </div>
+              </label>
               <select
                 value={newInvestment.investment_type}
                 onChange={(e) => setNewInvestment({...newInvestment, investment_type: e.target.value})}
@@ -202,7 +234,12 @@ const Investment = ({ sidebarColor, buttonColor }) => {
             </div>
 
             <div>
-              <label className="block mb-2">Valor Investido</label>
+              <label className="block mb-2">
+                <div className="flex items-center">
+                  Valor Investido
+                  <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </div>
+              </label>
               <input
                 type="number"
                 value={newInvestment.amount_invested}
@@ -215,7 +252,12 @@ const Investment = ({ sidebarColor, buttonColor }) => {
             </div>
 
             <div>
-              <label className="block mb-2">Moeda</label>
+              <label className="block mb-2">
+                <div className="flex items-center">
+                  Moeda
+                  <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </div>
+              </label>
               <select
                 value={newInvestment.currency}
                 onChange={(e) => setNewInvestment({...newInvestment, currency: e.target.value})}
@@ -230,7 +272,12 @@ const Investment = ({ sidebarColor, buttonColor }) => {
             </div>
 
             <div>
-              <label className="block mb-2">Data do Investimento</label>
+              <label className="block mb-2">
+                <div className="flex items-center">
+                  Data do Investimento
+                  <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </div>
+              </label>
               <input
                 type="date"
                 value={newInvestment.investment_date}
@@ -241,7 +288,12 @@ const Investment = ({ sidebarColor, buttonColor }) => {
             </div>
 
             <div>
-              <label className="block mb-2">ROI Esperado (%)</label>
+              <label className="block mb-2">
+                <div className="flex items-center">
+                  ROI Esperado (%)
+                  <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </div>
+              </label>
               <input
                 type="number"
                 value={newInvestment.expected_roi}
@@ -253,33 +305,51 @@ const Investment = ({ sidebarColor, buttonColor }) => {
             </div>
 
             <div>
-              <label className="block mb-2">ROI Atual (%)</label>
+              <label className="block mb-2">
+                <div className="flex items-center">
+                  ROI Atual (%)
+                  <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </div>
+              </label>
               <input
                 type="number"
                 value={newInvestment.actual_roi}
                 onChange={(e) => setNewInvestment({...newInvestment, actual_roi: parseFloat(e.target.value)})}
                 className="w-full p-2 border rounded"
                 step="0.01"
+                required
               />
             </div>
 
             <div className="col-span-2">
-              <label className="block mb-2">Impacto Medido</label>
+              <label className="block mb-2">
+                <div className="flex items-center">
+                  Impacto Medido
+                  <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </div>
+              </label>
               <textarea
                 value={newInvestment.impact_measured}
                 onChange={(e) => setNewInvestment({...newInvestment, impact_measured: e.target.value})}
                 className="w-full p-2 border rounded"
                 rows="3"
+                required
               />
             </div>
 
             <div>
-              <label className="block mb-2">Data da Última Avaliação</label>
+              <label className="block mb-2">
+                <div className="flex items-center">
+                  Data da Última Avaliação
+                  <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </div>
+              </label>
               <input
                 type="date"
                 value={newInvestment.last_assessment_date}
                 onChange={(e) => setNewInvestment({...newInvestment, last_assessment_date: e.target.value})}
                 className="w-full p-2 border rounded"
+                required
               />
             </div>
           </div>

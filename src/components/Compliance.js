@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaEdit, FaTrash, FaPlus, FaSearch } from 'react-icons/fa';
+import { AlertCircle } from 'lucide-react';
 import { API_URL } from '../config';
 
 const Compliance = ({ sidebarColor, buttonColor }) => {
@@ -86,10 +87,26 @@ const Compliance = ({ sidebarColor, buttonColor }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
-    
     setLoading(true);
     try {
+      const requiredFields = [
+        'company_id',
+        'entity_type',
+        'audit_date',
+        'auditor_name',
+        'compliance_status',
+        'findings',
+        'corrective_action_plan',
+        'follow_up_date'
+      ];
+
+      const missingFields = requiredFields.filter(field => !newCompliance[field]);
+      
+      if (missingFields.length > 0) {
+        alert(`Por favor, preencha todos os campos obrigatórios: ${missingFields.join(', ')}`);
+        return;
+      }
+
       const formattedCompliance = {
         ...newCompliance,
         audit_date: new Date(newCompliance.audit_date).toISOString().split('T')[0],
@@ -107,8 +124,8 @@ const Compliance = ({ sidebarColor, buttonColor }) => {
       setIsFormOpen(false);
       resetForm();
     } catch (error) {
-      console.error('Erro ao salvar auditoria:', error.response?.data || error);
-      alert(error.response?.data?.detail || 'Erro ao salvar auditoria');
+      console.error('Erro ao salvar:', error);
+      alert(error.message);
     } finally {
       setLoading(false);
     }
@@ -185,7 +202,12 @@ const Compliance = ({ sidebarColor, buttonColor }) => {
         <form onSubmit={handleSubmit} className="mb-6 p-4 border rounded shadow">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block mb-2">Empresa</label>
+              <label className="block mb-2">
+                <div className="flex items-center">
+                  Empresa
+                  <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </div>
+              </label>
               <select
                 value={newCompliance.company_id}
                 onChange={(e) => setNewCompliance({...newCompliance, company_id: e.target.value})}
@@ -202,7 +224,12 @@ const Compliance = ({ sidebarColor, buttonColor }) => {
             </div>
 
             <div>
-              <label className="block mb-2">Tipo de Entidade</label>
+              <label className="block mb-2">
+                <div className="flex items-center">
+                  Tipo de Entidade
+                  <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </div>
+              </label>
               <select
                 value={newCompliance.entity_type}
                 onChange={(e) => setNewCompliance({...newCompliance, entity_type: e.target.value})}
@@ -219,7 +246,12 @@ const Compliance = ({ sidebarColor, buttonColor }) => {
             </div>
 
             <div>
-              <label className="block mb-2">Data da Auditoria</label>
+              <label className="block mb-2">
+                <div className="flex items-center">
+                  Data da Auditoria
+                  <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </div>
+              </label>
               <input
                 type="date"
                 value={newCompliance.audit_date}
@@ -230,7 +262,12 @@ const Compliance = ({ sidebarColor, buttonColor }) => {
             </div>
 
             <div>
-              <label className="block mb-2">Nome do Auditor</label>
+              <label className="block mb-2">
+                <div className="flex items-center">
+                  Nome do Auditor
+                  <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </div>
+              </label>
               <input
                 type="text"
                 value={newCompliance.auditor_name}
@@ -241,7 +278,12 @@ const Compliance = ({ sidebarColor, buttonColor }) => {
             </div>
 
             <div>
-              <label className="block mb-2">Status de Compliance</label>
+              <label className="block mb-2">
+                <div className="flex items-center">
+                  Status de Compliance
+                  <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </div>
+              </label>
               <select
                 value={newCompliance.compliance_status}
                 onChange={(e) => setNewCompliance({...newCompliance, compliance_status: e.target.value})}
@@ -259,10 +301,13 @@ const Compliance = ({ sidebarColor, buttonColor }) => {
 
             <div>
               <label className="block mb-2">
-                Data de Follow-up
-                <span className="text-sm text-gray-500 ml-1">
-                  (deve ser posterior à data da auditoria)
-                </span>
+                <div className="flex items-center">
+                  Data de Follow-up
+                  <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                  <span className="text-sm text-gray-500 ml-1">
+                    (deve ser posterior à data da auditoria)
+                  </span>
+                </div>
               </label>
               <input
                 type="date"
@@ -277,7 +322,12 @@ const Compliance = ({ sidebarColor, buttonColor }) => {
             </div>
 
             <div className="col-span-2">
-              <label className="block mb-2">Descobertas</label>
+              <label className="block mb-2">
+                <div className="flex items-center">
+                  Descobertas
+                  <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </div>
+              </label>
               <textarea
                 value={newCompliance.findings}
                 onChange={(e) => setNewCompliance({...newCompliance, findings: e.target.value})}
@@ -288,7 +338,12 @@ const Compliance = ({ sidebarColor, buttonColor }) => {
             </div>
 
             <div className="col-span-2">
-              <label className="block mb-2">Plano de Ação Corretiva</label>
+              <label className="block mb-2">
+                <div className="flex items-center">
+                  Plano de Ação Corretiva
+                  <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                </div>
+              </label>
               <textarea
                 value={newCompliance.corrective_action_plan}
                 onChange={(e) => setNewCompliance({...newCompliance, corrective_action_plan: e.target.value})}
