@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaEdit, FaTrash, FaPlus, FaSearch } from 'react-icons/fa';
+import { AlertCircle } from 'lucide-react';
 import { API_URL } from '../config';
 import constants from '../data/constants.json';
 
@@ -145,6 +146,28 @@ function EmissionTracking({ sidebarColor, buttonColor }) {
     e.preventDefault();
     setLoading(true);
     try {
+      // Lista de campos obrigatórios
+      const requiredFields = [
+        'project_id',
+        'scope',
+        'emission_type',
+        'value',
+        'unit',
+        'source',
+        'calculation_method',
+        'uncertainty_level',
+        'timestamp',
+        'reporting_standard'
+      ];
+
+      // Verificar campos vazios
+      const missingFields = requiredFields.filter(field => !newEmission[field]);
+      
+      if (missingFields.length > 0) {
+        alert(`Por favor, preencha todos os campos obrigatórios: ${missingFields.join(', ')}`);
+        return;
+      }
+
       // Validações alinhadas com as constraints do banco
       if (!newEmission.project_id) throw new Error('Projeto é obrigatório');
       if (!newEmission.scope) throw new Error('Escopo é obrigatório');
@@ -276,7 +299,10 @@ function EmissionTracking({ sidebarColor, buttonColor }) {
         {/* Projeto */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Projeto
+            <div className="flex items-center">
+              Projeto
+              <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </div>
           </label>
           <select
             name="project_id"
@@ -295,7 +321,10 @@ function EmissionTracking({ sidebarColor, buttonColor }) {
         {/* Escopo */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Escopo
+            <div className="flex items-center">
+              Escopo
+              <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </div>
           </label>
           <select
             name="scope"
@@ -314,7 +343,10 @@ function EmissionTracking({ sidebarColor, buttonColor }) {
         {/* Tipo de Emissão */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Tipo de Emissão
+            <div className="flex items-center">
+              Tipo de Emissão
+              <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </div>
           </label>
           <select
             name="emission_type"
@@ -334,7 +366,10 @@ function EmissionTracking({ sidebarColor, buttonColor }) {
         {/* Valor */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Valor
+            <div className="flex items-center">
+              Valor
+              <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </div>
           </label>
           <input
             type="text"
@@ -350,7 +385,10 @@ function EmissionTracking({ sidebarColor, buttonColor }) {
         {/* Unidade */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Unidade
+            <div className="flex items-center">
+              Unidade
+              <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </div>
           </label>
           <select
             name="unit"
@@ -369,7 +407,10 @@ function EmissionTracking({ sidebarColor, buttonColor }) {
         {/* Fonte */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Fonte
+            <div className="flex items-center">
+              Fonte
+              <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </div>
           </label>
           <select
             name="source"
@@ -388,7 +429,10 @@ function EmissionTracking({ sidebarColor, buttonColor }) {
         {/* Método de Cálculo */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Método de Cálculo
+            <div className="flex items-center">
+              Método de Cálculo
+              <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </div>
           </label>
           <select
             name="calculation_method"
@@ -407,7 +451,10 @@ function EmissionTracking({ sidebarColor, buttonColor }) {
         {/* Nível de Incerteza */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Nível de Incerteza (%)
+            <div className="flex items-center">
+              Nível de Incerteza (%)
+              <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </div>
           </label>
           <input
             type="number"
@@ -425,7 +472,10 @@ function EmissionTracking({ sidebarColor, buttonColor }) {
         {/* Data e Hora */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Data e Hora
+            <div className="flex items-center">
+              Data e Hora
+              <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </div>
           </label>
           <input
             type="datetime-local"
@@ -440,7 +490,10 @@ function EmissionTracking({ sidebarColor, buttonColor }) {
         {/* Emissão Calculada */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Emissão Calculada
+            <div className="flex items-center">
+              Emissão Calculada
+              <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </div>
           </label>
           <input
             type="checkbox"
@@ -459,7 +512,10 @@ function EmissionTracking({ sidebarColor, buttonColor }) {
         {/* Padrão de Relatório */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Padrão de Relatório
+            <div className="flex items-center">
+              Padrão de Relatório
+              <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+            </div>
           </label>
           <select
             name="reporting_standard"

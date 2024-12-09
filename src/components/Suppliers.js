@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaEdit, FaTrash, FaPlus, FaSearch } from 'react-icons/fa';
+import { AlertCircle } from 'lucide-react';
 import { API_URL } from '../config';
 
 function Suppliers({ sidebarColor, buttonColor }) {
@@ -96,6 +97,25 @@ function Suppliers({ sidebarColor, buttonColor }) {
     e.preventDefault();
     setLoading(true);
     try {
+      // Lista de campos obrigatórios
+      const requiredFields = [
+        'project_id',
+        'name',
+        'risk_level',
+        'esg_score',
+        'location',
+        'compliance_status',
+        'impact_assessment'
+      ];
+
+      // Verificar campos vazios
+      const missingFields = requiredFields.filter(field => !newSupplier[field]);
+      
+      if (missingFields.length > 0) {
+        alert(`Por favor, preencha todos os campos obrigatórios: ${missingFields.join(', ')}`);
+        return;
+      }
+
       console.log('URL da API:', API_URL);
       console.log('Enviando dados:', newSupplier);
       const formattedData = {
@@ -131,9 +151,8 @@ function Suppliers({ sidebarColor, buttonColor }) {
       setEditingSupplier(null);
       resetForm();
     } catch (error) {
-      console.error('Erro completo:', error);
-      console.error('Resposta do erro:', error.response);
-      alert(`Erro ao ${editingSupplier ? 'atualizar' : 'criar'} fornecedor: ${error.response?.data?.detail || error.message}`);
+      console.error('Erro ao salvar:', error);
+      alert(error.message);
     } finally {
       setLoading(false);
     }
@@ -212,7 +231,10 @@ function Suppliers({ sidebarColor, buttonColor }) {
               {/* Projeto */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Projeto *
+                  <div className="flex items-center">
+                    Projeto
+                    <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                  </div>
                 </label>
                 <select
                   name="project_id"
@@ -238,7 +260,10 @@ function Suppliers({ sidebarColor, buttonColor }) {
               {/* Nome */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nome do Fornecedor
+                  <div className="flex items-center">
+                    Nome do Fornecedor
+                    <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                  </div>
                 </label>
                 <input
                   type="text"
@@ -253,7 +278,10 @@ function Suppliers({ sidebarColor, buttonColor }) {
               {/* Nível de Risco */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nível de Risco
+                  <div className="flex items-center">
+                    Nível de Risco
+                    <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                  </div>
                 </label>
                 <select
                   name="risk_level"
@@ -272,7 +300,10 @@ function Suppliers({ sidebarColor, buttonColor }) {
               {/* Score ESG */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Score ESG
+                  <div className="flex items-center">
+                    Score ESG
+                    <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                  </div>
                 </label>
                 <input
                   type="number"
@@ -289,7 +320,10 @@ function Suppliers({ sidebarColor, buttonColor }) {
               {/* Localização */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Localização
+                  <div className="flex items-center">
+                    Localização
+                    <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                  </div>
                 </label>
                 <input
                   type="text"
@@ -304,7 +338,10 @@ function Suppliers({ sidebarColor, buttonColor }) {
               {/* Status de Conformidade */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status de Conformidade
+                  <div className="flex items-center">
+                    Status de Conformidade
+                    <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                  </div>
                 </label>
                 <select
                   name="compliance_status"
@@ -342,7 +379,10 @@ function Suppliers({ sidebarColor, buttonColor }) {
               {/* Avaliação de Impacto */}
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Avaliação de Impacto
+                  <div className="flex items-center">
+                    Avaliação de Impacto
+                    <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                  </div>
                 </label>
                 <textarea
                   name="impact_assessment"
