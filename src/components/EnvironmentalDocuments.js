@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { Plus, Search, Edit2, Trash2, Filter as FaFilter } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Filter as FaFilter, AlertCircle } from 'lucide-react';
 import { API_URL } from '../config';
 import constants from '../data/constants.json';
 
@@ -70,6 +70,23 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validar campos obrigatórios
+    const requiredFields = [
+      'title', 'document_type', 'document_subtype', 'thematic_area',
+      'document_status', 'validity_period', 'language', 'document_format',
+      'creation_date', 'last_modification_date', 'latitude', 'longitude',
+      'accessibility', 'description', 'executive_summary', 'notes',
+      'signature_authentication', 'legal_notice'
+    ];
+
+    const missingFields = requiredFields.filter(field => !newDocument[field]);
+    
+    if (missingFields.length > 0) {
+      alert(`Por favor, preencha todos os campos obrigatórios: ${missingFields.join(', ')}`);
+      return;
+    }
+
     try {
       if (editingDocument) {
         await axios.put(`${API_URL}/environmental-documents/${editingDocument.id}`, newDocument);
@@ -242,7 +259,10 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
           <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
             {/* Título */}
             <div>
-              <label className="block mb-2">Título *</label>
+              <label className="block mb-2 flex items-center">
+                Título
+                <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+              </label>
               <input
                 type="text"
                 name="title"
@@ -251,18 +271,22 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
                 required
                 maxLength="512"
                 className={truncatedInputClass}
-                title={newDocument.title} // Tooltip com texto completo
+                title={newDocument.title}
               />
             </div>
 
-            {/* Tipo de Documento - usando constants */}
+            {/* Tipo de Documento */}
             <div>
-              <label className="block mb-2">Tipo de Documento</label>
+              <label className="block mb-2 flex items-center">
+                Tipo de Documento
+                <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+              </label>
               <select
                 name="document_type"
                 value={newDocument.document_type}
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded"
+                required
               >
                 <option value="">Selecione...</option>
                 {constants.documentTypes.map(type => (
@@ -271,14 +295,18 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
               </select>
             </div>
 
-            {/* Subtipo de Documento - usando constants */}
+            {/* Subtipo de Documento */}
             <div>
-              <label className="block mb-2">Subtipo de Documento</label>
+              <label className="block mb-2 flex items-center">
+                Subtipo de Documento
+                <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+              </label>
               <select
                 name="document_subtype"
                 value={newDocument.document_subtype}
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded"
+                required
               >
                 <option value="">Selecione...</option>
                 {constants.documentSubtypes.map(subtype => (
@@ -287,14 +315,18 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
               </select>
             </div>
 
-            {/* Área Temática - usando constants */}
+            {/* Área Temática */}
             <div>
-              <label className="block mb-2">Área Temática</label>
+              <label className="block mb-2 flex items-center">
+                Área Temática
+                <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+              </label>
               <select
                 name="thematic_area"
                 value={newDocument.thematic_area}
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded"
+                required
               >
                 <option value="">Selecione...</option>
                 {constants.thematicAreas.map(area => (
@@ -303,14 +335,18 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
               </select>
             </div>
 
-            {/* Status do Documento - usando constants */}
+            {/* Status do Documento */}
             <div>
-              <label className="block mb-2">Status do Documento</label>
+              <label className="block mb-2 flex items-center">
+                Status do Documento
+                <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+              </label>
               <select
                 name="document_status"
                 value={newDocument.document_status}
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded"
+                required
               >
                 <option value="">Selecione...</option>
                 {constants.documentStatuses.map(status => (
@@ -321,26 +357,34 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
 
             {/* Período de Validade */}
             <div>
-              <label className="block mb-2">Período de Validade</label>
+              <label className="block mb-2 flex items-center">
+                Período de Validade
+                <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+              </label>
               <input
                 type="text"
                 name="validity_period"
                 value={newDocument.validity_period}
                 onChange={handleInputChange}
+                required
                 maxLength="512"
                 className={truncatedInputClass}
                 title={newDocument.validity_period}
               />
             </div>
 
-            {/* Idioma - usando constants */}
+            {/* Idioma */}
             <div>
-              <label className="block mb-2">Idioma</label>
+              <label className="block mb-2 flex items-center">
+                Idioma
+                <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+              </label>
               <select
                 name="language"
                 value={newDocument.language}
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded"
+                required
               >
                 <option value="">Selecione...</option>
                 {constants.languages.map(lang => (
@@ -349,14 +393,18 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
               </select>
             </div>
 
-            {/* Formato do Documento - usando constants */}
+            {/* Formato do Documento */}
             <div>
-              <label className="block mb-2">Formato do Documento</label>
+              <label className="block mb-2 flex items-center">
+                Formato do Documento
+                <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+              </label>
               <select
                 name="document_format"
                 value={newDocument.document_format}
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded"
+                required
               >
                 <option value="">Selecione...</option>
                 {constants.documentFormats.map(format => (
@@ -367,31 +415,42 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
 
             {/* Data de Criação */}
             <div>
-              <label className="block mb-2">Data de Criação</label>
+              <label className="block mb-2 flex items-center">
+                Data de Criação
+                <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+              </label>
               <input
                 type="date"
                 name="creation_date"
                 value={newDocument.creation_date}
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded"
+                required
               />
             </div>
 
             {/* Data da Última Modificação */}
             <div>
-              <label className="block mb-2">Data da Última Modificação</label>
+              <label className="block mb-2 flex items-center">
+                Data da Última Modificação
+                <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+              </label>
               <input
                 type="date"
                 name="last_modification_date"
                 value={newDocument.last_modification_date}
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded"
+                required
               />
             </div>
 
             {/* Latitude */}
             <div>
-              <label className="block mb-2">Latitude</label>
+              <label className="block mb-2 flex items-center">
+                Latitude
+                <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+              </label>
               <input
                 type="number"
                 step="0.000001"
@@ -400,12 +459,16 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded"
                 placeholder="Ex: -23.550520"
+                required
               />
             </div>
 
             {/* Longitude */}
             <div>
-              <label className="block mb-2">Longitude</label>
+              <label className="block mb-2 flex items-center">
+                Longitude
+                <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+              </label>
               <input
                 type="number"
                 step="0.000001"
@@ -414,17 +477,22 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded"
                 placeholder="Ex: -46.633308"
+                required
               />
             </div>
 
-            {/* Acessibilidade - usando constants */}
+            {/* Acessibilidade */}
             <div>
-              <label className="block mb-2">Acessibilidade</label>
+              <label className="block mb-2 flex items-center">
+                Acessibilidade
+                <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+              </label>
               <select
                 name="accessibility"
                 value={newDocument.accessibility}
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded"
+                required
               >
                 <option value="">Selecione...</option>
                 {constants.accessibilityLevels.map(level => (
@@ -435,7 +503,10 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
 
             {/* Descrição */}
             <div className="col-span-2">
-              <label className="block mb-2">Descrição</label>
+              <label className="block mb-2 flex items-center">
+                Descrição
+                <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+              </label>
               <textarea
                 name="description"
                 value={newDocument.description}
@@ -444,6 +515,7 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
                 className={textareaClass}
                 rows="6"
                 placeholder="Descreva o documento..."
+                required
               />
               <span className="text-xs text-gray-500">
                 {newDocument.description.length}/512 caracteres
@@ -452,7 +524,10 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
 
             {/* Resumo Executivo */}
             <div className="col-span-2">
-              <label className="block mb-2">Resumo Executivo</label>
+              <label className="block mb-2 flex items-center">
+                Resumo Executivo
+                <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+              </label>
               <textarea
                 name="executive_summary"
                 value={newDocument.executive_summary}
@@ -461,6 +536,7 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
                 className={textareaClass}
                 rows="6"
                 placeholder="Digite o resumo executivo..."
+                required
               />
               <span className="text-xs text-gray-500">
                 {newDocument.executive_summary.length}/512 caracteres
@@ -469,7 +545,10 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
 
             {/* Notas */}
             <div className="col-span-2">
-              <label className="block mb-2">Notas</label>
+              <label className="block mb-2 flex items-center">
+                Notas
+                <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+              </label>
               <textarea
                 name="notes"
                 value={newDocument.notes}
@@ -478,6 +557,7 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
                 className={textareaClass}
                 rows="6"
                 placeholder="Adicione notas relevantes..."
+                required
               />
               <span className="text-xs text-gray-500">
                 {newDocument.notes.length}/512 caracteres
@@ -486,12 +566,16 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
 
             {/* Autenticação de Assinatura */}
             <div>
-              <label className="block mb-2">Autenticação de Assinatura</label>
+              <label className="block mb-2 flex items-center">
+                Autenticação de Assinatura
+                <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+              </label>
               <select
                 name="signature_authentication"
                 value={newDocument.signature_authentication}
                 onChange={handleInputChange}
                 className="w-full p-2 border rounded"
+                required
               >
                 <option value="">Selecione...</option>
                 {constants.signatureAuthentication.map(auth => (
@@ -502,7 +586,10 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
 
             {/* Aviso Legal */}
             <div className="col-span-2">
-              <label className="block mb-2">Aviso Legal</label>
+              <label className="block mb-2 flex items-center">
+                Aviso Legal
+                <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
+              </label>
               <textarea
                 name="legal_notice"
                 value={newDocument.legal_notice}
@@ -511,6 +598,7 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
                 className={textareaClass}
                 rows="6"
                 placeholder="Digite o aviso legal..."
+                required
               />
               <span className="text-xs text-gray-500">
                 {newDocument.legal_notice.length}/512 caracteres
