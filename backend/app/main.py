@@ -3598,5 +3598,26 @@ async def cancel_report_generation(request_id: str):
 # Armazenar streams ativos
 active_streams: Dict[str, CustomAsyncCallbackHandler] = {}
 
+@app.get("/api/project-tracking/changes")
+async def check_project_changes(
+    last_update: Optional[datetime] = Query(None),
+    db: Session = Depends(get_db)
+):
+    try:
+        query = db.query(models.ProjectTracking)
+        
+        if last_update:
+            query = query.filter(models.ProjectTracking.updated_at > last_update)
+            
+        changes = query.all()
+        return {
+            "has_changes": len(changes) > 0,
+            "last_update": datetime.now(timezone.utc),
+            "changes": changes
+        }
+    except Exception as e:
+        logger.error(f"Erro ao verificar mudanças: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 
