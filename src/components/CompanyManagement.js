@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaFilter, FaExclamationCircle } from 'react-icons/fa';
+import { 
+  Plus,
+  Filter,
+  ChevronUp,
+  ChevronDown,
+  Pen,
+  Trash,
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
+} from 'lucide-react';
 import { API_URL } from '../config';
 
 function CompanyManagement({ buttonColor }) {
@@ -31,6 +44,14 @@ function CompanyManagement({ buttonColor }) {
     city: '',
     state: '',
     is_active: ''
+  });
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [sortConfig, setSortConfig] = useState({
+    key: null,
+    direction: 'none' // 'none', 'asc' ou 'desc'
   });
 
   // Adicionar opções de tamanho
@@ -252,7 +273,7 @@ function CompanyManagement({ buttonColor }) {
         className="w-full p-1 text-sm border rounded"
         placeholder={`Filtrar ${placeholder}`}
       />
-      <FaFilter className="ml-1 text-gray-500" />
+      <Filter size={16} className="ml-1 text-gray-500" />
     </div>
   );
 
@@ -268,18 +289,190 @@ function CompanyManagement({ buttonColor }) {
     });
   });
 
+  useEffect(() => {
+    setTotalPages(Math.ceil(filteredCompanies.length / itemsPerPage));
+  }, [filteredCompanies, itemsPerPage]);
+
+  const getCurrentPageItems = () => {
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    return filteredCompanies.slice(indexOfFirstItem, indexOfLastItem);
+  };
+
+  // Função para ordenar os dados
+  const sortData = (data, key, direction) => {
+    if (direction === 'none') return data;
+    
+    return [...data].sort((a, b) => {
+      if (a[key] === null) return 1;
+      if (b[key] === null) return -1;
+      
+      const aValue = typeof a[key] === 'string' ? a[key].toLowerCase() : a[key];
+      const bValue = typeof b[key] === 'string' ? b[key].toLowerCase() : b[key];
+      
+      if (direction === 'asc') {
+        return aValue > bValue ? 1 : -1;
+      } else {
+        return aValue < bValue ? 1 : -1;
+      }
+    });
+  };
+
+  // Função para lidar com o clique no cabeçalho da coluna
+  const handleSort = (key) => {
+    let direction = 'asc';
+    
+    if (sortConfig.key === key) {
+      if (sortConfig.direction === 'asc') direction = 'desc';
+      else if (sortConfig.direction === 'desc') direction = 'none';
+      else direction = 'asc';
+    }
+    
+    setSortConfig({ key, direction });
+  };
+
+  // Função para renderizar o ícone de ordenação
+  const renderSortIcon = (columnKey) => {
+    if (sortConfig.key !== columnKey) {
+      return <ArrowUpDown size={14} className="stroke-[1.5] opacity-50" />;
+    }
+    
+    if (sortConfig.direction === 'asc') {
+      return <ArrowUp size={14} className="stroke-[1.5]" />;
+    }
+    
+    if (sortConfig.direction === 'desc') {
+      return <ArrowDown size={14} className="stroke-[1.5]" />;
+    }
+    
+    return <ArrowUpDown size={14} className="stroke-[1.5] opacity-50" />;
+  };
+
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Gerenciamento de Empresas</h2>
-
-      <div className="flex flex-row-reverse justify-between items-center mb-4">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-medium text-gray-800">Gerenciamento de Empresas</h2>
         <button 
           onClick={() => setIsAddingCompany(!isAddingCompany)}
-          className="text-white px-4 py-2 rounded hover:opacity-90 transition-all"
+          className="text-white px-4 py-2 rounded-md hover:opacity-80 transition-all flex items-center gap-2 text-sm"
           style={{ backgroundColor: buttonColor }}
         >
+          <Plus size={16} className="stroke-[1.5]" />
           {isAddingCompany ? 'Cancelar' : 'Adicionar Nova Empresa'}
         </button>
+      </div>
+
+      {/* Seção de Filtros Expansível */}
+      <div className="bg-white rounded-lg shadow-sm mb-4 border border-gray-100">
+        <button
+          onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+          style={{ color: buttonColor }}
+        >
+          <div className="flex items-center gap-2">
+            <Filter size={16} className="stroke-[1.5] opacity-70" />
+            <span className="font-medium text-sm">Filtros</span>
+          </div>
+          {isFilterExpanded ? 
+            <ChevronUp size={16} className="stroke-[1.5] opacity-70" /> : 
+            <ChevronDown size={16} className="stroke-[1.5] opacity-70" />
+          }
+        </button>
+        
+        {isFilterExpanded && (
+          <div className="p-6 border-t border-gray-100">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">CNPJ</label>
+                <input
+                  type="text"
+                  value={filters.cnpj}
+                  onChange={(e) => handleFilterChange('cnpj', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-shadow text-sm"
+                  style={{ focusRing: buttonColor }}
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={filters.name}
+                  onChange={handleFilterChange}
+                  className="w-full p-2 border rounded-lg"
+                  placeholder="Filtrar por Nome"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome Fantasia</label>
+                <input
+                  type="text"
+                  name="trade_name"
+                  value={filters.trade_name}
+                  onChange={handleFilterChange}
+                  className="w-full p-2 border rounded-lg"
+                  placeholder="Filtrar por Nome Fantasia"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cidade</label>
+                <input
+                  type="text"
+                  name="city"
+                  value={filters.city}
+                  onChange={handleFilterChange}
+                  className="w-full p-2 border rounded-lg"
+                  placeholder="Filtrar por Cidade"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                <input
+                  type="text"
+                  name="state"
+                  value={filters.state}
+                  onChange={handleFilterChange}
+                  className="w-full p-2 border rounded-lg"
+                  placeholder="Filtrar por Estado"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  name="is_active"
+                  value={filters.is_active}
+                  onChange={handleFilterChange}
+                  className="w-full p-2 border rounded-lg"
+                >
+                  <option value="">Todos</option>
+                  <option value="sim">Ativo</option>
+                  <option value="não">Inativo</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="flex justify-end mt-4 gap-2">
+              <button
+                onClick={() => setFilters({
+                  cnpj: '',
+                  name: '',
+                  trade_name: '',
+                  city: '',
+                  state: '',
+                  is_active: ''
+                })}
+                className="px-4 py-2 text-gray-600 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors text-sm font-medium"
+              >
+                Limpar Filtros
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {(isAddingCompany || editingCompany) && (
@@ -292,7 +485,7 @@ function CompanyManagement({ buttonColor }) {
             <div>
                 <label className="block mb-2 flex items-center">
                     CNPJ
-                    <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                    <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
                 </label>
                 <input
                     type="text"
@@ -309,7 +502,7 @@ function CompanyManagement({ buttonColor }) {
             <div>
                 <label className="block mb-2 flex items-center">
                     Nome da Empresa
-                    <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                    <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
                 </label>
                 <input
                     type="text"
@@ -326,7 +519,7 @@ function CompanyManagement({ buttonColor }) {
             <div>
                 <label className="block mb-2 flex items-center">
                     Data de Registro
-                    <FaExclamationCircle className="ml-1 text-red-500 opacity-60" size={12} />
+                    <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
                 </label>
                 <input
                     type="date"
@@ -539,44 +732,126 @@ function CompanyManagement({ buttonColor }) {
         </div>
       )}
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border rounded-lg">
+      <div className="w-full">
+        <table className="w-full bg-white border border-gray-100 rounded-lg">
           <thead>
-            <tr>
-              <th className="px-4 py-2 border">{renderColumnFilter('cnpj', 'CNPJ')}</th>
-              <th className="px-4 py-2 border">{renderColumnFilter('name', 'Nome')}</th>
-              <th className="px-4 py-2 border">{renderColumnFilter('trade_name', 'Nome Fantasia')}</th>
-              <th className="px-4 py-2 border">{renderColumnFilter('city', 'Cidade')}</th>
-              <th className="px-4 py-2 border">{renderColumnFilter('state', 'Estado')}</th>
-              <th className="px-4 py-2 border">{renderColumnFilter('is_active', 'Ativo')}</th>
-              <th className="px-4 py-2 border">Ações</th>
+            <tr className="bg-gray-50">
+              <th 
+                className="h-10 px-4 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group whitespace-nowrap"
+                onClick={() => handleSort('cnpj')}
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                <div className="flex items-center gap-1 h-full">
+                  <span>CNPJ</span>
+                  <span className="transition-opacity">
+                    {renderSortIcon('cnpj')}
+                  </span>
+                </div>
+              </th>
+              <th 
+                className="h-10 px-4 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group whitespace-nowrap"
+                onClick={() => handleSort('name')}
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                <div className="flex items-center gap-1 h-full">
+                  <span>Nome</span>
+                  <span className="transition-opacity">
+                    {renderSortIcon('name')}
+                  </span>
+                </div>
+              </th>
+              <th 
+                className="h-10 px-4 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group hidden md:table-cell whitespace-nowrap"
+                onClick={() => handleSort('trade_name')}
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                <div className="flex items-center gap-1 h-full">
+                  <span>Nome Fantasia</span>
+                  <span className="transition-opacity">
+                    {renderSortIcon('trade_name')}
+                  </span>
+                </div>
+              </th>
+              <th 
+                className="h-10 px-4 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group hidden sm:table-cell whitespace-nowrap"
+                onClick={() => handleSort('city')}
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                <div className="flex items-center gap-1 h-full">
+                  <span>Cidade</span>
+                  <span className="transition-opacity">
+                    {renderSortIcon('city')}
+                  </span>
+                </div>
+              </th>
+              <th 
+                className="h-10 px-4 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group hidden sm:table-cell whitespace-nowrap"
+                onClick={() => handleSort('state')}
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                <div className="flex items-center gap-1 h-full">
+                  <span>Estado</span>
+                  <span className="transition-opacity">
+                    {renderSortIcon('state')}
+                  </span>
+                </div>
+              </th>
+              <th 
+                className="h-10 px-4 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group whitespace-nowrap"
+                onClick={() => handleSort('is_active')}
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                <div className="flex items-center gap-1 h-full">
+                  <span>Ativo</span>
+                  <span className="transition-opacity">
+                    {renderSortIcon('is_active')}
+                  </span>
+                </div>
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-center text-sm font-medium text-gray-600"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Ações
+              </th>
             </tr>
           </thead>
           <tbody>
-            {filteredCompanies.map((company) => (
-              <tr key={company.id} className="hover:bg-gray-50">
-                <td className="px-4 py-2 border">{company.cnpj}</td>
-                <td className="px-4 py-2 border">{company.name}</td>
-                <td className="px-4 py-2 border">{company.trade_name}</td>
-                <td className="px-4 py-2 border">{company.city}</td>
-                <td className="px-4 py-2 border">{company.state}</td>
-                <td className="px-4 py-2 border">{company.is_active ? 'Sim' : 'Não'}</td>
-                <td className="px-4 py-2 border">
-                  <div className="flex space-x-2 justify-center">
+            {sortData(getCurrentPageItems(), sortConfig.key, sortConfig.direction).map((company) => (
+              <tr key={company.id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  {company.cnpj}
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  {company.name}
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600 hidden md:table-cell">
+                  {company.trade_name}
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600 hidden sm:table-cell">
+                  {company.city}
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600 hidden sm:table-cell">
+                  {company.state}
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  {company.is_active ? 'Sim' : 'Não'}
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100">
+                  <div className="flex items-center justify-center gap-3">
                     <button
                       onClick={() => setEditingCompany(company)}
-                      style={{ color: buttonColor }}
-                      className="hover:opacity-80 transition-colors"
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
                       title="Editar"
                     >
-                      <FaEdit />
+                      <Pen size={16} className="stroke-[1.5]" />
                     </button>
                     <button
                       onClick={() => handleDeleteCompany(company.id)}
-                      className="text-red-500 hover:text-red-700 transition-colors"
+                      className="text-gray-400 hover:text-red-500 transition-colors"
                       title="Excluir"
                     >
-                      <FaTrash />
+                      <Trash size={16} className="stroke-[1.5]" />
                     </button>
                   </div>
                 </td>
@@ -584,6 +859,31 @@ function CompanyManagement({ buttonColor }) {
             ))}
           </tbody>
         </table>
+
+        <div className="flex justify-between items-center mt-4 px-4">
+          <div className="text-sm text-gray-600">
+            Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, filteredCompanies.length)} de {filteredCompanies.length} registros
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft size={16} className="stroke-[1.5]" />
+            </button>
+            <span className="text-sm text-gray-600">
+              Página {currentPage} de {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronRight size={16} className="stroke-[1.5]" />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

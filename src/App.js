@@ -71,6 +71,8 @@ function App() {
   const [kpiEntries, setKpiEntries] = useState([]);
   const [isRegistering, setIsRegistering] = useState(false);
 
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
   useEffect(() => {
     fetchCustomization();
   }, []);
@@ -127,6 +129,11 @@ function App() {
     setUserName(userData.username);
   };
 
+  const handleToggleTheme = () => {
+    setIsDarkMode(!isDarkMode);
+    // Aqui você pode adicionar lógica adicional para mudar cores/temas
+  };
+
   const renderContent = () => {
     switch (activeMenuItem) {
       case '/':
@@ -141,7 +148,12 @@ function App() {
           />
         ) : <UnauthorizedAccess />;
       case '/info-library':
-        return <InfoLibrary articles={articles} setArticles={setArticles} />;
+        return <InfoLibrary 
+          buttonColor={customization.button_color}
+          sidebarColor={customization.sidebar_color}
+          articles={articles} 
+          setArticles={setArticles} 
+        />;
       case '/admin/data-source':
         return userRole === 'admin' ? (
           <DataSourceManagement
@@ -299,6 +311,8 @@ function App() {
           fontColor={customization.font_color}
           userName={userName}
           role={userRole}
+          isDarkMode={isDarkMode}
+          onToggleTheme={handleToggleTheme}
         />
 
         <div className="flex h-full">

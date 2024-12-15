@@ -851,3 +851,27 @@ class EnvironmentalImpactStudyWithDocument(EnvironmentalImpactStudy):
     class Config:
         from_attributes = True
 
+
+class InfoLibraryDocumentBase(BaseModel):
+    title: str
+    document_type: str
+    reference_date: Optional[str] = None
+    description: Optional[str] = None
+
+
+class InfoLibraryDocumentCreate(InfoLibraryDocumentBase):
+    pass
+
+
+class InfoLibraryDocumentResponse(InfoLibraryDocumentBase):
+    id: int
+    original_filename: str
+    file_size: int
+    mime_type: Optional[str] = None
+    uploaded_by: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+

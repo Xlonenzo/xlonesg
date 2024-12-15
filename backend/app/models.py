@@ -514,3 +514,20 @@ class EnvironmentalImpactStudy(Base):
         foreign_keys=[environmental_documentid]
     )
 
+class InfoLibraryDocument(Base):
+    __tablename__ = "infolibrary_documents"
+    __table_args__ = {"schema": "xlonesg"}
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    document_type = Column(String(100), nullable=False)
+    reference_date = Column(String(10), nullable=True)
+    description = Column(Text, nullable=True)
+    file_path = Column(String(255), nullable=False)
+    original_filename = Column(String(255), nullable=False)
+    file_size = Column(Integer, nullable=False)
+    mime_type = Column(String(100), nullable=True)
+    uploaded_by = Column(String(100), nullable=False, server_default='system')
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), nullable=True)
+

@@ -46,6 +46,17 @@ from . import models, schemas  # Certifique-se de que o caminho está correto
 from .database import SessionLocal, engine
 from .schemas import ReportRequest, BaseResponse
 
+def get_db():
+    """
+    Função para obter uma sessão do banco de dados.
+    Deve ser usada como dependência nas rotas que precisam acessar o banco.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+        
 # Queries compartilhadas para ambos os endpoints (mover para o início do arquivo)
 bond_base_query = text("""
     SELECT 
@@ -104,62 +115,161 @@ BASE_URL = ""  # Substitua pela URL pública do seu backend
 CHROMA_PERSIST_DIR = os.getenv("CHROMA_PERSIST_DIR", "chroma_db")
 os.makedirs(CHROMA_PERSIST_DIR, exist_ok=True)
 
-# Inicializar cliente Chroma com persistência (apenas uma vez)
-chroma_client = chromadb.PersistentClient(
-    path=CHROMA_PERSIST_DIR,
-    settings=Settings(
-        allow_reset=True,
-        is_persistent=True
-    )
-)
-
-# Criar ou obter a collection
-try:
-    try:
-        collection = chroma_client.get_collection("documents")
-        logger.info("Collection 'documents' obtida com sucesso")
-    except Exception as e:
-        logger.info("Criando nova collection 'documents'")
-        collection = chroma_client.create_collection(
-            name="documents",
-            metadata={"hnsw:space": "cosine"}
-        )
-except:
-    collection = chroma_client.create_collection(
-        name="documents",
-        metadata={"hnsw:space": "cosine"}
-    )
-
 # Configuração do OpenAI Embeddings
-# Carrega o .env do diretório backend
-BASE_DIR = Path(__file__).resolve().parent.parent
-env_path = BASE_DIR / '.env'
-load_dotenv(env_path)
-
-# Pega a chave e verifica se está disponível
+load_dotenv()  # Carregar variáveis de ambiente
 api_key = os.getenv('OPENAI_API_KEY')
 if not api_key:
     raise ValueError("OPENAI_API_KEY não encontrada no arquivo .env")
 
-# Usa a chave explicitamente
-embeddings = OpenAIEmbeddings(openai_api_key=api_key)
+embeddings = OpenAIEmbeddings()  # Vai usar automaticamente a variável de ambiente
 
-# Inicializar o modelo ChatOpenAI (coloque isso junto com as outras inicializações)
-chat_model = ChatOpenAI(
-    model_name="gpt-3.5-turbo-16k",  # Modelo com maior contexto
-    temperature=0.5,  # Reduzir para respostas mais consistentes
-    max_tokens=2000,  # Aumentar limite de tokens
-    request_timeout=120,  # Aumentar timeout
-    openai_api_key=os.getenv('OPENAI_API_KEY')
+# Criar um wrapper para a função de embedding
+class OpenAIEmbeddingFunction(EmbeddingFunction):
+    def __init__(self, openai_embeddings: OpenAIEmbeddings):
+        self.openai_embeddings = openai_embeddings
+
+    def __call__(self, input: List[str]) -> List[List[float]]:
+        embeddings = self.openai_embeddings.embed_documents(input)
+        return embeddings
+
+# Criar instância da função de embedding
+embedding_function = OpenAIEmbeddingFunction(embeddings)
+
+# Configurações globais do ChromaDB
+CHROMA_SETTINGS = Settings(
+    allow_reset=True,
+    is_persistent=True,
+    anonymized_telemetry=False
 )
 
-# Dependency
-def get_db():
-    db = SessionLocal()
+def backup_chroma():
+    """
+    Função para realizar backup do ChromaDB
+    """
     try:
-        yield db
-    finally:
-        db.close()
+        logger.info("Iniciando backup do ChromaDB")
+        
+        # Criar diretório de backup se não existir
+        backup_dir = os.path.join(os.getcwd(), 'chroma_backup')
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        # Nome do arquivo de backup com timestamp
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_path = os.path.join(backup_dir, f'chroma_backup_{timestamp}')
+        
+        # Realizar backup
+        if os.path.exists(CHROMA_PERSIST_DIR):
+            shutil.copytree(CHROMA_PERSIST_DIR, backup_path)
+            logger.info(f"Backup do ChromaDB realizado com sucesso: {backup_path}")
+            
+            # Manter apenas os últimos 7 backups
+            backups = sorted([d for d in os.listdir(backup_dir) if d.startswith('chroma_backup_')])
+            if len(backups) > 7:
+                for old_backup in backups[:-7]:
+                    old_backup_path = os.path.join(backup_dir, old_backup)
+                    shutil.rmtree(old_backup_path)
+                    logger.info(f"Backup antigo removido: {old_backup}")
+                    
+        else:
+            logger.warning(f"Diretório ChromaDB não encontrado: {CHROMA_PERSIST_DIR}")
+            
+    except Exception as e:
+        logger.error(f"Erro ao realizar backup do ChromaDB: {str(e)}")
+        logger.error(traceback.format_exc())
+
+def run_schedule():
+    """
+    Função para executar o agendador
+    """
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
+
+def monitor_chroma_metrics():
+    """Coleta métricas do ChromaDB"""
+    try:
+        metrics = {
+            "total_documents": len(collection.get()["ids"]),
+            "disk_usage": get_dir_size(CHROMA_PERSIST_DIR),
+            "memory_usage": psutil.Process().memory_info().rss / 1024 / 1024,
+            "cpu_percent": psutil.Process().cpu_percent(),
+            "collection_name": collection.name,
+            "metadata": collection.metadata
+        }
+        return metrics
+    except Exception as e:
+        logger.error(f"Erro ao coletar métricas do ChromaDB: {str(e)}")
+        return {}
+
+def get_dir_size(path):
+    """Calcula tamanho total de um diretório em MB"""
+    total = 0
+    with os.scandir(path) as it:
+        for entry in it:
+            if entry.is_file():
+                total += entry.stat().st_size
+            elif entry.is_dir():
+                total += get_dir_size(entry.path)
+    return total / 1024 / 1024  # Converter para MB
+
+def init_chroma():
+    """Inicializa o ChromaDB e cria a collection se necessário"""
+    try:
+        global chroma_client, collection
+        
+        # Limpar qualquer instância existente
+        if os.path.exists(CHROMA_PERSIST_DIR):
+            shutil.rmtree(CHROMA_PERSIST_DIR)
+            logger.info(f"Diretório ChromaDB existente removido: {CHROMA_PERSIST_DIR}")
+        
+        os.makedirs(CHROMA_PERSIST_DIR, exist_ok=True)
+        
+        # Configurar cliente Chroma com persistência
+        chroma_client = chromadb.PersistentClient(
+            path=CHROMA_PERSIST_DIR,
+            settings=CHROMA_SETTINGS
+        )
+        
+        # Tentar obter collection existente ou criar nova
+        try:
+            collection = chroma_client.get_collection(
+                name="documents",
+                embedding_function=embedding_function
+            )
+            logger.info("Collection 'documents' obtida com sucesso")
+        except Exception:
+            collection = chroma_client.create_collection(
+                name="documents",
+                embedding_function=embedding_function,
+                metadata={"hnsw:space": "cosine"}
+            )
+            logger.info("Nova collection 'documents' criada")
+            
+        return chroma_client, collection
+        
+    except Exception as e:
+        logger.error(f"Erro ao inicializar ChromaDB: {str(e)}")
+        raise e
+
+# Inicialização da aplicação
+try:
+    # Configurar variáveis de ambiente
+    os.environ['ANONYMIZED_TELEMETRY'] = 'False'
+    os.environ['TELEMETRY_ENABLED'] = 'False'
+
+    # Inicializar Chroma
+    chroma_client, collection = init_chroma()
+
+    # Agendar backup diário
+    schedule.every().day.at("00:00").do(backup_chroma)
+
+    # Iniciar scheduler em thread separada
+    scheduler_thread = threading.Thread(target=run_schedule, daemon=True)
+    scheduler_thread.start()
+
+except Exception as e:
+    logger.error(f"Erro ao inicializar ChromaDB: {str(e)}")
+    raise
 
 def validate_cnpj(cnpj: str) -> str:
     # Remove caracteres não numéricos
@@ -844,6 +954,9 @@ async def update_customization(
         logger.error(f"Erro ao atualizar customização: {str(e)}")
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Erro ao atualizar customização: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Rotas para Upload de Logo
 
@@ -1485,15 +1598,6 @@ def process_document(file_path: str, file_ext: str):
     
     return text_splitter.split_documents(documents)
 
-# Criar um wrapper para a função de embedding
-class OpenAIEmbeddingFunction(EmbeddingFunction):
-    def __init__(self, openai_embeddings: OpenAIEmbeddings):
-        self.openai_embeddings = openai_embeddings
-
-    def __call__(self, input: List[str]) -> List[List[float]]:
-        embeddings = self.openai_embeddings.embed_documents(input)
-        return embeddings
-
 def safe_remove_db(db_path: str, max_attempts: int = 5, wait_time: int = 1):
     """Tenta remover o diretório do banco de dados de forma segura"""
     for attempt in range(max_attempts):
@@ -1520,104 +1624,19 @@ def safe_remove_db(db_path: str, max_attempts: int = 5, wait_time: int = 1):
             time.sleep(wait_time)
     return False
 
-def init_chroma():
-    # Configurações simplificadas
-    settings = Settings(
-        anonymized_telemetry=False,  # Apenas esta configuração para telemetria
-        allow_reset=True,
-        is_persistent=True
-    )
-    
-    # Usar um diretório com timestamp
-    db_path = f"chroma_db_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    
-    try:
-        # Inicializar OpenAI Embeddings
-        openai_embeddings = OpenAIEmbeddings(openai_api_key=os.getenv('OPENAI_API_KEY'))
-        
-        # Criar a função de embedding
-        embedding_function = OpenAIEmbeddingFunction(openai_embeddings)
-        
-        # Inicializar Chroma
-        chroma_client = chromadb.PersistentClient(path=db_path)
-        
-        collection = chroma_client.get_or_create_collection(
-            name="documents",
-            embedding_function=embedding_function
-        )
-        
-        return chroma_client, collection
-        
-    except Exception as e:
-        print(f"Erro ao inicializar Chroma: {e}")
-        raise
-
-# Você também pode adicionar estas variáveis de ambiente antes de importar o chromadb
-os.environ['ANONYMIZED_TELEMETRY'] = 'False'
-os.environ['TELEMETRY_ENABLED'] = 'False'
-
-# Inicializar Chroma
-chroma_client, collection = init_chroma()
-
-def backup_chroma():
-    """Realiza backup do Chroma DB"""
-    try:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_path = f"backups/chroma/backup_{timestamp}"
-        
-        # Criar diretório de backup
-        os.makedirs(backup_path, exist_ok=True)
-        
-        # Copiar arquivos do Chroma
-        shutil.copytree(
-            "chroma_db",
-            f"{backup_path}/chroma_db",
-            dirs_exist_ok=True
-        )
-        
-        # Limpar backups antigos (manter últimos 5)
-        backups = sorted(os.listdir("backups/chroma"))
-        if len(backups) > 5:
-            for old_backup in backups[:-5]:
-                shutil.rmtree(f"backups/chroma/{old_backup}")
-                
-        logger.info(f"Backup do Chroma DB realizado: {backup_path}")
-    except Exception as e:
-        logger.error(f"Erro ao realizar backup: {str(e)}")
-
-# Agendar backup diário
-schedule.every().day.at("00:00").do(backup_chroma)
-
-def run_schedule():
-    while True:
-        schedule.run_pending()
-        time.sleep(60)
-
-# Iniciar agendador em thread separada
-threading.Thread(target=run_schedule, daemon=True).start()
-
-def monitor_chroma_metrics():
-    """Monitora métricas do Chroma DB"""
-    try:
-        # Tamanho do diretório
-        total_size = 0
-        for dirpath, dirnames, filenames in os.walk("chroma_db"):
-            for f in filenames:
-                fp = os.path.join(dirpath, f)
-                total_size += os.path.getsize(fp)
-        
-        # Mtricas da collection
-        collection_stats = {
-            "count": collection.count(),
-            "size_mb": total_size / (1024 * 1024),
-            "timestamp": datetime.now().isoformat()
+@app.get("/api/admin/chroma-metrics")
+async def get_chroma_metrics():
+    """Endpoint para obter métricas do ChromaDB"""
+    metrics = monitor_chroma_metrics()
+    if metrics:
+        return {
+            "status": "success",
+            "data": metrics
         }
-        
-        logger.info(f"Métricas Chroma DB: {collection_stats}")
-        return collection_stats
-    except Exception as e:
-        logger.error(f"Erro ao monitorar métricas: {str(e)}")
-        return None
+    return {
+        "status": "error",
+        "message": "Erro ao obter métricas"
+    }
 
 @app.get("/api/admin/chroma-metrics")
 async def get_chroma_metrics(db: Session = Depends(get_db)):
@@ -1834,7 +1853,7 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
 @app.post("/api/emissions", response_model=schemas.EmissionData)
 def create_emission(emission: schemas.EmissionDataCreate, db: Session = Depends(get_db)):
     try:
-        logger.info("Criando novo registro de emiss��o")
+        logger.info("Criando novo registro de emisso")
         
         # Verificar se o projeto existe
         project = db.query(models.ProjectTracking).filter(models.ProjectTracking.id == emission.project_id).first()
@@ -3310,6 +3329,7 @@ async def generate_summary_report_stream(
 
             # Buscar projetos e ODS relacionados
             projects = db.execute(projects_view_query, {"bond_id": bond.id}).fetchall()
+            documents = await fetch_document_details(bond.name, db)
             
             # Formatar análise de ODS com seus relacionamentos
             ods_analysis = []
@@ -3618,6 +3638,242 @@ async def check_project_changes(
     except Exception as e:
         logger.error(f"Erro ao verificar mudanças: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# Adicionar as rotas do InfoLibrary
+UPLOAD_DIR = os.path.join(os.getcwd(), "uploads", "infolibrary")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+@app.post("/api/infolibrary-documents/upload", response_model=schemas.InfoLibraryDocumentResponse)
+async def upload_document(
+    file: UploadFile = File(...),
+    title: str = Form(...),
+    document_type: str = Form(...),
+    reference_date: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    try:
+        # Criar nome único para o arquivo
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_extension = os.path.splitext(file.filename)[1]
+        unique_filename = f"{timestamp}{file_extension}"
+        file_path = os.path.join(UPLOAD_DIR, unique_filename)
+  
+        # Salvar arquivo
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+  
+        # Determinar o MIME type do arquivo
+        mime_type = file.content_type
+  
+        # Criar registro no banco
+        db_document = models.InfoLibraryDocument(
+            title=title,
+            document_type=document_type,
+            reference_date=reference_date,
+            description=description,
+            file_path=file_path,
+            original_filename=file.filename,
+            file_size=os.path.getsize(file_path),
+            mime_type=mime_type,
+            uploaded_by="system"
+        )
+        
+        db.add(db_document)
+        db.commit()
+        db.refresh(db_document)
+        
+        return db_document
+  
+    except Exception as e:
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao fazer upload do arquivo: {str(e)}"
+        )
+  
+@app.get("/api/infolibrary-documents", response_model=List[schemas.InfoLibraryDocumentResponse])
+def get_documents(db: Session = Depends(get_db)):
+    try:
+        documents = db.query(models.InfoLibraryDocument).order_by(models.InfoLibraryDocument.created_at.desc()).all()
+        return documents
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao buscar documentos: {str(e)}"
+        )
+  
+@app.get("/api/infolibrary-documents/download/{document_id}")
+async def download_document(document_id: int, db: Session = Depends(get_db)):
+    try:
+        document = db.query(models.InfoLibraryDocument).filter(models.InfoLibraryDocument.id == document_id).first()
+        if not document:
+            raise HTTPException(status_code=404, detail="Documento não encontrado")
+  
+        if not os.path.exists(document.file_path):
+            raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+  
+        return FileResponse(
+            document.file_path,
+            filename=document.original_filename,
+            media_type=document.mime_type or 'application/octet-stream'
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao fazer download do arquivo: {str(e)}"
+        )
+  
+@app.delete("/api/infolibrary-documents/{document_id}")
+async def delete_document(document_id: int, db: Session = Depends(get_db)):
+    document = db.query(models.InfoLibraryDocument).filter(models.InfoLibraryDocument.id == document_id).first()
+    if not document:
+        raise HTTPException(status_code=404, detail="Documento não encontrado")
+  
+    # Remover arquivo físico
+    if os.path.exists(document.file_path):
+        os.remove(document.file_path)
+  
+    # Remover registro do banco
+    db.delete(document)
+    db.commit()
+  
+    return {"message": "Documento excluído com sucesso"}
+
+async def process_document_for_chroma(document_id: int, db: Session):
+    """Processa um documento do InfoLibrary para o ChromaDB"""
+    try:
+        # Buscar documento no InfoLibrary
+        document = db.query(models.InfoLibraryDocument).filter(
+            models.InfoLibraryDocument.id == document_id
+        ).first()
+        
+        if not document:
+            raise HTTPException(status_code=404, detail="Documento não encontrado")
+
+        # Extrair texto do documento baseado no mime_type
+        text_content = ""
+        if document.mime_type == 'application/pdf':
+            loader = PyPDFLoader(document.file_path)
+            pages = loader.load()
+            text_content = "\n".join(page.page_content for page in pages)
+        elif document.mime_type in ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']:
+            loader = Docx2txtLoader(document.file_path)
+            pages = loader.load()
+            text_content = "\n".join(page.page_content for page in pages)
+        else:
+            # Para outros tipos, tentar como texto
+            try:
+                with open(document.file_path, 'r', encoding='utf-8') as f:
+                    text_content = f.read()
+            except:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="Formato de arquivo não suportado para indexação"
+                )
+
+        # Dividir o texto em chunks menores
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000,
+            chunk_overlap=200,
+            length_function=len
+        )
+        chunks = text_splitter.split_text(text_content)
+
+        # Gerar embeddings e adicionar ao ChromaDB
+        embeddings = OpenAIEmbeddings(openai_api_key=os.getenv('OPENAI_API_KEY'))
+        
+        # Criar metadados do documento
+        metadata = {
+            "title": document.title,
+            "document_type": document.document_type,
+            "reference_date": document.reference_date,
+            "description": document.description,
+            "original_filename": document.original_filename,
+            "mime_type": document.mime_type,
+            "infolibrary_id": document.id,
+            "uploaded_by": document.uploaded_by,
+            "created_at": document.created_at.isoformat() if document.created_at else None
+        }
+
+        # Adicionar chunks ao ChromaDB
+        for i, chunk in enumerate(chunks):
+            chunk_metadata = {
+                **metadata,
+                "chunk_index": i,
+                "total_chunks": len(chunks)
+            }
+            
+            collection.add(
+                documents=[chunk],
+                metadatas=[chunk_metadata],
+                ids=[f"{document.id}_chunk_{i}"]
+            )
+
+        return {
+            "status": "success",
+            "message": f"Documento {document.title} indexado com sucesso",
+            "chunks_processed": len(chunks)
+        }
+
+    except Exception as e:
+        logger.error(f"Erro ao processar documento para ChromaDB: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao processar documento: {str(e)}"
+        )
+
+@app.post("/api/infolibrary-documents/{document_id}/index")
+async def index_document_to_chroma(
+    document_id: int,
+    db: Session = Depends(get_db)
+):
+    """Endpoint para indexar um documento do InfoLibrary no ChromaDB"""
+    try:
+        result = await process_document_for_chroma(document_id, db)
+        return result
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Erro ao indexar documento: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao indexar documento: {str(e)}"
+        )
+
+@app.get("/api/infolibrary-documents/{document_id}/index-status")
+async def check_document_index_status(
+    document_id: int,
+    db: Session = Depends(get_db)
+):
+    """Verifica se um documento está indexado no ChromaDB"""
+    try:
+        # Buscar no ChromaDB por documentos com o infolibrary_id
+        results = collection.get(
+            where={"infolibrary_id": document_id}
+        )
+        
+        if results and results['ids']:
+            return {
+                "status": "indexed",
+                "chunks_count": len(results['ids']),
+                "metadata": results['metadatas'][0] if results['metadatas'] else None
+            }
+        return {
+            "status": "not_indexed",
+            "chunks_count": 0,
+            "metadata": None
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro ao verificar status de indexação: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao verificar status de indexação: {str(e)}"
+        )
+
+
 
 
 

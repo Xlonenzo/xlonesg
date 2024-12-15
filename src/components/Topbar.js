@@ -1,9 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, LogOut, User } from 'lucide-react';
+import { 
+  Bell, 
+  LogOut, 
+  User, 
+  MessageSquareMore, 
+  FileText, 
+  HeadphonesIcon,
+  Sun,
+  Moon,
+  Search
+} from 'lucide-react';
 
-const Topbar = ({ onLogout, sidebarColor, fontColor, userName, role }) => {
+const Topbar = ({ onLogout, sidebarColor, fontColor, userName, role, isDarkMode, onToggleTheme }) => {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false); // Estado para controlar o dropdown de notificações
   const notificationRef = useRef(null); // Ref para o botão de notificações e o dropdown
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   // Função para alternar o dropdown de notificações
   const toggleNotifications = () => {
@@ -36,36 +47,135 @@ const Topbar = ({ onLogout, sidebarColor, fontColor, userName, role }) => {
         <span className="font-semibold">{role || 'Função não definida'}</span>
       </div>
 
-      {/* Nome do usuário, Notificações e Logout à direita */}
-      <div className="flex items-center relative ml-auto" ref={notificationRef}>
-        {/* Nome do usuário */}
-        <div className="flex items-center mr-6" style={{ color: fontColor }}>
-          <User size={24} className="mr-2" />
-          <span className="font-semibold">{userName || 'Usuário'}</span>
+      {/* Ícones à direita */}
+      <div className="flex items-center relative ml-auto gap-6" ref={notificationRef}>
+        {/* Pesquisa */}
+        <div className="relative">
+          <button 
+            onClick={() => setIsSearchOpen(!isSearchOpen)}
+            className="hover:opacity-80 transition-opacity"
+            style={{ color: fontColor }}
+            title="Pesquisar"
+          >
+            <Search
+              size={18} 
+              className="opacity-50 stroke-[1]"
+              strokeWidth={1}
+            />
+          </button>
+          {isSearchOpen && (
+            <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg p-2 z-20">
+              <input
+                type="text"
+                placeholder="Pesquisar..."
+                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                autoFocus
+              />
+            </div>
+          )}
         </div>
 
-        {/* Botão de Notificações */}
-        <button onClick={toggleNotifications} className="mr-4 relative" style={{ color: fontColor }}>
-          <Bell size={24} />
-          {/* Indicador de notificação */}
+        {/* Chatbot */}
+        <button 
+          className="hover:opacity-80 transition-opacity"
+          style={{ color: fontColor }}
+          title="Chatbot"
+        >
+          <MessageSquareMore
+            size={18} 
+            className="opacity-50 stroke-[1]"
+            strokeWidth={1}
+          />
+        </button>
+
+        {/* Alternar Tema */}
+        <button 
+          onClick={onToggleTheme}
+          className="hover:opacity-80 transition-opacity"
+          style={{ color: fontColor }}
+          title={isDarkMode ? "Modo Claro" : "Modo Escuro"}
+        >
+          {isDarkMode ? (
+            <Sun
+              size={18} 
+              className="opacity-50 stroke-[1]"
+              strokeWidth={1}
+            />
+          ) : (
+            <Moon
+              size={18} 
+              className="opacity-50 stroke-[1]"
+              strokeWidth={1}
+            />
+          )}
+        </button>
+
+        {/* Documentação */}
+        <button 
+          className="hover:opacity-80 transition-opacity"
+          style={{ color: fontColor }}
+          title="Documentação"
+        >
+          <FileText
+            size={18} 
+            className="opacity-50 stroke-[1]"
+            strokeWidth={1}
+          />
+        </button>
+
+        {/* Suporte Técnico */}
+        <button 
+          className="hover:opacity-80 transition-opacity"
+          style={{ color: fontColor }}
+          title="Suporte Técnico"
+        >
+          <HeadphonesIcon
+            size={18} 
+            className="opacity-50 stroke-[1]"
+            strokeWidth={1}
+          />
+        </button>
+
+        {/* Usuário */}
+        <button 
+          className="hover:opacity-80 transition-opacity"
+          style={{ color: fontColor }}
+          title="Perfil"
+        >
+          <User 
+            size={18} 
+            className="opacity-50 stroke-[1]" 
+            strokeWidth={1}
+          />
+        </button>
+
+        {/* Notificações */}
+        <button 
+          onClick={toggleNotifications} 
+          className="relative hover:opacity-80 transition-opacity"
+          style={{ color: fontColor }}
+          title="Notificações"
+        >
+          <Bell 
+            size={18} 
+            className="opacity-50 stroke-[1]"
+            strokeWidth={1}
+          />
           <span className="absolute top-0 right-0 inline-block w-2 h-2 bg-red-600 rounded-full"></span>
         </button>
 
-        {/* Dropdown de Notificações */}
-        {isNotificationOpen && (
-          <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg z-10">
-            <ul className="p-4">
-              <li className="mb-2 border-b pb-2">Notificação 1</li>
-              <li className="mb-2 border-b pb-2">Notificação 2</li>
-              <li className="mb-2">Notificação 3</li>
-            </ul>
-          </div>
-        )}
-
-        {/* Botão de Logout */}
-        <button onClick={onLogout} className="flex items-center" style={{ color: fontColor }}>
-          <LogOut size={24} className="mr-2" />
-          <span>Sair</span>
+        {/* Logout */}
+        <button 
+          onClick={onLogout} 
+          className="hover:opacity-80 transition-opacity"
+          style={{ color: fontColor }}
+          title="Sair"
+        >
+          <LogOut 
+            size={18} 
+            className="opacity-50 stroke-[1]"
+            strokeWidth={1}
+          />
         </button>
       </div>
     </div>

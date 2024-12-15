@@ -6,53 +6,54 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
   ResponsiveContainer,
-  Tooltip
+  Tooltip,
 } from 'recharts';
 
-const ODSRadarChart = ({ projectData }) => {
-  const calculateODSAverages = (projects) => {
-    // Inicializar objeto para somar valores
-    const sums = {};
-    const counts = {};
+function ODSRadarChart({ projectData }) {
+  if (!projectData || projectData.length === 0) {
+    return <div>Carregando dados ODS...</div>;
+  }
 
-    // Somar todos os valores ODS
-    projects.forEach(project => {
-      for (let i = 1; i <= 17; i++) {
-        const odsKey = `ods${i}`;
-        if (project[odsKey] !== null && project[odsKey] !== undefined) {
-          sums[odsKey] = (sums[odsKey] || 0) + project[odsKey];
-          counts[odsKey] = (counts[odsKey] || 0) + 1;
-        }
-      }
-    });
+  // Calcular a média dos ODS de todos os projetos
+  const odsAverages = projectData.reduce((acc, project) => {
+    for (let i = 1; i <= 17; i++) {
+      const odsKey = `ods${i}`;
+      if (!acc[odsKey]) acc[odsKey] = 0;
+      acc[odsKey] += parseFloat(project[odsKey] || 0);
+    }
+    return acc;
+  }, {});
 
-    // Calcular médias e formatar dados para o gráfico
-    return Object.keys(sums).map(key => ({
-      subject: `ODS ${key.replace('ods', '')}`,
-      value: counts[key] ? (sums[key] / counts[key]) : 0,
-      fullMark: 2
-    }));
-  };
+  // Calcular a média final dividindo pelo número de projetos
+  Object.keys(odsAverages).forEach(key => {
+    odsAverages[key] = odsAverages[key] / projectData.length;
+  });
 
-  const odsData = calculateODSAverages(projectData);
+  // Transformar dados para o formato do gráfico radar
+  const transformedData = Object.keys(odsAverages).map(key => ({
+    subject: `ODS ${key.replace('ods', '')}`,
+    value: parseFloat(odsAverages[key].toFixed(2))
+  }));
 
   return (
-    <ResponsiveContainer width="100%" height={500}>
-      <RadarChart cx="50%" cy="50%" outerRadius="80%" data={odsData}>
-        <PolarGrid />
-        <PolarAngleAxis dataKey="subject" />
-        <PolarRadiusAxis angle={30} domain={[0, 2]} />
-        <Tooltip />
-        <Radar
-          name="ODS"
-          dataKey="value"
-          stroke="#8884d8"
-          fill="#8884d8"
-          fillOpacity={0.6}
-        />
-      </RadarChart>
-    </ResponsiveContainer>
+    <div className="w-full h-[400px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <RadarChart cx="50%" cy="50%" outerRadius="80%" data={transformedData}>
+          <PolarGrid />
+          <PolarAngleAxis dataKey="subject" />
+          <PolarRadiusAxis angle={30} domain={[0, 2]} />
+          <Radar
+            name="ODS"
+            dataKey="value"
+            stroke="#8884d8"
+            fill="#8884d8"
+            fillOpacity={0.6}
+          />
+          <Tooltip />
+        </RadarChart>
+      </ResponsiveContainer>
+    </div>
   );
-};
+}
 
 export default ODSRadarChart; 
