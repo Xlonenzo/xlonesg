@@ -89,7 +89,7 @@ ODS_GRI_IFC_MAPPING = {
         "ifc_descriptions": [
             "Gestão eficiente de recursos hídricos",
             "Acesso a água potável",
-            "Proteção de recursos hídricos"
+            "Proteção de recursos h��dricos"
         ]
     },
     "ODS7": {  # Energia Limpa
@@ -239,4 +239,16 @@ def get_ifc_descriptions_for_ods(ods_code: str) -> list:
     Retorna descrições dos padrões IFC para um ODS
     """
     mapping = ODS_GRI_IFC_MAPPING.get(ods_code, {})
-    return mapping.get("ifc_descriptions", []) 
+    return mapping.get("ifc_descriptions", [])
+
+# Tipos de documentos disponíveis
+DOCUMENT_TYPES = [
+    'Política',
+    'Procedimento',
+    'Manual',
+    'Relatório',
+    'Apresentação',
+    'Planilha',
+    'Contrato',
+    'Outros'
+] 

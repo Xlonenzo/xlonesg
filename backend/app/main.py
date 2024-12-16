@@ -1,6 +1,6 @@
 # main.py
 
-from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File, Request, Form, Body, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File, Request, Form, Body, BackgroundTasks, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session, joinedload
@@ -2203,7 +2203,7 @@ def delete_materiality(materiality_id: int, db: Session = Depends(get_db)):
             
         except Exception as e:
             db.rollback()
-            logger.error(f"Erro ao deletar avaliação de materialidade: {str(e)}")
+            logger.error(f"Erro ao deletar avaliaç����o de materialidade: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
             
     except HTTPException as he:
@@ -3645,6 +3645,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @app.post("/api/infolibrary-documents/upload", response_model=schemas.InfoLibraryDocumentResponse)
 async def upload_document(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     title: str = Form(...),
     document_type: str = Form(...),
@@ -3653,6 +3654,7 @@ async def upload_document(
     db: Session = Depends(get_db)
 ):
     try:
+        logger.info(f"Iniciando upload do documento: {title}")
         # Criar nome único para o arquivo
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         file_extension = os.path.splitext(file.filename)[1]
@@ -3683,11 +3685,24 @@ async def upload_document(
         db.commit()
         db.refresh(db_document)
         
+        # Processar documento para ChromaDB em tempo real
+        logger.info(f"Iniciando indexação do documento {db_document.id} no ChromaDB")
+        try:
+            await process_document_for_chroma(db_document.id, db)
+            logger.info(f"Documento {db_document.id} indexado com sucesso no ChromaDB")
+        except Exception as index_error:
+            logger.error(f"Erro ao indexar documento no ChromaDB: {str(index_error)}")
+            logger.error(traceback.format_exc())
+            # Não falhar o upload se a indexação falhar
+            # O documento pode ser re-indexado posteriormente
+          
         return db_document
   
     except Exception as e:
         if file_path and os.path.exists(file_path):
             os.remove(file_path)
+        logger.error(f"Erro no upload: {str(e)}")
+        logger.error(traceback.format_exc())
         raise HTTPException(
             status_code=500,
             detail=f"Erro ao fazer upload do arquivo: {str(e)}"
@@ -3744,34 +3759,50 @@ async def delete_document(document_id: int, db: Session = Depends(get_db)):
 async def process_document_for_chroma(document_id: int, db: Session):
     """Processa um documento do InfoLibrary para o ChromaDB"""
     try:
+        logger.info(f"Iniciando processamento do documento {document_id} para ChromaDB")
+        
         # Buscar documento no InfoLibrary
         document = db.query(models.InfoLibraryDocument).filter(
             models.InfoLibraryDocument.id == document_id
         ).first()
         
         if not document:
+            logger.error(f"Documento {document_id} não encontrado no banco de dados")
             raise HTTPException(status_code=404, detail="Documento não encontrado")
+
+        logger.info(f"Documento encontrado: {document.title} ({document.mime_type})")
 
         # Extrair texto do documento baseado no mime_type
         text_content = ""
-        if document.mime_type == 'application/pdf':
-            loader = PyPDFLoader(document.file_path)
-            pages = loader.load()
-            text_content = "\n".join(page.page_content for page in pages)
-        elif document.mime_type in ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']:
-            loader = Docx2txtLoader(document.file_path)
-            pages = loader.load()
-            text_content = "\n".join(page.page_content for page in pages)
-        else:
-            # Para outros tipos, tentar como texto
-            try:
+        try:
+            if document.mime_type == 'application/pdf':
+                logger.info("Processando documento PDF...")
+                loader = PyPDFLoader(document.file_path)
+                pages = loader.load()
+                text_content = "\n".join(page.page_content for page in pages)
+                logger.info(f"PDF processado: {len(pages)} páginas extraídas")
+            
+            elif document.mime_type in ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']:
+                logger.info("Processando documento Word...")
+                loader = Docx2txtLoader(document.file_path)
+                pages = loader.load()
+                text_content = "\n".join(page.page_content for page in pages)
+                logger.info("Documento Word processado com sucesso")
+            
+            else:
+                logger.info("Tentando processar como texto plano...")
                 with open(document.file_path, 'r', encoding='utf-8') as f:
                     text_content = f.read()
-            except:
-                raise HTTPException(
-                    status_code=400, 
-                    detail="Formato de arquivo não suportado para indexação"
-                )
+                logger.info("Arquivo de texto processado com sucesso")
+                
+        except Exception as e:
+            logger.error(f"Erro ao processar arquivo: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro ao processar arquivo: {str(e)}"
+            )
+
+        logger.info(f"Conteúdo extraído: {len(text_content)} caracteres")
 
         # Dividir o texto em chunks menores
         text_splitter = RecursiveCharacterTextSplitter(
@@ -3780,45 +3811,61 @@ async def process_document_for_chroma(document_id: int, db: Session):
             length_function=len
         )
         chunks = text_splitter.split_text(text_content)
+        logger.info(f"Texto dividido em {len(chunks)} chunks")
 
         # Gerar embeddings e adicionar ao ChromaDB
-        embeddings = OpenAIEmbeddings(openai_api_key=os.getenv('OPENAI_API_KEY'))
-        
-        # Criar metadados do documento
-        metadata = {
-            "title": document.title,
-            "document_type": document.document_type,
-            "reference_date": document.reference_date,
-            "description": document.description,
-            "original_filename": document.original_filename,
-            "mime_type": document.mime_type,
-            "infolibrary_id": document.id,
-            "uploaded_by": document.uploaded_by,
-            "created_at": document.created_at.isoformat() if document.created_at else None
-        }
-
-        # Adicionar chunks ao ChromaDB
-        for i, chunk in enumerate(chunks):
-            chunk_metadata = {
-                **metadata,
-                "chunk_index": i,
-                "total_chunks": len(chunks)
-            }
+        try:
+            logger.info("Iniciando geração de embeddings...")
+            embeddings = OpenAIEmbeddings(openai_api_key=os.getenv('OPENAI_API_KEY'))
             
-            collection.add(
-                documents=[chunk],
-                metadatas=[chunk_metadata],
-                ids=[f"{document.id}_chunk_{i}"]
+            # Criar metadados do documento
+            metadata = {
+                "title": document.title,
+                "document_type": document.document_type,
+                "reference_date": document.reference_date,
+                "description": document.description,
+                "original_filename": document.original_filename,
+                "mime_type": document.mime_type,
+                "infolibrary_id": document.id,
+                "uploaded_by": document.uploaded_by,
+                "created_at": document.created_at.isoformat() if document.created_at else None
+            }
+            logger.info(f"Metadados preparados: {metadata}")
+
+            # Adicionar chunks ao ChromaDB
+            logger.info("Iniciando inserção no ChromaDB...")
+            for i, chunk in enumerate(chunks):
+                chunk_metadata = {
+                    **metadata,
+                    "chunk_index": i,
+                    "total_chunks": len(chunks)
+                }
+                
+                collection.add(
+                    documents=[chunk],
+                    metadatas=[chunk_metadata],
+                    ids=[f"{document.id}_chunk_{i}"]
+                )
+                logger.info(f"Chunk {i+1}/{len(chunks)} inserido com sucesso")
+
+            logger.info(f"Documento {document_id} indexado com sucesso no ChromaDB")
+            return {
+                "status": "success",
+                "message": f"Documento {document.title} indexado com sucesso",
+                "chunks_processed": len(chunks)
+            }
+
+        except Exception as e:
+            logger.error(f"Erro ao gerar embeddings/inserir no ChromaDB: {str(e)}")
+            logger.error(f"Detalhes do erro: {traceback.format_exc()}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Erro ao processar documento para ChromaDB: {str(e)}"
             )
 
-        return {
-            "status": "success",
-            "message": f"Documento {document.title} indexado com sucesso",
-            "chunks_processed": len(chunks)
-        }
-
     except Exception as e:
-        logger.error(f"Erro ao processar documento para ChromaDB: {str(e)}")
+        logger.error(f"Erro geral no processamento: {str(e)}")
+        logger.error(f"Traceback completo: {traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
             detail=f"Erro ao processar documento: {str(e)}"
@@ -3843,18 +3890,15 @@ async def index_document_to_chroma(
         )
 
 @app.get("/api/infolibrary-documents/{document_id}/index-status")
-async def check_document_index_status(
-    document_id: int,
-    db: Session = Depends(get_db)
-):
+async def check_document_index_status(document_id: int, db: Session = Depends(get_db)):
     """Verifica se um documento está indexado no ChromaDB"""
     try:
         # Buscar no ChromaDB por documentos com o infolibrary_id
         results = collection.get(
-            where={"infolibrary_id": document_id}
+            where={"infolibrary_id": str(document_id)}
         )
         
-        if results and results['ids']:
+        if results and len(results['ids']) > 0:
             return {
                 "status": "indexed",
                 "chunks_count": len(results['ids']),
@@ -3873,6 +3917,141 @@ async def check_document_index_status(
             detail=f"Erro ao verificar status de indexação: {str(e)}"
         )
 
+@app.post("/api/chat")
+async def chat(request: Request):
+    try:
+        logger.info("Iniciando processamento de chat")
+        data = await request.json()
+        message = data.get("message")
+        history = data.get("history", [])
+
+        logger.info(f"Mensagem recebida: {message}")
+        logger.info(f"Histórico recebido: {history}")
+
+        # Inicializar o modelo de chat
+        logger.info("Inicializando modelo de chat OpenAI")
+        chat_model = ChatOpenAI(
+            model_name="gpt-3.5-turbo",
+            temperature=0.7,
+            openai_api_key=os.getenv('OPENAI_API_KEY')
+        )
+
+        # Construir o contexto com documentos do ChromaDB
+        logger.info("Buscando contexto no ChromaDB")
+        results = collection.query(
+            query_texts=[message],
+            n_results=3
+        )
+
+        context = ""
+        if results and results['documents']:
+            context = "\n\n".join(results['documents'][0])
+            logger.info(f"Contexto encontrado: {context[:200]}...")
+        else:
+            logger.info("Nenhum contexto relevante encontrado no ChromaDB")
+
+        # Construir a mensagem do sistema
+        logger.info("Construindo mensagem do sistema")
+        system_message = f"""Você é um assistente especializado em ESG e documentos corporativos.
+        Use o seguinte contexto para responder às perguntas: {context}
+        Se não encontrar a informação no contexto, responda com base em seu conhecimento geral."""
+
+        # Construir histórico de mensagens
+        logger.info("Construindo lista de mensagens com histórico")
+        messages = [
+            SystemMessage(content=system_message),
+            *[HumanMessage(content=msg["content"]) if msg["role"] == "user" else 
+              SystemMessage(content=msg["content"]) 
+              for msg in history],
+            HumanMessage(content=message)
+        ]
+
+        # Gerar resposta
+        logger.info("Gerando resposta com o modelo")
+        response = chat_model.generate([messages])
+        assistant_message = response.generations[0][0].text
+
+        logger.info(f"Resposta gerada: {assistant_message[:200]}...")
+
+        return {
+            "response": assistant_message
+        }
+
+    except Exception as e:
+        logger.error("Erro detalhado no chat:")
+        logger.error(f"Tipo do erro: {type(e)}")
+        logger.error(f"Mensagem de erro: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao processar mensagem: {str(e)}"
+        )
+
+def check_document_in_chroma(document_id: int) -> dict:
+    """
+    Verifica se um documento está indexado no ChromaDB e retorna seus detalhes
+    """
+    try:
+        logger.info(f"Verificando documento {document_id} no ChromaDB")
+        
+        # Buscar todos os chunks do documento
+        results = collection.get(
+            where={"infolibrary_id": str(document_id)}
+        )
+        
+        if not results or not results['ids']:
+            logger.info(f"Documento {document_id} não encontrado no ChromaDB")
+            return {
+                "exists": False,
+                "chunks": 0,
+                "metadata": None,
+                "first_chunk": None
+            }
+        
+        logger.info(f"Documento {document_id} encontrado com {len(results['ids'])} chunks")
+        return {
+            "exists": True,
+            "chunks": len(results['ids']),
+            "metadata": results['metadatas'][0] if results['metadatas'] else None,
+            "first_chunk": results['documents'][0] if results['documents'] else None
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro ao verificar documento no ChromaDB: {str(e)}")
+        logger.error(traceback.format_exc())
+        return {
+            "exists": False,
+            "error": str(e)
+        }
+
+@app.get("/api/infolibrary-documents/{document_id}/index-status")
+async def check_document_index_status(document_id: int, db: Session = Depends(get_db)):
+    """Verifica se um documento está indexado no ChromaDB"""
+    try:
+        chroma_status = check_document_in_chroma(document_id)
+        
+        if chroma_status["exists"]:
+            return {
+                "status": "indexed",
+                "chunks_count": chroma_status["chunks"],
+                "metadata": chroma_status["metadata"],
+                "sample_text": chroma_status["first_chunk"][:200] if chroma_status["first_chunk"] else None
+            }
+        
+        return {
+            "status": "not_indexed",
+            "chunks_count": 0,
+            "metadata": None,
+            "error": chroma_status.get("error")
+        }
+        
+    except Exception as e:
+        logger.error(f"Erro ao verificar status de indexação: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao verificar status de indexação: {str(e)}"
+        )
 
 
 

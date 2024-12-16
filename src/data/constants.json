@@ -320,6 +320,24 @@
     "Termos de Alteração ou Repactuação da Emissão",
     "Termos de Informações sobre Riscos",
     "Termos de Resgate Antecipado"
-  ]
-
+  ],
+  "documentInfoType": {
+    "types": [
+      "Política",
+      "Procedimento", 
+      "Manual",
+      "Relatório",
+      "Apresentação",
+      "Planilha",
+      "Contrato",
+      "Outros"
+    ],
+    "mimeTypes": {
+      "pdf": "application/pdf",
+      "doc": "application/msword",
+      "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "xls": "application/vnd.ms-excel",
+      "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    }
+  }
 } 

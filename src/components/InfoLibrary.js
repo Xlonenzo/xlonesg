@@ -7,6 +7,7 @@ import {
   Search,
   Plus,
   FileText,
+  Database,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -17,9 +18,11 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { API_URL } from '../config';
+import constants from '../data/constants.json';
 
 function InfoLibrary({ buttonColor, sidebarColor }) {
   const [documents, setDocuments] = useState([]);
+  const [indexedDocs, setIndexedDocs] = useState({});
   const [newDocument, setNewDocument] = useState({ 
     title: '', 
     file: null,
@@ -48,21 +51,29 @@ function InfoLibrary({ buttonColor, sidebarColor }) {
   });
   const [showUploadModal, setShowUploadModal] = useState(false);
 
-  // Tipos de documentos disponíveis
-  const documentTypes = [
-    'Política',
-    'Procedimento',
-    'Manual',
-    'Relatório',
-    'Apresentação',
-    'Planilha',
-    'Contrato',
-    'Outros'
-  ];
-
   useEffect(() => {
     fetchDocuments();
   }, []);
+
+  useEffect(() => {
+    const checkIndexStatus = async () => {
+      const statusMap = {};
+      for (const doc of documents) {
+        try {
+          const response = await axios.get(`${API_URL}/infolibrary-documents/${doc.id}/index-status`);
+          statusMap[doc.id] = response.data.status === 'indexed';
+        } catch (error) {
+          console.error(`Erro ao verificar status do documento ${doc.id}:`, error);
+          statusMap[doc.id] = false;
+        }
+      }
+      setIndexedDocs(statusMap);
+    };
+    
+    if (documents.length > 0) {
+      checkIndexStatus();
+    }
+  }, [documents]);
 
   const fetchDocuments = async () => {
     try {
@@ -104,6 +115,22 @@ function InfoLibrary({ buttonColor, sidebarColor }) {
       );
       
       console.log('Upload bem sucedido:', response.data);
+      
+      setUploadStatus('Indexando documento...');
+      try {
+        const indexStatus = await axios.get(
+          `${API_URL}/infolibrary-documents/${response.data.id}/index-status`
+        );
+        if (indexStatus.data.status === 'indexed') {
+          setUploadStatus('Documento enviado e indexado com sucesso!');
+        } else {
+          setUploadStatus('Documento enviado. Indexação em andamento...');
+        }
+      } catch (indexError) {
+        console.error('Erro ao verificar indexação:', indexError);
+        setUploadStatus('Documento enviado, mas houve um erro na indexação');
+      }
+      
       await fetchDocuments();
       setNewDocument({ 
         title: '', 
@@ -116,7 +143,7 @@ function InfoLibrary({ buttonColor, sidebarColor }) {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-      setUploadStatus('Documento enviado com sucesso!');
+      
       setTimeout(() => setUploadStatus(''), 3000);
       
     } catch (error) {
@@ -281,6 +308,35 @@ function InfoLibrary({ buttonColor, sidebarColor }) {
     setTotalPages(Math.ceil(filteredDocuments.length / itemsPerPage));
   }, [filteredDocuments, itemsPerPage]);
 
+  const handleIndexDocument = async (documentId) => {
+    try {
+      setUploadStatus('Indexando documento...');
+      await axios.post(`${API_URL}/infolibrary-documents/${documentId}/index`);
+      
+      // Verificar status da indexação
+      const indexStatus = await axios.get(
+        `${API_URL}/infolibrary-documents/${documentId}/index-status`
+      );
+      
+      if (indexStatus.data.status === 'indexed') {
+        setUploadStatus('Documento indexado com sucesso!');
+        // Atualizar estado de indexação do documento
+        setIndexedDocs(prev => ({
+          ...prev,
+          [documentId]: true
+        }));
+      } else {
+        setUploadStatus('Erro ao indexar documento');
+      }
+      
+      setTimeout(() => setUploadStatus(''), 3000);
+    } catch (error) {
+      console.error('Erro ao indexar documento:', error);
+      setUploadStatus('Erro ao indexar documento');
+      setTimeout(() => setUploadStatus(''), 3000);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center mb-4">
@@ -335,7 +391,7 @@ function InfoLibrary({ buttonColor, sidebarColor }) {
                   className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-shadow text-sm"
                 >
                   <option value="">Todos</option>
-                  {documentTypes.map(type => (
+                  {constants.documentInfoType.types.map(type => (
                     <option key={type} value={type}>{type}</option>
                   ))}
                 </select>
@@ -375,79 +431,57 @@ function InfoLibrary({ buttonColor, sidebarColor }) {
           <thead>
             <tr>
               <th 
-                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group whitespace-nowrap"
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group whitespace-nowrap w-[200px]"
                 onClick={() => handleSort('title')}
                 style={{ backgroundColor: `${buttonColor}15` }}
               >
                 <div className="flex items-center gap-1">
                   <span>Nome</span>
-                  <span className="transition-opacity">
-                    {renderSortIcon('title')}
-                  </span>
+                  {renderSortIcon('title')}
                 </div>
               </th>
               <th 
-                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group whitespace-nowrap"
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group whitespace-nowrap w-[120px]"
                 onClick={() => handleSort('document_type')}
                 style={{ backgroundColor: `${buttonColor}15` }}
               >
                 <div className="flex items-center gap-1">
                   <span>Tipo</span>
-                  <span className="transition-opacity">
-                    {renderSortIcon('document_type')}
-                  </span>
+                  {renderSortIcon('document_type')}
                 </div>
               </th>
               <th 
-                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group whitespace-nowrap hidden md:table-cell"
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group whitespace-nowrap hidden md:table-cell w-[100px]"
                 onClick={() => handleSort('reference_date')}
                 style={{ backgroundColor: `${buttonColor}15` }}
               >
                 <div className="flex items-center gap-1">
                   <span>Data Ref.</span>
-                  <span className="transition-opacity">
-                    {renderSortIcon('reference_date')}
-                  </span>
+                  {renderSortIcon('reference_date')}
                 </div>
               </th>
               <th 
-                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group whitespace-nowrap hidden sm:table-cell"
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group whitespace-nowrap hidden sm:table-cell w-[80px]"
                 onClick={() => handleSort('file_size')}
                 style={{ backgroundColor: `${buttonColor}15` }}
               >
                 <div className="flex items-center gap-1">
                   <span>Tamanho</span>
-                  <span className="transition-opacity">
-                    {renderSortIcon('file_size')}
-                  </span>
+                  {renderSortIcon('file_size')}
                 </div>
               </th>
               <th 
-                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group whitespace-nowrap hidden lg:table-cell"
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group whitespace-nowrap hidden lg:table-cell w-[100px]"
                 onClick={() => handleSort('mime_type')}
                 style={{ backgroundColor: `${buttonColor}15` }}
               >
                 <div className="flex items-center gap-1">
                   <span>Tipo MIME</span>
-                  <span className="transition-opacity">
-                    {renderSortIcon('mime_type')}
-                  </span>
+                  {renderSortIcon('mime_type')}
                 </div>
               </th>
               <th 
-                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group whitespace-nowrap hidden sm:table-cell"
-                onClick={() => handleSort('created_at')}
-                style={{ backgroundColor: `${buttonColor}15` }}
-              >
-                <div className="flex items-center gap-1">
-                  <span>Data Upload</span>
-                  <span className="transition-opacity">
-                    {renderSortIcon('created_at')}
-                  </span>
-                </div>
-              </th>
-              <th 
-                className="px-4 py-3 border-b border-gray-100 text-center text-sm font-medium text-gray-600 whitespace-nowrap"
+                className="px-4 py-3 border-b border-gray-100 text-center text-sm font-medium text-gray-600 whitespace-nowrap w-[120px]"
                 style={{ backgroundColor: `${buttonColor}15` }}
               >
                 Ações
@@ -459,8 +493,29 @@ function InfoLibrary({ buttonColor, sidebarColor }) {
               <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
                 <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
                   <div className="flex items-center">
-                    <FileText size={16} className="text-gray-400 mr-2" />
-                    <div className="text-sm text-gray-900 truncate">{doc.title}</div>
+                    {!indexedDocs[doc.id] && (
+                      <button
+                        onClick={() => handleIndexDocument(doc.id)}
+                        className="text-gray-400 hover:text-green-600 mr-2"
+                        title="Indexar documento"
+                      >
+                        <Database size={16} className="stroke-[1.5]" />
+                      </button>
+                    )}
+                    <div 
+                      className={`text-sm truncate max-w-[250px] ${
+                        indexedDocs[doc.id] 
+                          ? 'text-green-600 font-medium' 
+                          : 'text-gray-900'
+                      }`}
+                    >
+                      {doc.title}
+                    </div>
+                    {indexedDocs[doc.id] && (
+                      <span className="ml-2 text-xs text-green-500">
+                        (indexado)
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
@@ -478,11 +533,6 @@ function InfoLibrary({ buttonColor, sidebarColor }) {
                 </td>
                 <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600 hidden lg:table-cell">
                   <div className="text-sm text-gray-900">{doc.mime_type || '-'}</div>
-                </td>
-                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600 hidden sm:table-cell">
-                  <div className="text-sm text-gray-900">
-                    {new Date(doc.created_at).toLocaleDateString()}
-                  </div>
                 </td>
                 <td className="px-4 py-3 border-b border-gray-100">
                   <div className="flex items-center justify-center gap-3">
@@ -610,7 +660,7 @@ function InfoLibrary({ buttonColor, sidebarColor }) {
                     required
                   >
                     <option value="">Selecione um tipo</option>
-                    {documentTypes.map((type) => (
+                    {constants.documentInfoType.types.map((type) => (
                       <option key={type} value={type}>{type}</option>
                     ))}
                   </select>

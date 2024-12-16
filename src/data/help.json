@@ -1,0 +1,112 @@
+{
+  "companyManagement": {
+    "title": "Gestão de Empresas",
+    "description": "Este módulo permite gerenciar todas as empresas do sistema, incluindo cadastro, edição e exclusão. Você pode controlar informações importantes como CNPJ, razão social, endereço e dados de contato.",
+    "importance": "O gerenciamento adequado das empresas é fundamental para manter a organização e rastreabilidade das informações no sistema.",
+    "fields": {
+      "cnpj": {
+        "title": "CNPJ",
+        "importance": "Identificador único e obrigatório da empresa no sistema",
+        "placeholder": "00.000.000/0001-00",
+        "example": "Digite apenas números: 00000000000100"
+      },
+      "name": {
+        "title": "Nome da Empresa",
+        "importance": "Nome principal utilizado para identificação da empresa",
+        "placeholder": "Ex: Tech Solutions Brasil"
+      },
+      "razaoSocial": {
+        "title": "Razão Social",
+        "importance": "Nome jurídico oficial registrado na Receita Federal",
+        "placeholder": "Ex: Tech Solutions Brasil Ltda"
+      },
+      "tradeName": {
+        "title": "Nome Fantasia",
+        "importance": "Nome comercial pelo qual a empresa é conhecida no mercado",
+        "placeholder": "Ex: TechSol"
+      },
+      "registrationDate": {
+        "title": "Data de Registro",
+        "importance": "Data em que a empresa foi registrada no sistema",
+        "placeholder": "DD/MM/AAAA"
+      },
+      "size": {
+        "title": "Porte da Empresa",
+        "importance": "Classificação do tamanho da empresa (Micro, Pequena, Média, Grande)",
+        "placeholder": "Selecione o porte da empresa",
+        "options": ["Micro", "Pequena", "Média", "Grande"]
+      },
+      "sector": {
+        "title": "Setor",
+        "importance": "Segmento de mercado em que a empresa atua",
+        "placeholder": "Selecione o setor de atuação",
+        "options": [
+          "Tecnologia da Informação",
+          "Saúde",
+          "Financeiro",
+          "Varejo",
+          "Indústria"
+        ]
+      },
+      "address": {
+        "title": "Endereço",
+        "importance": "Localização física completa da empresa",
+        "placeholder": "Ex: Av. Paulista, 1000, 10º andar"
+      },
+      "city": {
+        "title": "Cidade",
+        "importance": "Município onde a empresa está localizada",
+        "placeholder": "Ex: São Paulo"
+      },
+      "state": {
+        "title": "Estado",
+        "importance": "Unidade federativa onde a empresa está situada",
+        "placeholder": "Ex: SP",
+        "example": "Use a sigla do estado"
+      },
+      "zipCode": {
+        "title": "CEP",
+        "importance": "Código postal para localização e correspondência",
+        "placeholder": "00000-000",
+        "example": "Digite apenas números: 00000000"
+      },
+      "phone": {
+        "title": "Telefone",
+        "importance": "Número de contato principal da empresa",
+        "placeholder": "(00) 0000-0000",
+        "example": "Para celular: (00) 00000-0000"
+      },
+      "email": {
+        "title": "E-mail",
+        "importance": "Endereço de e-mail oficial para comunicações",
+        "placeholder": "contato@empresa.com.br",
+        "example": "Use o e-mail corporativo principal"
+      },
+      "website": {
+        "title": "Website",
+        "importance": "Endereço do site oficial da empresa",
+        "placeholder": "www.empresa.com.br",
+        "example": "Inclua http:// ou https:// se necessário"
+      },
+      "isActive": {
+        "title": "Status Ativo",
+        "importance": "Indica se a empresa está operacional no sistema",
+        "placeholder": "Selecione o status",
+        "options": ["Ativo", "Inativo"]
+      }
+    },
+    "validations": {
+      "cnpj": "Deve conter 14 dígitos numéricos",
+      "email": "Deve ser um e-mail válido (ex: empresa@dominio.com)",
+      "website": "Deve ser uma URL válida (ex: www.empresa.com)",
+      "phone": "Deve ser um número de telefone válido"
+    },
+    "actions": {
+      "add": "Adicionar uma nova empresa ao sistema",
+      "edit": "Modificar informações de uma empresa existente",
+      "delete": "Remover uma empresa do sistema",
+      "filter": "Buscar empresas por diferentes critérios",
+      "sort": "Ordenar a lista de empresas por diferentes campos"
+    }
+  }
+} 

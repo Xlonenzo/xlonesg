@@ -12,9 +12,12 @@ import {
   ChevronRight,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Lightbulb,
+  HelpCircle
 } from 'lucide-react';
 import { API_URL } from '../config';
+import helpData from '../data/help.json';
 
 function CompanyManagement({ buttonColor }) {
   const [companies, setCompanies] = useState([]);
@@ -53,11 +56,12 @@ function CompanyManagement({ buttonColor }) {
     key: null,
     direction: 'none' // 'none', 'asc' ou 'desc'
   });
+  const [showHelp, setShowHelp] = useState(false);
 
   // Adicionar opções de tamanho
   const sizeOptions = ['Micro', 'Pequena', 'Média', 'Grande'];
 
-  // Adicionar opções de setores
+  // Adicionar opçes de setores
   const sectorOptions = [
     'Tecnologia da Informação (TI)',
     'Saúde',
@@ -348,11 +352,130 @@ function CompanyManagement({ buttonColor }) {
     return <ArrowUpDown size={14} className="stroke-[1.5] opacity-50" />;
   };
 
+  // Estilo comum para todos os inputs e selects
+  const inputStyle = "w-full p-2 border rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm";
+  const labelStyle = "block text-sm font-medium text-gray-700 mb-1";
+  const gridStyle = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4";
+
+  // Estilos
+  const headerContainerStyle = "flex justify-between items-center mb-6";
+  const titleGroupStyle = "flex items-center gap-3";
+  const titleStyle = "text-2xl font-medium text-gray-800";
+  const helpIconStyle = "text-yellow-500/70 hover:text-yellow-500/90 cursor-help transition-all duration-200";
+  const tooltipStyle = `
+    fixed z-50 max-w-2xl max-h-[80vh] overflow-y-auto p-6 text-sm bg-white rounded-lg shadow-xl border border-gray-100
+    left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2
+    transition-opacity duration-200 ease-in-out
+  `;
+
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-medium text-gray-800">Gerenciamento de Empresas</h2>
-        <button 
+    <div className="p-6">
+      <div className={headerContainerStyle}>
+        <div className={titleGroupStyle}>
+          <h1 className={titleStyle}>Gestão de Empresas</h1>
+          <div className="relative group">
+            <HelpCircle
+              size={20}
+              strokeWidth={2}
+              className={helpIconStyle}
+            />
+            <div className="
+              invisible group-hover:visible opacity-0 group-hover:opacity-100
+              transition-all duration-200 ease-in-out
+              absolute left-0 top-full mt-2
+              w-[480px] p-5 rounded-lg
+              bg-white shadow-lg border border-gray-100
+              z-50
+              max-h-[650px] overflow-y-auto
+              no-scrollbar
+            ">
+              {/* Seta do tooltip */}
+              <div className="absolute -top-2 left-4 w-4 h-4 bg-white border-t border-l border-gray-100 transform rotate-45"></div>
+              
+              {/* Conteúdo do tooltip */}
+              <div className="relative">
+                <h3 className="font-medium text-gray-900 mb-3">
+                  {helpData.companyManagement.title}
+                </h3>
+                
+                <div className="text-sm text-gray-600 space-y-5 pr-2">
+                  <div>
+                    <p className="leading-relaxed">
+                      {helpData.companyManagement.description}
+                    </p>
+                    
+                    <p className="leading-relaxed text-gray-500 italic text-xs mt-2">
+                      {helpData.companyManagement.importance}
+                    </p>
+                  </div>
+                  
+                  <div className="pt-3 border-t border-gray-100">
+                    <span className="block text-xs font-medium text-gray-900 mb-2">
+                      Campos do Formulário:
+                    </span>
+                    <ul className="text-xs space-y-2">
+                      {Object.entries(helpData.companyManagement.fields)
+                        .map(([key, field]) => (
+                          <li key={key} className="flex items-start gap-2">
+                            <span className="text-blue-500/80">•</span>
+                            <div>
+                              <span className="font-medium">{field.title}</span>
+                              <div className="text-gray-500 text-[11px] leading-relaxed">
+                                <p>{field.importance}</p>
+                                {field.placeholder && (
+                                  <p className="text-blue-500/70 mt-1">
+                                    {field.placeholder}
+                                  </p>
+                                )}
+                                {field.example && (
+                                  <p className="text-gray-400 italic mt-0.5">
+                                    {field.example}
+                                  </p>
+                                )}
+                                {field.options && (
+                                  <p className="text-gray-400 mt-0.5">
+                                    Opções: {field.options.join(", ")}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="pt-3 border-t border-gray-100">
+                    <span className="block text-xs font-medium text-gray-900 mb-2">
+                      Validações:
+                    </span>
+                    <ul className="text-xs space-y-1">
+                      {Object.entries(helpData.companyManagement.validations).map(([field, rule]) => (
+                        <li key={field} className="text-gray-500">
+                          <span className="font-medium text-gray-700">{field}:</span> {rule}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="pt-3 border-t border-gray-100">
+                    <span className="block text-xs font-medium text-gray-900 mb-2">
+                      Ações Disponíveis:
+                    </span>
+                    <ul className="text-xs space-y-1">
+                      {Object.entries(helpData.companyManagement.actions).map(([action, description]) => (
+                        <li key={action} className="text-gray-500">
+                          <span className="font-medium text-gray-700">{action}:</span> {description}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button
           onClick={() => setIsAddingCompany(!isAddingCompany)}
           className="text-white px-4 py-2 rounded-md hover:opacity-80 transition-all flex items-center gap-2 text-sm"
           style={{ backgroundColor: buttonColor }}
@@ -481,9 +604,9 @@ function CompanyManagement({ buttonColor }) {
             {editingCompany ? 'Editar Empresa' : 'Adicionar Nova Empresa'}
           </h3>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className={gridStyle}>
             <div>
-                <label className="block mb-2 flex items-center">
+                <label className={labelStyle}>
                     CNPJ
                     <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
                 </label>
@@ -494,13 +617,13 @@ function CompanyManagement({ buttonColor }) {
                         ? setEditingCompany({...editingCompany, cnpj: e.target.value})
                         : setNewCompany({...newCompany, cnpj: e.target.value})}
                     placeholder="CNPJ"
-                    className="w-full p-2 border rounded-lg"
+                    className={inputStyle}
                     required
                 />
             </div>
 
             <div>
-                <label className="block mb-2 flex items-center">
+                <label className={labelStyle}>
                     Nome da Empresa
                     <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
                 </label>
@@ -511,13 +634,13 @@ function CompanyManagement({ buttonColor }) {
                         ? setEditingCompany({...editingCompany, name: e.target.value})
                         : setNewCompany({...newCompany, name: e.target.value})}
                     placeholder="Nome da Empresa"
-                    className="w-full p-2 border rounded-lg"
+                    className={inputStyle}
                     required
                 />
             </div>
 
             <div>
-                <label className="block mb-2 flex items-center">
+                <label className={labelStyle}>
                     Data de Registro
                     <AlertCircle className="ml-1 text-red-500 opacity-60" size={12} />
                 </label>
@@ -527,14 +650,13 @@ function CompanyManagement({ buttonColor }) {
                     onChange={(e) => editingCompany
                         ? setEditingCompany({...editingCompany, registration_date: e.target.value})
                         : setNewCompany({...newCompany, registration_date: e.target.value})}
-                    placeholder="Data de Registro"
-                    className="w-full p-2 border rounded-lg"
+                    className={inputStyle}
                     required
                 />
             </div>
 
             <div>
-                <label className="block mb-2">Razão Social</label>
+                <label className={labelStyle}>Razão Social</label>
                 <input
                     type="text"
                     value={editingCompany ? editingCompany.razao_social : newCompany.razao_social}
@@ -542,12 +664,12 @@ function CompanyManagement({ buttonColor }) {
                         ? setEditingCompany({...editingCompany, razao_social: e.target.value})
                         : setNewCompany({...newCompany, razao_social: e.target.value})}
                     placeholder="Razão Social"
-                    className="w-full p-2 border rounded-lg"
+                    className={inputStyle}
                 />
             </div>
 
             <div>
-                <label className="block mb-2">Endereço</label>
+                <label className={labelStyle}>Endereço</label>
                 <input
                     type="text"
                     value={editingCompany ? editingCompany.endereco : newCompany.endereco}
@@ -555,12 +677,12 @@ function CompanyManagement({ buttonColor }) {
                         ? setEditingCompany({...editingCompany, endereco: e.target.value})
                         : setNewCompany({...newCompany, endereco: e.target.value})}
                     placeholder="Endereço"
-                    className="w-full p-2 border rounded-lg"
+                    className={inputStyle}
                 />
             </div>
 
             <div>
-                <label className="block mb-2">Nome Fantasia</label>
+                <label className={labelStyle}>Nome Fantasia</label>
                 <input
                     type="text"
                     value={editingCompany ? editingCompany.trade_name : newCompany.trade_name}
@@ -568,48 +690,44 @@ function CompanyManagement({ buttonColor }) {
                         ? setEditingCompany({...editingCompany, trade_name: e.target.value})
                         : setNewCompany({...newCompany, trade_name: e.target.value})}
                     placeholder="Nome Fantasia"
-                    className="w-full p-2 border rounded-lg"
+                    className={inputStyle}
                 />
             </div>
 
             <div>
-                <label className="block mb-2">Setor</label>
+                <label className={labelStyle}>Setor</label>
                 <select
                     value={editingCompany ? editingCompany.sector : newCompany.sector}
                     onChange={(e) => editingCompany
                         ? setEditingCompany({...editingCompany, sector: e.target.value})
                         : setNewCompany({...newCompany, sector: e.target.value})}
-                    className="w-full p-2 border rounded-lg bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    className={`${inputStyle} bg-white`}
                 >
                     <option value="">Selecione o Setor</option>
                     {sectorOptions.map((sector) => (
-                        <option key={sector} value={sector}>
-                            {sector}
-                        </option>
+                        <option key={sector} value={sector}>{sector}</option>
                     ))}
                 </select>
             </div>
 
             <div>
-                <label className="block mb-2">Tamanho</label>
+                <label className={labelStyle}>Tamanho</label>
                 <select
                     value={editingCompany ? editingCompany.size : newCompany.size}
                     onChange={(e) => editingCompany
                         ? setEditingCompany({...editingCompany, size: e.target.value})
                         : setNewCompany({...newCompany, size: e.target.value})}
-                    className="w-full p-2 border rounded-lg bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    className={inputStyle}
                 >
                     <option value="">Selecione o Tamanho</option>
                     {sizeOptions.map((size) => (
-                        <option key={size} value={size}>
-                            {size}
-                        </option>
+                        <option key={size} value={size}>{size}</option>
                     ))}
                 </select>
             </div>
 
             <div>
-                <label className="block mb-2">Cidade</label>
+                <label className={labelStyle}>Cidade</label>
                 <input
                     type="text"
                     value={editingCompany ? editingCompany.city : newCompany.city}
@@ -617,12 +735,12 @@ function CompanyManagement({ buttonColor }) {
                         ? setEditingCompany({...editingCompany, city: e.target.value})
                         : setNewCompany({...newCompany, city: e.target.value})}
                     placeholder="Cidade"
-                    className="w-full p-2 border rounded-lg"
+                    className={inputStyle}
                 />
             </div>
 
             <div>
-                <label className="block mb-2">Estado</label>
+                <label className={labelStyle}>Estado</label>
                 <input
                     type="text"
                     value={editingCompany ? editingCompany.state : newCompany.state}
@@ -630,12 +748,12 @@ function CompanyManagement({ buttonColor }) {
                         ? setEditingCompany({...editingCompany, state: e.target.value})
                         : setNewCompany({...newCompany, state: e.target.value})}
                     placeholder="Estado"
-                    className="w-full p-2 border rounded-lg"
+                    className={inputStyle}
                 />
             </div>
 
             <div>
-                <label className="block mb-2">CEP</label>
+                <label className={labelStyle}>CEP</label>
                 <input
                     type="text"
                     value={editingCompany ? editingCompany.zip_code : newCompany.zip_code}
@@ -643,12 +761,12 @@ function CompanyManagement({ buttonColor }) {
                         ? setEditingCompany({...editingCompany, zip_code: e.target.value})
                         : setNewCompany({...newCompany, zip_code: e.target.value})}
                     placeholder="CEP"
-                    className="w-full p-2 border rounded-lg"
+                    className={inputStyle}
                 />
             </div>
 
             <div>
-                <label className="block mb-2">Telefone</label>
+                <label className={labelStyle}>Telefone</label>
                 <input
                     type="text"
                     value={editingCompany ? editingCompany.phone : newCompany.phone}
@@ -656,20 +774,20 @@ function CompanyManagement({ buttonColor }) {
                         ? setEditingCompany({...editingCompany, phone: e.target.value})
                         : setNewCompany({...newCompany, phone: e.target.value})}
                     placeholder="Telefone"
-                    className="w-full p-2 border rounded-lg"
+                    className={inputStyle}
                 />
             </div>
 
             <div>
-                <label className="block mb-2">Email</label>
+                <label className={labelStyle}>Email</label>
                 <input
                     type="email"
                     value={editingCompany ? editingCompany.email : newCompany.email}
                     onChange={(e) => handleEmailChange(e, !!editingCompany)}
                     placeholder="Email"
-                    className={`w-full p-2 border rounded-lg ${
+                    className={`${inputStyle} ${
                         errors.email ? 'border-red-500' : 'border-gray-300'
-                    } focus:border-blue-500 focus:ring-1 focus:ring-blue-500`}
+                    }`}
                 />
                 {errors.email && (
                     <span className="text-red-500 text-sm">{errors.email}</span>
@@ -677,15 +795,15 @@ function CompanyManagement({ buttonColor }) {
             </div>
 
             <div>
-                <label className="block mb-2">Website</label>
+                <label className={labelStyle}>Website</label>
                 <input
                     type="url"
                     value={editingCompany ? editingCompany.website : newCompany.website}
                     onChange={(e) => handleWebsiteChange(e, !!editingCompany)}
                     placeholder="Website"
-                    className={`w-full p-2 border rounded-lg ${
+                    className={`${inputStyle} ${
                         errors.website ? 'border-red-500' : 'border-gray-300'
-                    } focus:border-blue-500 focus:ring-1 focus:ring-blue-500`}
+                    }`}
                 />
                 {errors.website && (
                     <span className="text-red-500 text-sm">{errors.website}</span>

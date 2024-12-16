@@ -10,11 +10,13 @@ import {
   Moon,
   Search
 } from 'lucide-react';
+import ChatBot from './ChatBot';
 
 const Topbar = ({ onLogout, sidebarColor, fontColor, userName, role, isDarkMode, onToggleTheme }) => {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false); // Estado para controlar o dropdown de notificações
   const notificationRef = useRef(null); // Ref para o botão de notificações e o dropdown
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   // Função para alternar o dropdown de notificações
   const toggleNotifications = () => {
@@ -77,9 +79,10 @@ const Topbar = ({ onLogout, sidebarColor, fontColor, userName, role, isDarkMode,
 
         {/* Chatbot */}
         <button 
+          onClick={() => setIsChatOpen(!isChatOpen)}
           className="hover:opacity-80 transition-opacity"
           style={{ color: fontColor }}
-          title="Chatbot"
+          title="Chat"
         >
           <MessageSquareMore
             size={18} 
@@ -178,6 +181,8 @@ const Topbar = ({ onLogout, sidebarColor, fontColor, userName, role, isDarkMode,
           />
         </button>
       </div>
+
+      <ChatBot isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>
   );
 };
