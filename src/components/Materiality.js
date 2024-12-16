@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaPlus, FaSearch } from 'react-icons/fa';
-import { AlertCircle } from 'lucide-react';
+import { FaEdit, FaTrash, FaPlus, FaFilter, FaChevronUp, FaChevronDown, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { API_URL } from '../config';
 
 const Materiality = ({ sidebarColor, buttonColor }) => {
@@ -10,10 +10,15 @@ const Materiality = ({ sidebarColor, buttonColor }) => {
   const [loading, setLoading] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [materialsPerPage] = useState(12);
   const [errors, setErrors] = useState({});
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+  const [filters, setFilters] = useState({
+    project: '',
+    topic: '',
+    priority: ''
+  });
 
   const [newMaterial, setNewMaterial] = useState({
     project_id: '',
@@ -240,8 +245,9 @@ const Materiality = ({ sidebarColor, buttonColor }) => {
   };
 
   const filteredMaterials = materials.filter(material =>
-    material.topic.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    projects.find(p => p.id === material.project_id)?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    (!filters.project || projects.find(p => p.id === material.project_id)?.name?.toLowerCase().includes(filters.project.toLowerCase())) &&
+    (!filters.topic || material.topic.toLowerCase().includes(filters.topic.toLowerCase())) &&
+    (!filters.priority || material.priority_level === filters.priority)
   );
 
   const indexOfLastMaterial = currentPage * materialsPerPage;
@@ -457,18 +463,60 @@ const Materiality = ({ sidebarColor, buttonColor }) => {
         <h2 className="text-2xl font-bold">Matriz de Materialidade</h2>
       </div>
 
-      {/* Search bar */}
-      <div className="mb-6">
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Pesquisar materialidade..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full p-2 border rounded pl-10"
-          />
-          <FaSearch className="absolute left-3 top-3 text-gray-400" />
-        </div>
+      {/* Seção de Filtros Expansível */}
+      <div className="bg-white rounded-lg shadow-sm mb-4 border border-gray-100">
+        <button
+          onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+          style={{ color: buttonColor }}
+        >
+          <div className="flex items-center gap-2">
+            <FaFilter size={16} style={{ color: buttonColor }} />
+            <span className="font-medium text-sm">Filtros</span>
+          </div>
+          {isFilterExpanded ? 
+            <FaChevronUp size={16} /> : 
+            <FaChevronDown size={16} />
+          }
+        </button>
+        
+        {isFilterExpanded && (
+          <div className="p-4 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Projeto</label>
+              <input
+                type="text"
+                value={filters.project}
+                onChange={(e) => setFilters(prev => ({...prev, project: e.target.value}))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+                placeholder="Filtrar por projeto"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Tópico</label>
+              <input
+                type="text"
+                value={filters.topic}
+                onChange={(e) => setFilters(prev => ({...prev, topic: e.target.value}))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+                placeholder="Filtrar por tópico"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Prioridade</label>
+              <select
+                value={filters.priority}
+                onChange={(e) => setFilters(prev => ({...prev, priority: e.target.value}))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+              >
+                <option value="">Todas</option>
+                {priorityLevels.map(priority => (
+                  <option key={priority} value={priority}>{priority}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Form */}
@@ -480,42 +528,96 @@ const Materiality = ({ sidebarColor, buttonColor }) => {
             <span className="text-gray-600">Carregando...</span>
           </div>
         ) : (
-          <table className="min-w-full bg-white border">
+          <table className="min-w-full bg-white">
             <thead>
               <tr>
-                <th className="w-1/4 px-4 py-2 border">Projeto</th>
-                <th className="w-1/6 px-4 py-2 border">Tópico</th>
-                <th className="w-20 px-4 py-2 border">Impacto Negócio</th>
-                <th className="w-20 px-4 py-2 border">Impacto Externo</th>
-                <th className="w-20 px-4 py-2 border">Importância Stakeholder</th>
-                <th className="w-24 px-4 py-2 border">Prioridade</th>
-                <th className="w-20 px-4 py-2 border">Regulatório</th>
-                <th className="w-20 px-4 py-2 border">Ações</th>
+                <th 
+                  className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                  style={{ backgroundColor: `${buttonColor}15` }}
+                >
+                  Projeto
+                </th>
+                <th 
+                  className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                  style={{ backgroundColor: `${buttonColor}15` }}
+                >
+                  Tópico
+                </th>
+                <th 
+                  className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                  style={{ backgroundColor: `${buttonColor}15` }}
+                >
+                  Impacto Negócio
+                </th>
+                <th 
+                  className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                  style={{ backgroundColor: `${buttonColor}15` }}
+                >
+                  Impacto Externo
+                </th>
+                <th 
+                  className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                  style={{ backgroundColor: `${buttonColor}15` }}
+                >
+                  Importância Stakeholder
+                </th>
+                <th 
+                  className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                  style={{ backgroundColor: `${buttonColor}15` }}
+                >
+                  Prioridade
+                </th>
+                <th 
+                  className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                  style={{ backgroundColor: `${buttonColor}15` }}
+                >
+                  Regulatório
+                </th>
+                <th 
+                  className="px-4 py-3 border-b border-gray-100 text-center text-sm font-medium text-gray-600 whitespace-nowrap"
+                  style={{ backgroundColor: `${buttonColor}15` }}
+                >
+                  Ações
+                </th>
               </tr>
             </thead>
             <tbody>
               {currentMaterials.map(material => (
-                <tr key={material.id}>
-                  <td className="w-1/4 px-4 py-2 border truncate">
-                    {projects.find(p => p.id === material.project_id)?.name || 'N/A'}
+                <tr key={material.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                    <div className="text-sm text-gray-900">
+                      {projects.find(p => p.id === material.project_id)?.name || 'N/A'}
+                    </div>
                   </td>
-                  <td className="w-1/6 px-4 py-2 border truncate">{material.topic}</td>
-                  <td className="w-20 px-4 py-2 border text-center">{material.business_impact}</td>
-                  <td className="w-20 px-4 py-2 border text-center">{material.external_impact}</td>
-                  <td className="w-20 px-4 py-2 border text-center">{material.stakeholder_importance}</td>
-                  <td className="w-24 px-4 py-2 border text-center">{material.priority_level}</td>
-                  <td className="w-20 px-4 py-2 border text-center">{material.regulatory_alignment ? 'Sim' : 'Não'}</td>
-                  <td className="w-20 px-4 py-2 border">
-                    <div className="flex justify-center items-center space-x-2">
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                    <div className="text-sm text-gray-900">{material.topic}</div>
+                  </td>
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                    <div className="text-sm text-gray-900">{material.business_impact}</div>
+                  </td>
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                    <div className="text-sm text-gray-900">{material.external_impact}</div>
+                  </td>
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                    <div className="text-sm text-gray-900">{material.stakeholder_importance}</div>
+                  </td>
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                    <div className="text-sm text-gray-900">{material.priority_level}</div>
+                  </td>
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                    <div className="text-sm text-gray-900">{material.regulatory_alignment ? 'Sim' : 'Não'}</div>
+                  </td>
+                  <td className="px-4 py-3 border-b border-gray-100 text-center">
+                    <div className="flex items-center justify-center gap-3">
                       <button
                         onClick={() => handleEdit(material)}
-                        className="text-blue-500 hover:text-blue-700"
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
                       >
                         <FaEdit />
                       </button>
                       <button
                         onClick={() => handleDelete(material.id)}
-                        className="text-red-500 hover:text-red-700"
+                        className="text-gray-400 hover:text-red-500 transition-colors"
                       >
                         <FaTrash />
                       </button>
@@ -529,20 +631,84 @@ const Materiality = ({ sidebarColor, buttonColor }) => {
       </div>
 
       {/* Paginação */}
-      <div className="flex justify-center mt-4">
-        {Array.from({ 
-          length: Math.ceil(filteredMaterials.length / materialsPerPage) 
-        }).map((_, index) => (
+      <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+        <div className="flex flex-1 justify-between sm:hidden">
           <button
-            key={index}
-            onClick={() => paginate(index + 1)}
-            className={`mx-1 px-3 py-1 rounded ${
-              currentPage === index + 1 ? 'bg-blue-500 text-white' : 'bg-gray-200'
+            onClick={() => paginate(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`relative inline-flex items-center rounded-md px-4 py-2 text-sm font-medium ${
+              currentPage === 1
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+            } border border-gray-300`}
+          >
+            Anterior
+          </button>
+          <button
+            onClick={() => paginate(currentPage + 1)}
+            disabled={currentPage === Math.ceil(filteredMaterials.length / materialsPerPage)}
+            className={`relative ml-3 inline-flex items-center rounded-md px-4 py-2 text-sm font-medium ${
+              currentPage === Math.ceil(filteredMaterials.length / materialsPerPage)
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
             }`}
           >
-            {index + 1}
+            Próximo
           </button>
-        ))}
+        </div>
+        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm text-gray-700">
+              Mostrando <span className="font-medium">{indexOfFirstMaterial + 1}</span> até{' '}
+              <span className="font-medium">
+                {Math.min(indexOfLastMaterial, filteredMaterials.length)}
+              </span>{' '}
+              de <span className="font-medium">{filteredMaterials.length}</span> resultados
+            </p>
+          </div>
+          <div>
+            <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+              <button
+                onClick={() => paginate(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                  currentPage === 1 ? 'cursor-not-allowed' : 'cursor-pointer'
+                }`}
+              >
+                <span className="sr-only">Anterior</span>
+                <ChevronLeft size={16} className="stroke-[1.5]" />
+              </button>
+              {Array.from(
+                { length: Math.ceil(filteredMaterials.length / materialsPerPage) },
+                (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => paginate(i + 1)}
+                    className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                      currentPage === i + 1
+                        ? 'z-10 bg-blue-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
+                        : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                )
+              )}
+              <button
+                onClick={() => paginate(currentPage + 1)}
+                disabled={currentPage === Math.ceil(filteredMaterials.length / materialsPerPage)}
+                className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                  currentPage === Math.ceil(filteredMaterials.length / materialsPerPage)
+                    ? 'cursor-not-allowed'
+                    : 'cursor-pointer'
+                }`}
+              >
+                <span className="sr-only">Próximo</span>
+                <ChevronRight size={16} className="stroke-[1.5]" />
+              </button>
+            </nav>
+          </div>
+        </div>
       </div>
     </div>
   );
