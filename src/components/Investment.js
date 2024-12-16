@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaPlus, FaSearch } from 'react-icons/fa';
-import { AlertCircle } from 'lucide-react';
+import { FaEdit, FaTrash, FaPlus, FaFilter, FaChevronUp, FaChevronDown, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { API_URL } from '../config';
 
 const Investment = ({ sidebarColor, buttonColor }) => {
@@ -10,9 +10,14 @@ const Investment = ({ sidebarColor, buttonColor }) => {
   const [loading, setLoading] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingInvestment, setEditingInvestment] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [investmentsPerPage] = useState(10);
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+  const [filters, setFilters] = useState({
+    company: '',
+    type: '',
+    impact: ''
+  });
 
   const [newInvestment, setNewInvestment] = useState({
     company_id: '',
@@ -142,20 +147,14 @@ const Investment = ({ sidebarColor, buttonColor }) => {
 
   // Filtrar e paginar investimentos
   const filteredInvestments = investments.filter(investment =>
-    investment.investment_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    investment.impact_measured.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    companies.find(c => c.id === investment.company_id)?.name.toLowerCase().includes(searchTerm.toLowerCase())
+    (!filters.company || companies.find(c => c.id === investment.company_id)?.name.toLowerCase().includes(filters.company.toLowerCase())) &&
+    (!filters.type || investment.investment_type.toLowerCase().includes(filters.type.toLowerCase())) &&
+    (!filters.impact || investment.impact_measured.toLowerCase().includes(filters.impact.toLowerCase()))
   );
 
   const indexOfLastInvestment = currentPage * investmentsPerPage;
   const indexOfFirstInvestment = indexOfLastInvestment - investmentsPerPage;
   const currentInvestments = filteredInvestments.slice(indexOfFirstInvestment, indexOfLastInvestment);
-
-  // Adicionar campo de busca
-  const handleSearch = (e) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1); // Resetar para primeira página ao buscar
-  };
 
   // Adicionar paginação
   const paginate = (pageNumber) => {
@@ -175,18 +174,60 @@ const Investment = ({ sidebarColor, buttonColor }) => {
         </button>
       </div>
 
-      {/* Adicionar campo de busca */}
-      <div className="mb-4 flex items-center">
-        <div className="relative flex-1 max-w-xl">
-          <input
-            type="text"
-            placeholder="Buscar investimentos..."
-            value={searchTerm}
-            onChange={handleSearch}
-            className="w-full p-2 pl-10 border rounded"
-          />
-          <FaSearch className="absolute left-3 top-3 text-gray-400" />
-        </div>
+      {/* Seção de Filtros Expansível */}
+      <div className="bg-white rounded-lg shadow-sm mb-4 border border-gray-100">
+        <button
+          onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+          style={{ color: buttonColor }}
+        >
+          <div className="flex items-center gap-2">
+            <FaFilter size={16} style={{ color: buttonColor }} />
+            <span className="font-medium text-sm">Filtros</span>
+          </div>
+          {isFilterExpanded ? 
+            <FaChevronUp size={16} /> : 
+            <FaChevronDown size={16} />
+          }
+        </button>
+        
+        {isFilterExpanded && (
+          <div className="p-4 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Empresa</label>
+              <input
+                type="text"
+                value={filters.company}
+                onChange={(e) => setFilters(prev => ({...prev, company: e.target.value}))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+                placeholder="Filtrar por empresa"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Tipo de Investimento</label>
+              <select
+                value={filters.type}
+                onChange={(e) => setFilters(prev => ({...prev, type: e.target.value}))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+              >
+                <option value="">Todos</option>
+                {investmentTypes.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Impacto</label>
+              <input
+                type="text"
+                value={filters.impact}
+                onChange={(e) => setFilters(prev => ({...prev, impact: e.target.value}))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+                placeholder="Filtrar por impacto"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Formulário completo */}
@@ -379,47 +420,96 @@ const Investment = ({ sidebarColor, buttonColor }) => {
 
       {/* Tabela */}
       <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border">
+        <table className="min-w-full bg-white">
           <thead>
             <tr>
-              <th className="px-4 py-2 border">Empresa</th>
-              <th className="px-4 py-2 border">Tipo</th>
-              <th className="px-4 py-2 border">Valor</th>
-              <th className="px-4 py-2 border">ROI Esperado</th>
-              <th className="px-4 py-2 border">ROI Atual</th>
-              <th className="px-4 py-2 border">Impacto Medido</th>
-              <th className="px-4 py-2 border">Ações</th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Empresa
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Tipo
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Valor
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                ROI Esperado
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                ROI Atual
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Impacto Medido
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-center text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Ações
+              </th>
             </tr>
           </thead>
           <tbody>
             {currentInvestments.map(investment => (
-              <tr key={investment.id}>
-                <td className="px-4 py-2 border">
-                  {companies.find(c => c.id === investment.company_id)?.name}
+              <tr key={investment.id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">
+                    {companies.find(c => c.id === investment.company_id)?.name}
+                  </div>
                 </td>
-                <td className="px-4 py-2 border">{investment.investment_type}</td>
-                <td className="px-4 py-2 border">
-                  {new Intl.NumberFormat('pt-BR', { 
-                    style: 'currency', 
-                    currency: investment.currency 
-                  }).format(investment.amount_invested)}
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">{investment.investment_type}</div>
                 </td>
-                <td className="px-4 py-2 border">{investment.expected_roi}%</td>
-                <td className="px-4 py-2 border">{investment.actual_roi}%</td>
-                <td className="px-4 py-2 border">{investment.impact_measured}</td>
-                <td className="px-4 py-2 border">
-                  <button
-                    onClick={() => handleEdit(investment)}
-                    className="text-blue-500 mr-2"
-                  >
-                    <FaEdit />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(investment.id)}
-                    className="text-red-500"
-                  >
-                    <FaTrash />
-                  </button>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">
+                    {new Intl.NumberFormat('pt-BR', { 
+                      style: 'currency', 
+                      currency: investment.currency 
+                    }).format(investment.amount_invested)}
+                  </div>
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">{investment.expected_roi}%</div>
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">{investment.actual_roi}%</div>
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">{investment.impact_measured}</div>
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-center">
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      onClick={() => handleEdit(investment)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <FaEdit />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(investment.id)}
+                      className="text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      <FaTrash />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -427,30 +517,85 @@ const Investment = ({ sidebarColor, buttonColor }) => {
         </table>
       </div>
 
-      {/* Adicionar paginação */}
-      <div className="mt-4 flex justify-center">
-        {Array.from({ 
-          length: Math.ceil(filteredInvestments.length / investmentsPerPage) 
-        }).map((_, index) => (
+      {/* Paginação */}
+      <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+        <div className="flex flex-1 justify-between sm:hidden">
           <button
-            key={index}
-            onClick={() => paginate(index + 1)}
-            className={`mx-1 px-3 py-1 rounded ${
-              currentPage === index + 1 
-                ? 'bg-blue-500 text-white' 
-                : 'bg-gray-200'
+            onClick={() => paginate(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`relative inline-flex items-center rounded-md px-4 py-2 text-sm font-medium ${
+              currentPage === 1
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+            } border border-gray-300`}
+          >
+            Anterior
+          </button>
+          <button
+            onClick={() => paginate(currentPage + 1)}
+            disabled={currentPage === Math.ceil(filteredInvestments.length / investmentsPerPage)}
+            className={`relative ml-3 inline-flex items-center rounded-md px-4 py-2 text-sm font-medium ${
+              currentPage === Math.ceil(filteredInvestments.length / investmentsPerPage)
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
             }`}
           >
-            {index + 1}
+            Próximo
           </button>
-        ))}
-      </div>
-
-      {/* Adicionar contador de resultados */}
-      <div className="mt-2 text-sm text-gray-600 text-center">
-        Mostrando {indexOfFirstInvestment + 1} - {
-          Math.min(indexOfLastInvestment, filteredInvestments.length)
-        } de {filteredInvestments.length} resultados
+        </div>
+        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm text-gray-700">
+              Mostrando <span className="font-medium">{indexOfFirstInvestment + 1}</span> até{' '}
+              <span className="font-medium">
+                {Math.min(indexOfLastInvestment, filteredInvestments.length)}
+              </span>{' '}
+              de <span className="font-medium">{filteredInvestments.length}</span> resultados
+            </p>
+          </div>
+          <div>
+            <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+              <button
+                onClick={() => paginate(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                  currentPage === 1 ? 'cursor-not-allowed' : 'cursor-pointer'
+                }`}
+              >
+                <span className="sr-only">Anterior</span>
+                <ChevronLeft size={16} className="stroke-[1.5]" />
+              </button>
+              {Array.from(
+                { length: Math.ceil(filteredInvestments.length / investmentsPerPage) },
+                (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => paginate(i + 1)}
+                    className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                      currentPage === i + 1
+                        ? 'z-10 bg-blue-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
+                        : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                )
+              )}
+              <button
+                onClick={() => paginate(currentPage + 1)}
+                disabled={currentPage === Math.ceil(filteredInvestments.length / investmentsPerPage)}
+                className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                  currentPage === Math.ceil(filteredInvestments.length / investmentsPerPage)
+                    ? 'cursor-not-allowed'
+                    : 'cursor-pointer'
+                }`}
+              >
+                <span className="sr-only">Próximo</span>
+                <ChevronRight size={16} className="stroke-[1.5]" />
+              </button>
+            </nav>
+          </div>
+        </div>
       </div>
     </div>
   );
