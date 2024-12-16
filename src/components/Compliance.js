@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaPlus, FaSearch } from 'react-icons/fa';
-import { AlertCircle } from 'lucide-react';
+import { FaEdit, FaTrash, FaPlus, FaFilter, FaChevronUp, FaChevronDown } from 'react-icons/fa';
+import { AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { API_URL } from '../config';
 
 const Compliance = ({ sidebarColor, buttonColor }) => {
@@ -10,9 +10,15 @@ const Compliance = ({ sidebarColor, buttonColor }) => {
   const [loading, setLoading] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCompliance, setEditingCompliance] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [compliancesPerPage] = useState(10);
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+  const [filters, setFilters] = useState({
+    company: '',
+    entity_type: '',
+    auditor: '',
+    status: ''
+  });
 
   const [newCompliance, setNewCompliance] = useState({
     company_id: '',
@@ -173,9 +179,10 @@ const Compliance = ({ sidebarColor, buttonColor }) => {
 
   // Filtrar e paginar auditorias
   const filteredCompliances = compliances.filter(compliance =>
-    compliance.auditor_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    compliance.entity_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    companies.find(c => c.id === compliance.company_id)?.name.toLowerCase().includes(searchTerm.toLowerCase())
+    (!filters.company || companies.find(c => c.id === compliance.company_id)?.name.toLowerCase().includes(filters.company.toLowerCase())) &&
+    (!filters.entity_type || compliance.entity_type.toLowerCase().includes(filters.entity_type.toLowerCase())) &&
+    (!filters.auditor || compliance.auditor_name.toLowerCase().includes(filters.auditor.toLowerCase())) &&
+    (!filters.status || compliance.compliance_status === filters.status)
   );
 
   const indexOfLastCompliance = currentPage * compliancesPerPage;
@@ -377,56 +384,149 @@ const Compliance = ({ sidebarColor, buttonColor }) => {
         </form>
       )}
 
-      {/* Barra de pesquisa */}
-      <div className="mb-4">
-        <div className="flex items-center border rounded p-2">
-          <FaSearch className="text-gray-400 mr-2" />
-          <input
-            type="text"
-            placeholder="Pesquisar auditorias..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full outline-none"
-          />
-        </div>
+      {/* Seção de Filtros Expansível */}
+      <div className="bg-white rounded-lg shadow-sm mb-4 border border-gray-100">
+        <button
+          onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+          style={{ color: buttonColor }}
+        >
+          <div className="flex items-center gap-2">
+            <FaFilter size={16} style={{ color: buttonColor }} />
+            <span className="font-medium text-sm">Filtros</span>
+          </div>
+          {isFilterExpanded ? 
+            <FaChevronUp size={16} /> : 
+            <FaChevronDown size={16} />
+          }
+        </button>
+        
+        {isFilterExpanded && (
+          <div className="p-4 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Empresa</label>
+              <input
+                type="text"
+                value={filters.company}
+                onChange={(e) => setFilters(prev => ({...prev, company: e.target.value}))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+                placeholder="Filtrar por empresa"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Tipo de Entidade</label>
+              <select
+                value={filters.entity_type}
+                onChange={(e) => setFilters(prev => ({...prev, entity_type: e.target.value}))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+              >
+                <option value="">Todos</option>
+                {entityTypes.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Status</label>
+              <select
+                value={filters.status}
+                onChange={(e) => setFilters(prev => ({...prev, status: e.target.value}))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+              >
+                <option value="">Todos</option>
+                {statusOptions.map(status => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tabela */}
       <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border rounded">
+        <table className="min-w-full bg-white">
           <thead>
             <tr>
-              <th className="px-4 py-2 border">Empresa</th>
-              <th className="px-4 py-2 border">Tipo de Entidade</th>
-              <th className="px-4 py-2 border">Data da Auditoria</th>
-              <th className="px-4 py-2 border">Auditor</th>
-              <th className="px-4 py-2 border">Status</th>
-              <th className="px-4 py-2 border">Ações</th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Empresa
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Tipo de Entidade
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Data da Auditoria
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Auditor
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Status
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-center text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Ações
+              </th>
             </tr>
           </thead>
           <tbody>
             {currentCompliances.map(compliance => (
-              <tr key={compliance.id}>
-                <td className="px-4 py-2 border">
-                  {companies.find(c => c.id === compliance.company_id)?.name}
+              <tr key={compliance.id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">
+                    {companies.find(c => c.id === compliance.company_id)?.name}
+                  </div>
                 </td>
-                <td className="px-4 py-2 border">{compliance.entity_type}</td>
-                <td className="px-4 py-2 border">{compliance.audit_date}</td>
-                <td className="px-4 py-2 border">{compliance.auditor_name}</td>
-                <td className="px-4 py-2 border">{compliance.compliance_status}</td>
-                <td className="px-4 py-2 border">
-                  <button
-                    onClick={() => handleEdit(compliance)}
-                    className="text-blue-500 mr-2"
-                  >
-                    <FaEdit />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(compliance.id)}
-                    className="text-red-500"
-                  >
-                    <FaTrash />
-                  </button>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">{compliance.entity_type}</div>
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">{compliance.audit_date}</div>
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">{compliance.auditor_name}</div>
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <span className={`inline-block px-2 py-1 rounded-full text-sm ${
+                    compliance.compliance_status === 'Conforme' ? 'bg-green-100 text-green-800' :
+                    compliance.compliance_status === 'Não Conforme' ? 'bg-red-100 text-red-800' :
+                    'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {compliance.compliance_status}
+                  </span>
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-center">
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      onClick={() => handleEdit(compliance)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <FaEdit />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(compliance.id)}
+                      className="text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      <FaTrash />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -435,18 +535,29 @@ const Compliance = ({ sidebarColor, buttonColor }) => {
       </div>
 
       {/* Paginação */}
-      <div className="mt-4 flex justify-center">
-        {Array.from({ length: Math.ceil(filteredCompliances.length / compliancesPerPage) }).map((_, index) => (
+      <div className="flex justify-between items-center mt-4 px-4">
+        <div className="text-sm text-gray-600">
+          Mostrando {((currentPage - 1) * compliancesPerPage) + 1} a {Math.min(currentPage * compliancesPerPage, filteredCompliances.length)} de {filteredCompliances.length} registros
+        </div>
+        <div className="flex items-center gap-2">
           <button
-            key={index}
-            onClick={() => paginate(index + 1)}
-            className={`mx-1 px-3 py-1 rounded ${
-              currentPage === index + 1 ? 'bg-blue-500 text-white' : 'bg-gray-200'
-            }`}
+            onClick={() => paginate(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {index + 1}
+            <ChevronLeft size={16} className="stroke-[1.5]" />
           </button>
-        ))}
+          <span className="text-sm text-gray-600">
+            Página {currentPage} de {Math.ceil(filteredCompliances.length / compliancesPerPage)}
+          </span>
+          <button
+            onClick={() => paginate(currentPage + 1)}
+            disabled={currentPage === Math.ceil(filteredCompliances.length / compliancesPerPage)}
+            className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronRight size={16} className="stroke-[1.5]" />
+          </button>
+        </div>
       </div>
     </div>
   );
