@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaStar, FaPlus, FaSearch, FaFilter, FaCopy, FaExclamationCircle } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaStar, FaPlus, FaFilter, FaCopy, FaExclamationCircle, FaChevronUp, FaChevronDown } from 'react-icons/fa';
 import { API_URL } from '../config';
 
 function KPITracker({ sidebarColor, buttonColor }) {
@@ -19,7 +19,6 @@ function KPITracker({ sidebarColor, buttonColor }) {
     isfavorite: false,
     project_id: null
   });
-  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [entriesPerPage] = useState(12);
   const [filters, setFilters] = useState({
@@ -32,6 +31,11 @@ function KPITracker({ sidebarColor, buttonColor }) {
     project_id: ''
   });
   const [projects, setProjects] = useState([]);
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+  const [sortConfig, setSortConfig] = useState({
+    key: null,
+    direction: 'none'
+  });
 
   useEffect(() => {
     fetchKPIEntries();
@@ -161,56 +165,30 @@ function KPITracker({ sidebarColor, buttonColor }) {
   };
 
   const filteredAndSearchedEntries = kpiEntries.filter(entry => {
-    const searchTermMatch = searchTerm === '' || 
-      (entry.template_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-       entry.cnpj?.toLowerCase().includes(searchTerm.toLowerCase()));
-
-    const templateMatch = !filters.template_name || 
-      entry.template_name?.toLowerCase().includes(filters.template_name.toLowerCase());
-    
-    const cnpjMatch = !filters.cnpj || 
-      entry.cnpj?.toLowerCase().includes(filters.cnpj.toLowerCase());
-    
-    const actualValueMatch = !filters.actual_value || 
-      entry.actual_value?.toString().includes(filters.actual_value);
-    
-    const targetValueMatch = !filters.target_value || 
-      entry.target_value?.toString().includes(filters.target_value);
-    
-    const yearMatch = !filters.year || 
-      entry.year?.toString().includes(filters.year);
-    
-    const monthMatch = !filters.month || 
-      entry.month?.toString().includes(filters.month);
-    
-    const projectMatch = !filters.project_id || 
-      entry.project_id?.toString() === filters.project_id;
-
-    return searchTermMatch && 
-           templateMatch && 
-           cnpjMatch && 
-           actualValueMatch && 
-           targetValueMatch && 
-           yearMatch && 
-           monthMatch &&
-           projectMatch;
+    const templateName = templates.find(t => t.id === entry.template_id)?.name.toLowerCase() || '';
+    return (
+      (filters.template_name === '' || templateName.includes(filters.template_name.toLowerCase())) &&
+      (filters.cnpj === '' || entry.cnpj.includes(filters.cnpj)) &&
+      (filters.project_id === '' || entry.project_id === parseInt(filters.project_id))
+    );
   });
 
-  const renderColumnFilter = (columnName, placeholder) => (
-    <div className="flex items-center">
-      <input
-        type={columnName.includes('value') || columnName === 'year' || columnName === 'month' ? 'number' : 'text'}
-        name={columnName}
-        value={filters[columnName]}
-        onChange={handleFilterChange}
-        className="w-full p-1 text-sm border rounded"
-        placeholder={placeholder}
-        min={columnName === 'month' ? 1 : undefined}
-        max={columnName === 'month' ? 12 : undefined}
-      />
-      <FaFilter className="ml-1 text-gray-500" />
-    </div>
-  );
+  const renderSortIcon = (columnKey) => {
+    if (sortConfig.key === columnKey) {
+      return sortConfig.direction === 'ascending' ? 
+        <FaChevronUp size={12} className="text-gray-400" /> : 
+        <FaChevronDown size={12} className="text-gray-400" />;
+    }
+    return null;
+  };
+
+  const handleSort = (key) => {
+    let direction = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
 
   // Atualizar a lógica de paginação
   const indexOfLastEntry = currentPage * entriesPerPage;
@@ -256,27 +234,97 @@ function KPITracker({ sidebarColor, buttonColor }) {
   };
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold mb-4">KPI Tracker</h2>
-      
-      <div className="flex flex-row-reverse justify-between items-center mb-4">
-        <button 
-          onClick={() => setIsFormOpen(!isFormOpen)} 
-          className="text-white px-4 py-2 rounded hover:opacity-80 transition-all flex items-center"
+    <div className="space-y-6 bg-gray-50 min-h-screen">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-medium text-gray-800">KPI Tracker</h2>
+        <button
+          onClick={() => setIsFormOpen(!isFormOpen)}
+          className="text-white px-4 py-2 rounded hover:opacity-80 transition-all flex items-center gap-2 text-sm"
           style={{ backgroundColor: buttonColor }}
         >
-          <FaPlus className="mr-2" /> {isFormOpen ? 'Fechar Formulário' : 'Adicionar Nova Entrada'}
+          <FaPlus size={16} />
+          {isFormOpen ? 'Fechar Formulário' : 'Adicionar Nova Entrada'}
         </button>
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Pesquisar entradas..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="p-2 pl-8 border rounded"
-          />
-          <FaSearch className="absolute left-2 top-3 text-gray-400" />
-        </div>
+      </div>
+      
+      {/* Seção de Filtros */}
+      <div className="bg-white rounded-lg shadow-sm mb-4 border border-gray-100">
+        <button
+          onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+          style={{ color: buttonColor }}
+        >
+          <div className="flex items-center gap-2">
+            <FaFilter size={16} style={{ color: buttonColor }} />
+            <span className="font-medium text-sm" style={{ color: buttonColor }}>Filtros</span>
+          </div>
+          {isFilterExpanded ? 
+            <FaChevronUp size={16} style={{ color: buttonColor }} /> : 
+            <FaChevronDown size={16} style={{ color: buttonColor }} />
+          }
+        </button>
+        
+        {isFilterExpanded && (
+          <div className="p-6 border-t border-gray-100">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">Template</label>
+                <input
+                  type="text"
+                  name="template_name"
+                  value={filters.template_name}
+                  onChange={handleFilterChange}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-shadow text-sm"
+                  placeholder="Filtrar por template..."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">CNPJ</label>
+                <input
+                  type="text"
+                  name="cnpj"
+                  value={filters.cnpj}
+                  onChange={handleFilterChange}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-shadow text-sm"
+                  placeholder="Filtrar por CNPJ..."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">Projeto</label>
+                <select
+                  name="project_id"
+                  value={filters.project_id}
+                  onChange={handleFilterChange}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-shadow text-sm"
+                >
+                  <option value="">Todos os projetos</option>
+                  {projects.map(project => (
+                    <option key={project.id} value={project.id}>{project.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={() => setFilters({
+                  template_name: '',
+                  cnpj: '',
+                  project_id: '',
+                  actual_value: '',
+                  target_value: '',
+                  year: '',
+                  month: ''
+                })}
+                className="px-4 py-2 text-gray-600 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors text-sm font-medium"
+              >
+                Limpar Filtros
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {isFormOpen && (
@@ -435,50 +483,118 @@ function KPITracker({ sidebarColor, buttonColor }) {
       )}
 
       <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border">
+        <table className="w-full bg-white border border-gray-100 rounded-lg">
           <thead>
             <tr>
-              <th className="px-4 py-2 border">{renderColumnFilter('template_name', 'Filtrar template')}</th>
-              <th className="px-4 py-2 border">{renderColumnFilter('cnpj', 'Filtrar CNPJ')}</th>
-              <th className="px-4 py-2 border">
-                <div className="flex items-center">
-                  <select
-                    name="project_id"
-                    value={filters.project_id}
-                    onChange={handleFilterChange}
-                    className="w-full p-1 text-sm border rounded"
-                  >
-                    <option value="">Todos os projetos</option>
-                    {projects.map(project => (
-                      <option key={project.id} value={project.id}>
-                        {project.name}
-                      </option>
-                    ))}
-                  </select>
-                  <FaFilter className="ml-1 text-gray-500" />
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group whitespace-nowrap w-[200px]"
+                onClick={() => handleSort('template_name')}
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Template</span>
+                  {renderSortIcon('template_name')}
                 </div>
               </th>
-              <th className="px-4 py-2 border">{renderColumnFilter('actual_value', 'Filtrar valor atual')}</th>
-              <th className="px-4 py-2 border">{renderColumnFilter('target_value', 'Filtrar valor alvo')}</th>
-              <th className="px-4 py-2 border">{renderColumnFilter('year', 'Filtrar ano')}</th>
-              <th className="px-4 py-2 border">{renderColumnFilter('month', 'Filtrar mês')}</th>
-              <th className="px-4 py-2 border">Favorito</th>
-              <th className="px-4 py-2 border">Ações</th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group whitespace-nowrap w-[150px]"
+                onClick={() => handleSort('cnpj')}
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                <div className="flex items-center gap-1">
+                  <span>CNPJ</span>
+                  {renderSortIcon('cnpj')}
+                </div>
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group whitespace-nowrap w-[150px]"
+                onClick={() => handleSort('project_id')}
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Projeto</span>
+                  {renderSortIcon('project_id')}
+                </div>
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group whitespace-nowrap w-[120px]"
+                onClick={() => handleSort('actual_value')}
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Valor Atual</span>
+                  {renderSortIcon('actual_value')}
+                </div>
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group whitespace-nowrap w-[120px]"
+                onClick={() => handleSort('target_value')}
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Valor Alvo</span>
+                  {renderSortIcon('target_value')}
+                </div>
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group whitespace-nowrap w-[80px]"
+                onClick={() => handleSort('year')}
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Ano</span>
+                  {renderSortIcon('year')}
+                </div>
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 cursor-pointer group whitespace-nowrap w-[80px]"
+                onClick={() => handleSort('month')}
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                <div className="flex items-center gap-1">
+                  <span>Mês</span>
+                  {renderSortIcon('month')}
+                </div>
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-center text-sm font-medium text-gray-600 whitespace-nowrap w-[80px]"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Favorito
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-center text-sm font-medium text-gray-600 whitespace-nowrap w-[120px]"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Ações
+              </th>
             </tr>
           </thead>
           <tbody>
             {currentEntries.map(entry => (
-              <tr key={entry.entry_id}>
-                <td className="px-4 py-2 border">{entry.template_name}</td>
-                <td className="px-4 py-2 border">{entry.cnpj}</td>
-                <td className="px-4 py-2 border">
+              <tr key={entry.entry_id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">{entry.template_name}</div>
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">{entry.cnpj}</div>
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
                   {projects.find(p => p.id === entry.project_id)?.name || '-'}
                 </td>
-                <td className="px-4 py-2 border">{entry.actual_value}</td>
-                <td className="px-4 py-2 border">{entry.target_value}</td>
-                <td className="px-4 py-2 border">{entry.year}</td>
-                <td className="px-4 py-2 border">{entry.month}</td>
-                <td className="px-4 py-2 border">
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  {entry.actual_value}
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  {entry.target_value}
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  {entry.year}
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  {entry.month}
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-center text-sm font-medium text-gray-600 whitespace-nowrap">
                   <button 
                     onClick={() => toggleFavorite(entry)}
                     className="focus:outline-none"
@@ -488,7 +604,7 @@ function KPITracker({ sidebarColor, buttonColor }) {
                     />
                   </button>
                 </td>
-                <td className="px-4 py-2 border">
+                <td className="px-4 py-3 border-b border-gray-100 text-center text-sm font-medium text-gray-600 whitespace-nowrap">
                   <button
                     onClick={() => handleEdit(entry)}
                     className="text-blue-500 hover:text-blue-700 mr-2"
@@ -514,17 +630,85 @@ function KPITracker({ sidebarColor, buttonColor }) {
         </table>
       </div>
 
-      {/* Paginação */}
-      <div className="flex justify-center mt-4">
-        {Array.from({ length: Math.ceil(filteredAndSearchedEntries.length / entriesPerPage) }, (_, i) => (
+      {/* Paginação no estilo do CompanyManagement */}
+      <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+        <div className="flex flex-1 justify-between sm:hidden">
           <button
-            key={i}
-            onClick={() => paginate(i + 1)}
-            className={`mx-1 px-3 py-1 rounded ${currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+            onClick={() => paginate(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`relative inline-flex items-center rounded-md px-4 py-2 text-sm font-medium ${
+              currentPage === 1
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+            } border border-gray-300`}
           >
-            {i + 1}
+            Anterior
           </button>
-        ))}
+          <button
+            onClick={() => paginate(currentPage + 1)}
+            disabled={currentPage === Math.ceil(filteredAndSearchedEntries.length / entriesPerPage)}
+            className={`relative ml-3 inline-flex items-center rounded-md px-4 py-2 text-sm font-medium ${
+              currentPage === Math.ceil(filteredAndSearchedEntries.length / entriesPerPage)
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+            } border border-gray-300`}
+          >
+            Próximo
+          </button>
+        </div>
+        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm text-gray-700">
+              Mostrando <span className="font-medium">{indexOfFirstEntry + 1}</span> até{' '}
+              <span className="font-medium">
+                {Math.min(indexOfLastEntry, filteredAndSearchedEntries.length)}
+              </span>{' '}
+              de <span className="font-medium">{filteredAndSearchedEntries.length}</span> resultados
+            </p>
+          </div>
+          <div>
+            <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+              <button
+                onClick={() => paginate(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                  currentPage === 1 ? 'cursor-not-allowed' : 'cursor-pointer'
+                }`}
+              >
+                <span className="sr-only">Anterior</span>
+                <FaChevronUp className="h-5 w-5 rotate-90" />
+              </button>
+              {Array.from(
+                { length: Math.ceil(filteredAndSearchedEntries.length / entriesPerPage) },
+                (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => paginate(i + 1)}
+                    className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                      currentPage === i + 1
+                        ? 'z-10 bg-blue-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
+                        : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                )
+              )}
+              <button
+                onClick={() => paginate(currentPage + 1)}
+                disabled={currentPage === Math.ceil(filteredAndSearchedEntries.length / entriesPerPage)}
+                className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                  currentPage === Math.ceil(filteredAndSearchedEntries.length / entriesPerPage)
+                    ? 'cursor-not-allowed'
+                    : 'cursor-pointer'
+                }`}
+              >
+                <span className="sr-only">Próximo</span>
+                <FaChevronDown className="h-5 w-5 rotate-90" />
+              </button>
+            </nav>
+          </div>
+        </div>
       </div>
     </div>
   );
