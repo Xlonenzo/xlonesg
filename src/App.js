@@ -273,8 +273,15 @@ function App() {
             buttonColor={customization.button_color} 
           />
         ) : <UnauthorizedAccess />;
+
       case '/esg-tracker/environmental-documents':
-        return <EnvironmentalDocuments />;
+        return ['admin', 'editor'].includes(userRole) ? (
+          <EnvironmentalDocuments 
+            sidebarColor={customization.sidebar_color} 
+            buttonColor={customization.button_color} 
+          />
+        ) : <UnauthorizedAccess />;
+
       case '/esg-tracker/environmental-impact':
         return ['admin', 'editor'].includes(userRole) ? (
           <EnvironmentalImpactStudy 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaPlus, FaExclamationCircle } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaPlus, FaExclamationCircle, FaFilter, FaChevronUp, FaChevronDown } from 'react-icons/fa';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { API_URL } from '../config';
 
 // Helper para gerenciar valores ODS
@@ -121,6 +122,7 @@ function ESGProjects({ sidebarColor, buttonColor }) {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [projectsPerPage] = useState(10);
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 
   // Estados dos filtros
   const [filters, setFilters] = useState({
@@ -730,7 +732,7 @@ function ESGProjects({ sidebarColor, buttonColor }) {
         <h2 className="text-2xl font-bold">Projetos ESG</h2>
         <button
           onClick={() => setIsFormOpen(true)}
-          className="px-4 py-2 text-white rounded flex items-center"
+          className="px-4 py-2 rounded text-white flex items-center gap-2 hover:opacity-80"
           style={{ backgroundColor: buttonColor }}
         >
           <FaPlus className="mr-2" /> Novo Projeto
@@ -739,148 +741,225 @@ function ESGProjects({ sidebarColor, buttonColor }) {
 
       {isFormOpen && renderForm()}
 
-      {/* Filtros */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-        <div>
-          <input
-            type="text"
-            placeholder="Filtrar por nome..."
-            className="w-full px-3 py-2 border rounded"
-            value={filters.name}
-            onChange={(e) => handleFilterChange('name', e.target.value)}
-          />
-        </div>
+      {/* Seção de Filtros Expansível */}
+      <div className="bg-white rounded-lg shadow-sm mb-4 border border-gray-100">
+        <button
+          onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+          style={{ color: buttonColor }}
+        >
+          <div className="flex items-center gap-2">
+            <FaFilter size={16} style={{ color: buttonColor }} />
+            <span className="font-medium text-sm">Filtros</span>
+          </div>
+          {isFilterExpanded ? 
+            <FaChevronUp size={16} /> : 
+            <FaChevronDown size={16} />
+          }
+        </button>
         
-        <div>
-          <select
-            className="w-full px-3 py-2 border rounded"
-            value={filters.company_id}
-            onChange={(e) => handleFilterChange('company_id', e.target.value)}
-          >
-            <option value="">Todas as empresas</option>
-            {companies.map(company => (
-              <option key={company.id} value={company.id}>
-                {company.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        {isFilterExpanded && (
+          <div className="p-4 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Nome do Projeto</label>
+              <input
+                type="text"
+                value={filters.name}
+                onChange={(e) => handleFilterChange('name', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+                placeholder="Filtrar por nome"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Empresa</label>
+              <select
+                value={filters.company_id}
+                onChange={(e) => handleFilterChange('company_id', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+              >
+                <option value="">Todas as empresas</option>
+                {companies.map(company => (
+                  <option key={company.id} value={company.id}>
+                    {company.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        <div>
-          <select
-            className="w-full px-3 py-2 border rounded"
-            value={filters.project_type}
-            onChange={(e) => handleFilterChange('project_type', e.target.value)}
-          >
-            <option value="">Todos os tipos</option>
-            <option value="Ambiental">Ambiental</option>
-            <option value="Social">Social</option>
-            <option value="Governança">Governança</option>
-          </select>
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Tipo de Projeto</label>
+              <select
+                value={filters.project_type}
+                onChange={(e) => handleFilterChange('project_type', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+              >
+                <option value="">Todos os tipos</option>
+                <option value="Ambiental">Ambiental</option>
+                <option value="Social">Social</option>
+                <option value="Governança">Governança</option>
+              </select>
+            </div>
 
-        <div>
-          <select
-            className="w-full px-3 py-2 border rounded"
-            value={filters.status}
-            onChange={(e) => handleFilterChange('status', e.target.value)}
-          >
-            <option value="">Todos os status</option>
-            <option value="Em Andamento">Em Andamento</option>
-            <option value="Concluído">Concluído</option>
-            <option value="Cancelado">Cancelado</option>
-          </select>
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Status</label>
+              <select
+                value={filters.status}
+                onChange={(e) => handleFilterChange('status', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+              >
+                <option value="">Todos os status</option>
+                <option value="Em Andamento">Em Andamento</option>
+                <option value="Concluído">Concluído</option>
+                <option value="Cancelado">Cancelado</option>
+              </select>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tabela ajustada */}
       <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border">
+        <table className="min-w-full bg-white">
           <thead>
             <tr>
-              <th className="px-4 py-2 border">Nome / ODS</th>
-              <th className="px-4 py-2 border">Empresa</th>
-              <th className="px-4 py-2 border">Tipo</th>
-              <th className="px-4 py-2 border">Status</th>
-              <th className="px-4 py-2 border">Progresso</th>
-              <th className="px-4 py-2 border">Orçamento</th>
-              <th className="px-4 py-2 border">Período</th>
-              <th className="px-4 py-2 border">Ações</th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Nome / ODS
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Empresa
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Tipo
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Status
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Progresso
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Orçamento
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Período
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-center text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Ações
+              </th>
             </tr>
           </thead>
           <tbody>
             {currentProjects.length === 0 ? (
-              <tr>
-                <td colSpan="8" className="px-4 py-2 text-center border">
+              <tr className="hover:bg-gray-50 transition-colors">
+                <td colSpan="8" className="px-4 py-3 border-b border-gray-100 text-center text-sm text-gray-600">
                   Nenhum projeto encontrado
                 </td>
               </tr>
             ) : (
               currentProjects.map((project) => (
-                <tr key={project.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 border">
-                    <div>
-                      <div className="font-medium">{project.name}</div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        <div className="flex flex-wrap gap-1">
-                          {Array.from({ length: 17 }, (_, i) => {
-                            const odsNumber = i + 1;
-                            const odsKey = `ods${odsNumber}`;
-                            const odsValue = parseFloat(project[odsKey] || 0);
-                            
-                            if (odsValue > 0) {
-                              return (
-                                <span 
-                                  key={odsNumber} 
-                                  className="inline-flex items-center px-2 py-1 rounded bg-blue-100 text-blue-800 text-xs font-medium"
-                                  title={`ODS ${odsNumber}: ${getODSLabel(odsValue)}`}
-                                >
-                                  {odsNumber}
-                                </span>
-                              );
-                            }
-                            return null;
-                          })}
+                <tr key={project.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                    <div className="text-sm text-gray-900">
+                      <div>
+                        <div className="font-medium">{project.name}</div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          <div className="flex flex-wrap gap-1">
+                            {Array.from({ length: 17 }, (_, i) => {
+                              const odsNumber = i + 1;
+                              const odsKey = `ods${odsNumber}`;
+                              const odsValue = parseFloat(project[odsKey] || 0);
+                              
+                              if (odsValue > 0) {
+                                return (
+                                  <span 
+                                    key={odsNumber} 
+                                    className="inline-flex items-center px-2 py-1 rounded bg-blue-100 text-blue-800 text-xs font-medium"
+                                    title={`ODS ${odsNumber}: ${getODSLabel(odsValue)}`}
+                                  >
+                                    {odsNumber}
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })}
+                          </div>
                         </div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-2 border">
-                    {companies.find(c => c.id === project.company_id)?.name}
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                    <div className="text-sm text-gray-900">
+                      {companies.find(c => c.id === project.company_id)?.name}
+                    </div>
                   </td>
-                  <td className="px-4 py-2 border">{project.project_type}</td>
-                  <td className="px-4 py-2 border">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium
-                      ${project.status === 'Em Andamento' ? 'bg-blue-100 text-blue-800' : 
-                        project.status === 'Concluído' ? 'bg-green-100 text-green-800' : 
-                        'bg-gray-100 text-gray-800'}`}>
-                      {project.status === "Em Andamento" ? "Em andamento" : project.status}
-                    </span>
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                    <div className="text-sm text-gray-900">{project.project_type}</div>
                   </td>
-                  <td className="px-4 py-2 border">{project.progress_percentage}%</td>
-                  <td className="px-4 py-2 border">
-                    {new Intl.NumberFormat('pt-BR', {
-                      style: 'currency',
-                      currency: project.currency
-                    }).format(project.budget_allocated)}
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                    <div className="text-sm text-gray-900">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium
+                        ${project.status === 'Em Andamento' ? 'bg-blue-100 text-blue-800' : 
+                          project.status === 'Concluído' ? 'bg-green-100 text-green-800' : 
+                          'bg-gray-100 text-gray-800'}`}>
+                        {project.status === "Em Andamento" ? "Em andamento" : project.status}
+                      </span>
+                    </div>
                   </td>
-                  <td className="px-4 py-2 border text-sm">
-                    <div>{new Date(project.start_date).toLocaleDateString('pt-BR')}</div>
-                    <div className="text-gray-500">até</div>
-                    <div>{new Date(project.end_date).toLocaleDateString('pt-BR')}</div>
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                    <div className="text-sm text-gray-900">{project.progress_percentage}%</div>
                   </td>
-                  <td className="px-4 py-2 border">
-                    <div className="flex space-x-2">
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                    <div className="text-sm text-gray-900">
+                      {new Intl.NumberFormat('pt-BR', {
+                        style: 'currency',
+                        currency: project.currency
+                      }).format(project.budget_allocated)}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                    <div className="text-sm text-gray-900">
+                      <div>{new Date(project.start_date).toLocaleDateString('pt-BR')}</div>
+                      <div className="text-gray-500">até</div>
+                      <div>{new Date(project.end_date).toLocaleDateString('pt-BR')}</div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 border-b border-gray-100 text-center">
+                    <div className="flex items-center justify-center gap-3">
                       <button
                         onClick={() => handleEdit(project)}
-                        className="text-blue-500 hover:text-blue-700"
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
                         title="Editar"
                       >
                         <FaEdit size={16} />
                       </button>
                       <button
                         onClick={() => handleDelete(project.id)}
-                        className="text-red-500 hover:text-red-700"
+                        className="text-gray-400 hover:text-red-500 transition-colors"
                         title="Excluir"
                       >
                         <FaTrash size={16} />
@@ -896,25 +975,84 @@ function ESGProjects({ sidebarColor, buttonColor }) {
 
       {/* Paginação */}
       {!isFormOpen && filteredProjects.length > 0 && (
-        <div className="flex justify-center mt-4">
-          {Array.from({ 
-            length: Math.ceil(filteredProjects.length / projectsPerPage)
-          }, (_, i) => (
+        <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+          <div className="flex flex-1 justify-between sm:hidden">
             <button
-              key={i}
-              onClick={() => handlePageChange(i + 1)}
-              className={`mx-1 px-3 py-1 rounded ${
-                currentPage === i + 1 
-                  ? 'text-white'
-                  : 'bg-gray-200 hover:bg-gray-300'
-              }`}
-              style={{
-                backgroundColor: currentPage === i + 1 ? buttonColor || '#4F46E5' : undefined
-              }}
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className={`relative inline-flex items-center rounded-md px-4 py-2 text-sm font-medium ${
+                currentPage === 1
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              } border border-gray-300`}
             >
-              {i + 1}
+              Anterior
             </button>
-          ))}
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === Math.ceil(filteredProjects.length / projectsPerPage)}
+              className={`relative ml-3 inline-flex items-center rounded-md px-4 py-2 text-sm font-medium ${
+                currentPage === Math.ceil(filteredProjects.length / projectsPerPage)
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              Próximo
+            </button>
+          </div>
+          <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700">
+                Mostrando <span className="font-medium">{indexOfFirstProject + 1}</span> até{' '}
+                <span className="font-medium">
+                  {Math.min(indexOfLastProject, filteredProjects.length)}
+                </span>{' '}
+                de <span className="font-medium">{filteredProjects.length}</span> resultados
+              </p>
+            </div>
+            <div>
+              <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                    currentPage === 1 ? 'cursor-not-allowed' : 'cursor-pointer'
+                  }`}
+                >
+                  <span className="sr-only">Anterior</span>
+                  <ChevronLeft size={16} className="stroke-[1.5]" />
+                </button>
+                {Array.from(
+                  { length: Math.ceil(filteredProjects.length / projectsPerPage) },
+                  (_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handlePageChange(i + 1)}
+                      className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                        currentPage === i + 1
+                          ? 'z-10 bg-blue-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
+                          : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  )
+                )}
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === Math.ceil(filteredProjects.length / projectsPerPage)}
+                  className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                    currentPage === Math.ceil(filteredProjects.length / projectsPerPage)
+                      ? 'cursor-not-allowed'
+                      : 'cursor-pointer'
+                  }`}
+                >
+                  <span className="sr-only">Próximo</span>
+                  <ChevronRight size={16} className="stroke-[1.5]" />
+                </button>
+              </nav>
+            </div>
+          </div>
         </div>
       )}
     </div>

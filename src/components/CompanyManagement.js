@@ -475,14 +475,14 @@ function CompanyManagement({ buttonColor }) {
           </div>
         </div>
 
-        <button
-          onClick={() => setIsAddingCompany(!isAddingCompany)}
-          className="text-white px-4 py-2 rounded-md hover:opacity-80 transition-all flex items-center gap-2 text-sm"
-          style={{ backgroundColor: buttonColor }}
-        >
-          <Plus size={16} className="stroke-[1.5]" />
-          {isAddingCompany ? 'Cancelar' : 'Adicionar Nova Empresa'}
-        </button>
+          <button
+            onClick={() => setIsAddingCompany(!isAddingCompany)}
+            className="text-white px-4 py-2 rounded-md hover:opacity-80 transition-all flex items-center gap-2 text-sm"
+            style={{ backgroundColor: buttonColor }}
+          >
+            <Plus size={16} className="stroke-[1.5]" />
+            {isAddingCompany ? 'Cancelar' : 'Adicionar Nova Empresa'}
+          </button>
       </div>
 
       {/* Seção de Filtros Expansível */}

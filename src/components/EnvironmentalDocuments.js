@@ -5,7 +5,9 @@ import { FaFilter, FaChevronUp, FaChevronDown } from 'react-icons/fa';
 import { API_URL } from '../config';
 import constants from '../data/constants.json';
 
-function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
+function EnvironmentalDocuments({ buttonColor }) {
+  console.log('buttonColor recebido:', buttonColor);
+
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -207,7 +209,7 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
         <h2 className="text-2xl font-bold">Documentos Ambientais</h2>
         <button
           onClick={() => {
-            setIsFormOpen(true);
+            setIsFormOpen(!isFormOpen);
             setEditingDocument(null);
             setNewDocument({
               title: '',
@@ -230,11 +232,11 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
               legal_notice: ''
             });
           }}
-          className="px-4 py-2 rounded text-white flex items-center gap-2 bg-blue-500"
-          style={{ backgroundColor: buttonColor || '#1a73e8' }}
+          className="text-white px-4 py-2 rounded-md hover:opacity-80 transition-all flex items-center gap-2 text-sm"
+          style={{ backgroundColor: buttonColor }}
         >
-          <Plus size={16} className="mr-2" />
-          <span className="leading-none">Novo Documento</span>
+          <Plus size={16} className="stroke-[1.5]" />
+          {isFormOpen ? 'Cancelar' : 'Adicionar Novo Documento'}
         </button>
       </div>
 
@@ -598,7 +600,7 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
               <button
                 type="submit"
                 className="text-white px-4 py-2 rounded hover:opacity-80"
-                style={{ backgroundColor: buttonColor || '#4F46E5' }}
+                style={{ backgroundColor: buttonColor }}
               >
                 {editingDocument ? 'Atualizar' : 'Adicionar'}
               </button>
