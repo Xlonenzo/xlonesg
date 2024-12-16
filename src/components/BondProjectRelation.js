@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_URL } from '../config';
-import { FaPlus, FaEdit, FaTrash } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash, FaFilter, FaChevronUp, FaChevronDown } from 'react-icons/fa';
 
 const formatCurrency = (value, currency = 'BRL') => {
   if (!value) return '-';
@@ -73,6 +73,15 @@ const BondProjectRelation = ({ sidebarColor, buttonColor }) => {
   const [selectedProject, setSelectedProject] = useState(null);
   const [bondProjectRelations, setBondProjectRelations] = useState([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+  const [filters, setFilters] = useState({
+    title: '',
+    project: '',
+    type: '',
+    status: ''
+  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   useEffect(() => {
     fetchData();
@@ -180,18 +189,106 @@ const BondProjectRelation = ({ sidebarColor, buttonColor }) => {
     }
 };
 
-  return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold mb-4">Relações Título-Projeto</h2>
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
+  };
 
-      <div className="flex flex-row-reverse mb-4">
+  // Lógica de paginação
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = bondProjectRelations.slice(indexOfFirstItem, indexOfLastItem);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  return (
+    <div className="space-y-6 bg-gray-50 min-h-screen">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-medium text-gray-800">Relações Título-Projeto</h2>
         <button 
           onClick={() => setIsFormOpen(!isFormOpen)} 
-          className="text-white px-4 py-2 rounded hover:opacity-80 transition-all flex items-center"
+          className="text-white px-4 py-2 rounded hover:opacity-80 transition-all flex items-center gap-2 text-sm"
           style={{ backgroundColor: buttonColor }}
         >
-          <FaPlus className="mr-2" /> {isFormOpen ? 'Fechar Formulário' : 'Nova Relação'}
+          <FaPlus size={16} />
+          {isFormOpen ? 'Fechar Formulário' : 'Nova Relação'}
         </button>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm mb-4 border border-gray-100">
+        <button
+          onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+          style={{ color: buttonColor }}
+        >
+          <div className="flex items-center gap-2">
+            <FaFilter size={16} style={{ color: buttonColor }} />
+            <span className="font-medium text-sm" style={{ color: buttonColor }}>Filtros</span>
+          </div>
+          {isFilterExpanded ? 
+            <FaChevronUp size={16} style={{ color: buttonColor }} /> : 
+            <FaChevronDown size={16} style={{ color: buttonColor }} />
+          }
+        </button>
+        
+        {isFilterExpanded && (
+          <div className="p-6 border-t border-gray-100">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">Título</label>
+                <input
+                  type="text"
+                  name="title"
+                  value={filters.title}
+                  onChange={handleFilterChange}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-shadow text-sm"
+                  placeholder="Filtrar por título..."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">Projeto</label>
+                <input
+                  type="text"
+                  name="project"
+                  value={filters.project}
+                  onChange={handleFilterChange}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-shadow text-sm"
+                  placeholder="Filtrar por projeto..."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">Status</label>
+                <select
+                  name="status"
+                  value={filters.status}
+                  onChange={handleFilterChange}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-shadow text-sm"
+                >
+                  <option value="">Todos os status</option>
+                  <option value="Em andamento">Em andamento</option>
+                  <option value="Concluído">Concluído</option>
+                  <option value="Atrasado">Atrasado</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={() => setFilters({
+                  title: '',
+                  project: '',
+                  type: '',
+                  status: ''
+                })}
+                className="px-4 py-2 text-gray-600 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors text-sm font-medium"
+              >
+                Limpar Filtros
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {isFormOpen && (
@@ -238,40 +335,71 @@ const BondProjectRelation = ({ sidebarColor, buttonColor }) => {
       )}
 
       <div className="overflow-x-auto">
-        <h3 className="text-lg font-bold mb-2">Relações Existentes</h3>
         <table className="min-w-full bg-white border border-collapse table-fixed">
           <thead>
-            <tr className="bg-gray-100">
-              <th className="w-1/5 px-4 py-2 border text-left">Título</th>
-              <th className="w-1/4 px-4 py-2 border text-left">Projeto</th>
-              <th className="w-1/5 px-4 py-2 border text-left">Tipo</th>
-              <th className="w-1/5 px-4 py-2 border text-right">Orçamento</th>
-              <th className="w-1/8 px-4 py-2 border text-center">Status</th>
-              <th className="w-1/12 px-4 py-2 border text-center">Ações</th>
+            <tr>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap w-1/5"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Título
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap w-1/4"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Projeto
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap w-1/5"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Tipo
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-right text-sm font-medium text-gray-600 whitespace-nowrap w-1/5"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Orçamento
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-center text-sm font-medium text-gray-600 whitespace-nowrap w-1/8"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Status
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-center text-sm font-medium text-gray-600 whitespace-nowrap w-1/12"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Ações
+              </th>
             </tr>
           </thead>
           <tbody>
-            {bondProjectRelations.map(relation => {
+            {currentItems.map(relation => {
               const project = projects.find(p => p.id === relation.project_id);
               const bond = bonds.find(b => b.id === relation.bond_id);
               
               return (
-                <tr key={relation.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 border text-left truncate">
-                    <div className="truncate">{bond?.name || '-'}</div>
+                <tr key={relation.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                    <div className="text-sm text-gray-900 truncate">{bond?.name || '-'}</div>
                   </td>
-                  <td className="px-4 py-2 border text-left truncate">
-                    <div className="truncate">{project?.name || '-'}</div>
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                    <div className="text-sm text-gray-900 truncate">{project?.name || '-'}</div>
                   </td>
-                  <td className="px-4 py-2 border text-left truncate">
-                    <div className="truncate">{project?.project_type || '-'}</div>
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                    <div className="text-sm text-gray-900 truncate">{project?.project_type || '-'}</div>
                   </td>
-                  <td className="px-4 py-2 border text-right whitespace-nowrap">
-                    {project?.budget_allocated ? 
-                      formatCurrency(project.budget_allocated, project.currency) : 
-                      '-'}
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600 text-right">
+                    <div className="text-sm text-gray-900">
+                      {project?.budget_allocated ? 
+                        formatCurrency(project.budget_allocated, project.currency) : 
+                        '-'}
+                    </div>
                   </td>
-                  <td className="px-4 py-2 border text-center">
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600 text-center">
                     <span className={`inline-block px-2 py-1 rounded-full text-sm ${
                       project?.status === 'Em andamento' ? 'bg-blue-100 text-blue-800' :
                       project?.status === 'Concluído' ? 'bg-green-100 text-green-800' :
@@ -281,8 +409,8 @@ const BondProjectRelation = ({ sidebarColor, buttonColor }) => {
                       {project?.status || '-'}
                     </span>
                   </td>
-                  <td className="px-4 py-2 border text-center">
-                    <div className="flex justify-center space-x-2">
+                  <td className="px-4 py-3 border-b border-gray-100 text-center">
+                    <div className="flex items-center justify-center gap-3">
                       <button className="text-blue-500 hover:text-blue-700">
                         <FaEdit />
                       </button>
@@ -296,6 +424,87 @@ const BondProjectRelation = ({ sidebarColor, buttonColor }) => {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* Paginação */}
+      <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+        <div className="flex flex-1 justify-between sm:hidden">
+          <button
+            onClick={() => paginate(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`relative inline-flex items-center rounded-md px-4 py-2 text-sm font-medium ${
+              currentPage === 1
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+            } border border-gray-300`}
+          >
+            Anterior
+          </button>
+          <button
+            onClick={() => paginate(currentPage + 1)}
+            disabled={currentPage === Math.ceil(bondProjectRelations.length / itemsPerPage)}
+            className={`relative ml-3 inline-flex items-center rounded-md px-4 py-2 text-sm font-medium ${
+              currentPage === Math.ceil(bondProjectRelations.length / itemsPerPage)
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+            } border border-gray-300`}
+          >
+            Próximo
+          </button>
+        </div>
+        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm text-gray-700">
+              Mostrando <span className="font-medium">{indexOfFirstItem + 1}</span> até{' '}
+              <span className="font-medium">
+                {Math.min(indexOfLastItem, bondProjectRelations.length)}
+              </span>{' '}
+              de <span className="font-medium">{bondProjectRelations.length}</span> resultados
+            </p>
+          </div>
+          <div>
+            <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+              <button
+                onClick={() => paginate(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                  currentPage === 1 ? 'cursor-not-allowed' : 'cursor-pointer'
+                }`}
+              >
+                <span className="sr-only">Anterior</span>
+                <FaChevronUp className="h-5 w-5 rotate-90" />
+              </button>
+              {Array.from(
+                { length: Math.ceil(bondProjectRelations.length / itemsPerPage) },
+                (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => paginate(i + 1)}
+                    className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                      currentPage === i + 1
+                        ? 'z-10 bg-blue-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
+                        : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                )
+              )}
+              <button
+                onClick={() => paginate(currentPage + 1)}
+                disabled={currentPage === Math.ceil(bondProjectRelations.length / itemsPerPage)}
+                className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                  currentPage === Math.ceil(bondProjectRelations.length / itemsPerPage)
+                    ? 'cursor-not-allowed'
+                    : 'cursor-pointer'
+                }`}
+              >
+                <span className="sr-only">Próximo</span>
+                <FaChevronDown className="h-5 w-5 rotate-90" />
+              </button>
+            </nav>
+          </div>
+        </div>
       </div>
     </div>
   );
