@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaPlus, FaSearch } from 'react-icons/fa';
-import { AlertCircle } from 'lucide-react';
+import { FaEdit, FaTrash, FaPlus, FaFilter, FaChevronUp, FaChevronDown } from 'react-icons/fa';
+import { AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { API_URL } from '../config';
 import constants from '../data/constants.json';
 
@@ -51,10 +51,15 @@ function EmissionTracking({ sidebarColor, buttonColor }) {
   const [loading, setLoading] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEmission, setEditingEmission] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [emissionsPerPage] = useState(12);
   const [projects, setProjects] = useState([]);
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+  const [filters, setFilters] = useState({
+    project: '',
+    scope: '',
+    emission_type: ''
+  });
 
   const [newEmission, setNewEmission] = useState({
     project_id: '',
@@ -247,9 +252,9 @@ function EmissionTracking({ sidebarColor, buttonColor }) {
   const filteredEmissions = emissions.filter(emission => {
     const project = projects.find(p => p.id === emission.project_id);
     return (
-      project?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emission.emission_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emission.scope.toLowerCase().includes(searchTerm.toLowerCase())
+      (!filters.project || project?.name.toLowerCase().includes(filters.project.toLowerCase())) &&
+      (!filters.scope || emission.scope === filters.scope) &&
+      (!filters.emission_type || emission.emission_type.toLowerCase().includes(filters.emission_type.toLowerCase()))
     );
   });
 
@@ -524,7 +529,7 @@ function EmissionTracking({ sidebarColor, buttonColor }) {
             className="p-2 border rounded w-full"
             required
           >
-            <option value="">Selecione o Padrão</option>
+            <option value="">Selecione o Padr��o</option>
             {constants.reportingStandards.map(standard => (
               <option key={standard} value={standard}>{standard}</option>
             ))}
@@ -583,64 +588,155 @@ function EmissionTracking({ sidebarColor, buttonColor }) {
         <h2 className="text-2xl font-bold">Dados de Emissões</h2>
       </div>
 
-      {/* Barra de pesquisa */}
-      <div className="mb-6">
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Pesquisar emissões..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full p-2 border rounded pl-10"
-          />
-          <FaSearch className="absolute left-3 top-3 text-gray-400" />
-        </div>
+      {/* Seção de Filtros Expansível */}
+      <div className="bg-white rounded-lg shadow-sm mb-4 border border-gray-100">
+        <button
+          onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+          style={{ color: buttonColor }}
+        >
+          <div className="flex items-center gap-2">
+            <FaFilter size={16} style={{ color: buttonColor }} />
+            <span className="font-medium text-sm">Filtros</span>
+          </div>
+          {isFilterExpanded ? 
+            <FaChevronUp size={16} /> : 
+            <FaChevronDown size={16} />
+          }
+        </button>
+        
+        {isFilterExpanded && (
+          <div className="p-4 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Projeto</label>
+              <input
+                type="text"
+                value={filters.project}
+                onChange={(e) => setFilters(prev => ({...prev, project: e.target.value}))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+                placeholder="Filtrar por projeto"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Escopo</label>
+              <select
+                value={filters.scope}
+                onChange={(e) => setFilters(prev => ({...prev, scope: e.target.value}))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+              >
+                <option value="">Todos</option>
+                {constants.emissionScopes.map(scope => (
+                  <option key={scope} value={scope}>{scope}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Tipo de Emissão</label>
+              <input
+                type="text"
+                value={filters.emission_type}
+                onChange={(e) => setFilters(prev => ({...prev, emission_type: e.target.value}))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+                placeholder="Filtrar por tipo"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {isFormOpen && renderForm()}
 
       {/* Tabela de emissões */}
       <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border">
+        <table className="min-w-full bg-white">
           <thead>
             <tr>
-              <th className="px-4 py-2 border">Projeto</th>
-              <th className="px-4 py-2 border">Escopo</th>
-              <th className="px-4 py-2 border">Tipo</th>
-              <th className="px-4 py-2 border">Valor</th>
-              <th className="px-4 py-2 border">Unidade</th>
-              <th className="px-4 py-2 border">Data de Medição</th>
-              <th className="px-4 py-2 border">Ações</th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Projeto
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Escopo
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Tipo
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Valor
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Unidade
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Data de Medição
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-center text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Ações
+              </th>
             </tr>
           </thead>
           <tbody>
             {currentEmissions.map(emission => (
-              <tr key={emission.id}>
-                <td className="px-4 py-2 border">
-                  {projects.find(p => p.id === emission.project_id)?.name || 'N/A'}
+              <tr key={emission.id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">
+                    {projects.find(p => p.id === emission.project_id)?.name || 'N/A'}
+                  </div>
                 </td>
-                <td className="px-4 py-2 border">{emission.scope}</td>
-                <td className="px-4 py-2 border">{emission.emission_type}</td>
-                <td className="px-4 py-2 border">
-                  {formatCurrencyInput(String(emission.value))}
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">{emission.scope}</div>
                 </td>
-                <td className="px-4 py-2 border">{emission.unit}</td>
-                <td className="px-4 py-2 border">
-                  {new Date(emission.timestamp).toLocaleDateString('pt-BR')}
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">{emission.emission_type}</div>
                 </td>
-                <td className="px-4 py-2 border">
-                  <button
-                    onClick={() => handleEdit(emission)}
-                    className="text-blue-500 hover:text-blue-700 mr-2"
-                  >
-                    <FaEdit />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(emission.id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <FaTrash />
-                  </button>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">
+                    {formatCurrencyInput(String(emission.value))}
+                  </div>
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">{emission.unit}</div>
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">
+                    {new Date(emission.timestamp).toLocaleDateString('pt-BR')}
+                  </div>
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-center">
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      onClick={() => handleEdit(emission)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <FaEdit />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(emission.id)}
+                      className="text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      <FaTrash />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -649,18 +745,84 @@ function EmissionTracking({ sidebarColor, buttonColor }) {
       </div>
 
       {/* Paginação */}
-      <div className="flex justify-center mt-4">
-        {Array.from({ length: Math.ceil(filteredEmissions.length / emissionsPerPage) }, (_, i) => (
+      <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+        <div className="flex flex-1 justify-between sm:hidden">
           <button
-            key={i}
-            onClick={() => paginate(i + 1)}
-            className={`mx-1 px-3 py-1 rounded ${
-              currentPage === i + 1 ? 'bg-blue-500 text-white' : 'bg-gray-200'
+            onClick={() => paginate(currentPage - 1)}
+            disabled={currentPage === 1}
+            className={`relative inline-flex items-center rounded-md px-4 py-2 text-sm font-medium ${
+              currentPage === 1
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+            } border border-gray-300`}
+          >
+            Anterior
+          </button>
+          <button
+            onClick={() => paginate(currentPage + 1)}
+            disabled={currentPage === Math.ceil(filteredEmissions.length / emissionsPerPage)}
+            className={`relative ml-3 inline-flex items-center rounded-md px-4 py-2 text-sm font-medium ${
+              currentPage === Math.ceil(filteredEmissions.length / emissionsPerPage)
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
             }`}
           >
-            {i + 1}
+            Próximo
           </button>
-        ))}
+        </div>
+        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm text-gray-700">
+              Mostrando <span className="font-medium">{indexOfFirstEmission + 1}</span> até{' '}
+              <span className="font-medium">
+                {Math.min(indexOfLastEmission, filteredEmissions.length)}
+              </span>{' '}
+              de <span className="font-medium">{filteredEmissions.length}</span> resultados
+            </p>
+          </div>
+          <div>
+            <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+              <button
+                onClick={() => paginate(currentPage - 1)}
+                disabled={currentPage === 1}
+                className={`relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                  currentPage === 1 ? 'cursor-not-allowed' : 'cursor-pointer'
+                }`}
+              >
+                <span className="sr-only">Anterior</span>
+                <ChevronLeft size={16} className="stroke-[1.5]" />
+              </button>
+              {Array.from(
+                { length: Math.ceil(filteredEmissions.length / emissionsPerPage) },
+                (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => paginate(i + 1)}
+                    className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                      currentPage === i + 1
+                        ? 'z-10 bg-blue-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
+                        : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                )
+              )}
+              <button
+                onClick={() => paginate(currentPage + 1)}
+                disabled={currentPage === Math.ceil(filteredEmissions.length / emissionsPerPage)}
+                className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                  currentPage === Math.ceil(filteredEmissions.length / emissionsPerPage)
+                    ? 'cursor-not-allowed'
+                    : 'cursor-pointer'
+                }`}
+              >
+                <span className="sr-only">Próximo</span>
+                <ChevronRight size={16} className="stroke-[1.5]" />
+              </button>
+            </nav>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { Plus, Search, Edit2, Trash2, Filter as FaFilter, Sprout } from 'lucide-react';
+import { Plus, Edit2, Trash2, Sprout, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FaFilter, FaChevronUp, FaChevronDown } from 'react-icons/fa';
 import { API_URL } from '../config';
 
 function EnvironmentalImpactStudy({ sidebarColor, buttonColor }) {
@@ -44,6 +45,9 @@ function EnvironmentalImpactStudy({ sidebarColor, buttonColor }) {
 
   // Adicionar novo estado no início do componente
   const [showTooltip, setShowTooltip] = useState(false);
+
+  // Adicionar novo estado para filtros expansíveis
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
 
   // Buscar estudos de impacto
   const fetchImpactStudies = async () => {
@@ -254,10 +258,8 @@ function EnvironmentalImpactStudy({ sidebarColor, buttonColor }) {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Gerenciamento de Impacto Ambiental</h1>
-
-      {/* Cabeçalho com botões e pesquisa */}
-      <div className="flex flex-row-reverse justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Gerenciamento de Impacto Ambiental</h1>
         <button
           onClick={() => {
             setIsFormOpen(true);
@@ -284,24 +286,70 @@ function EnvironmentalImpactStudy({ sidebarColor, buttonColor }) {
               public_consultation: ''
             });
           }}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 inline-flex items-center h-10"
+          className="px-4 py-2 rounded text-white flex items-center gap-2"
           style={{ backgroundColor: buttonColor }}
         >
           <Plus size={16} className="mr-2" />
           <span className="leading-none">Adicionar Novo Estudo</span>
         </button>
+      </div>
+
+      {/* Seção de Filtros Expansível */}
+      <div className="bg-white rounded-lg shadow-sm mb-4 border border-gray-100">
+        <button
+          onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+          style={{ color: buttonColor }}
+        >
+          <div className="flex items-center gap-2">
+            <FaFilter size={16} style={{ color: buttonColor }} />
+            <span className="font-medium text-sm">Filtros</span>
+          </div>
+          {isFilterExpanded ? 
+            <FaChevronUp size={16} /> : 
+            <FaChevronDown size={16} />
+          }
+        </button>
         
-        {/* Barra de pesquisa */}
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Pesquisar estudos..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-4 py-2 border rounded"
-          />
-          <Search className="absolute left-2 top-3 text-gray-400" size={16} />
-        </div>
+        {isFilterExpanded && (
+          <div className="p-4 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Empreendimento</label>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+                placeholder="Filtrar por empreendimento"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Localização</label>
+              <input
+                type="text"
+                name="projectlocation"
+                value={filters.projectlocation}
+                onChange={handleFilterChange}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+                placeholder="Filtrar por localização"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-600 mb-1">Documento Ambiental</label>
+              <select
+                name="environmental_documentid"
+                value={filters.environmental_documentid}
+                onChange={handleFilterChange}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm"
+              >
+                <option value="">Todos os documentos</option>
+                {environmentalDocuments.map(doc => (
+                  <option key={doc.id} value={doc.id}>{doc.title}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Renderização condicional do formulário */}
@@ -740,83 +788,74 @@ function EnvironmentalImpactStudy({ sidebarColor, buttonColor }) {
       {/* Sempre exibir a tabela quando o formulário estiver fechado */}
       {!isFormOpen && (
         <div className="overflow-x-auto">
-          <table className="min-w-full bg-white border">
+          <table className="min-w-full bg-white">
             <thead>
               <tr>
-                <th className="px-4 py-2 border">
-                  <div className="flex flex-col">
-                    <span>Empreendimento</span>
-                    <div className="h-9 mt-1"></div>
-                  </div>
+                <th 
+                  className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                  style={{ backgroundColor: `${buttonColor}15` }}
+                >
+                  Empreendimento
                 </th>
-                <th className="px-4 py-2 border">
-                  <div className="flex flex-col">
-                    <span>Localização</span>
-                    <input
-                      type="text"
-                      name="projectlocation"
-                      value={filters.projectlocation}
-                      onChange={handleFilterChange}
-                      className="w-full p-1 text-sm border rounded mt-1"
-                      placeholder="Filtrar por localização..."
-                    />
-                  </div>
+                <th 
+                  className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                  style={{ backgroundColor: `${buttonColor}15` }}
+                >
+                  Localização
                 </th>
-                <th className="px-4 py-2 border">
-                  <div className="flex flex-col">
-                    <span>Documento Ambiental</span>
-                    <select
-                      name="environmental_documentid"
-                      value={filters.environmental_documentid}
-                      onChange={handleFilterChange}
-                      className="w-full p-1 text-sm border rounded mt-1"
-                    >
-                      <option value="">Todos os documentos</option>
-                      {environmentalDocuments.map(doc => (
-                        <option key={doc.id} value={doc.id}>{doc.title}</option>
-                      ))}
-                    </select>
-                  </div>
+                <th 
+                  className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                  style={{ backgroundColor: `${buttonColor}15` }}
+                >
+                  Documento Ambiental
                 </th>
-                <th className="px-4 py-2 border">
-                  <div className="flex flex-col">
-                    <span>Ações</span>
-                    <div className="h-9 mt-1"></div>
-                  </div>
+                <th 
+                  className="px-4 py-3 border-b border-gray-100 text-center text-sm font-medium text-gray-600 whitespace-nowrap"
+                  style={{ backgroundColor: `${buttonColor}15` }}
+                >
+                  Ações
                 </th>
               </tr>
             </thead>
             <tbody>
               {currentStudies.map(study => (
-                <tr key={study.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 border">
-                    <div className="truncate max-w-xs" title={study.enterprisename}>
-                      {study.enterprisename}
+                <tr key={study.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                    <div className="text-sm text-gray-900">
+                      <div className="truncate max-w-xs" title={study.enterprisename}>
+                        {study.enterprisename}
+                      </div>
                     </div>
                   </td>
-                  <td className="px-4 py-2 border">
-                    <div className="truncate max-w-xs" title={study.projectlocation}>
-                      {study.projectlocation}
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                    <div className="text-sm text-gray-900">
+                      <div className="truncate max-w-xs" title={study.projectlocation}>
+                        {study.projectlocation}
+                      </div>
                     </div>
                   </td>
-                  <td className="px-4 py-2 border">
-                    <div className="truncate max-w-xs" title={environmentalDocuments.find(doc => doc.id === study.environmental_documentid)?.title}>
-                      {environmentalDocuments.find(doc => doc.id === study.environmental_documentid)?.title}
+                  <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                    <div className="text-sm text-gray-900">
+                      <div className="truncate max-w-xs" title={environmentalDocuments.find(doc => doc.id === study.environmental_documentid)?.title}>
+                        {environmentalDocuments.find(doc => doc.id === study.environmental_documentid)?.title}
+                      </div>
                     </div>
                   </td>
-                  <td className="px-4 py-2 border">
-                    <button
-                      onClick={() => handleEdit(study)}
-                      className="text-blue-500 hover:text-blue-700 mr-2"
-                    >
-                      <Edit2 size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(study.id)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                  <td className="px-4 py-3 border-b border-gray-100 text-center">
+                    <div className="flex items-center justify-center gap-3">
+                      <button
+                        onClick={() => handleEdit(study)}
+                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        <Edit2 size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(study.id)}
+                        className="text-gray-400 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -827,23 +866,84 @@ function EnvironmentalImpactStudy({ sidebarColor, buttonColor }) {
 
       {/* Paginação simplificada */}
       {!isFormOpen && filteredStudies.length > 0 && (
-        <div className="flex justify-center mt-4">
-          {Array.from({ 
-            length: Math.ceil(filteredStudies.length / studiesPerPage)
-          }, (_, i) => (
+        <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+          <div className="flex flex-1 justify-between sm:hidden">
             <button
-              key={i}
-              onClick={() => handlePageChange(i + 1)}
-              className={`mx-1 px-3 py-1 rounded ${
-                currentPage === i + 1 
-                  ? 'text-white hover:opacity-80'
-                  : 'bg-gray-200 hover:bg-gray-300'
-              }`}
-              style={currentPage === i + 1 ? { backgroundColor: buttonColor } : {}}
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className={`relative inline-flex items-center rounded-md px-4 py-2 text-sm font-medium ${
+                currentPage === 1
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              } border border-gray-300`}
             >
-              {i + 1}
+              Anterior
             </button>
-          ))}
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === Math.ceil(filteredStudies.length / studiesPerPage)}
+              className={`relative ml-3 inline-flex items-center rounded-md px-4 py-2 text-sm font-medium ${
+                currentPage === Math.ceil(filteredStudies.length / studiesPerPage)
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              Próximo
+            </button>
+          </div>
+          <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700">
+                Mostrando <span className="font-medium">{indexOfFirstStudy + 1}</span> até{' '}
+                <span className="font-medium">
+                  {Math.min(indexOfLastStudy, filteredStudies.length)}
+                </span>{' '}
+                de <span className="font-medium">{filteredStudies.length}</span> resultados
+              </p>
+            </div>
+            <div>
+              <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                    currentPage === 1 ? 'cursor-not-allowed' : 'cursor-pointer'
+                  }`}
+                >
+                  <span className="sr-only">Anterior</span>
+                  <ChevronLeft size={16} className="stroke-[1.5]" />
+                </button>
+                {Array.from(
+                  { length: Math.ceil(filteredStudies.length / studiesPerPage) },
+                  (_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handlePageChange(i + 1)}
+                      className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                        currentPage === i + 1
+                          ? 'z-10 bg-blue-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
+                          : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  )
+                )}
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === Math.ceil(filteredStudies.length / studiesPerPage)}
+                  className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                    currentPage === Math.ceil(filteredStudies.length / studiesPerPage)
+                      ? 'cursor-not-allowed'
+                      : 'cursor-pointer'
+                  }`}
+                >
+                  <span className="sr-only">Próximo</span>
+                  <ChevronRight size={16} className="stroke-[1.5]" />
+                </button>
+              </nav>
+            </div>
+          </div>
         </div>
       )}
     </div>
