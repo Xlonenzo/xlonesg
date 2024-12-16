@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { Plus, Search, Edit2, Trash2, Filter as FaFilter, AlertCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FaFilter, FaChevronUp, FaChevronDown } from 'react-icons/fa';
 import { API_URL } from '../config';
 import constants from '../data/constants.json';
 
@@ -202,10 +203,8 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold mb-6">Documentos Ambientais</h2>
-
-      {/* Ajustado para flex-row-reverse para alinhar o botão à direita */}
-      <div className="flex flex-row-reverse justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">Documentos Ambientais</h2>
         <button
           onClick={() => {
             setIsFormOpen(true);
@@ -231,23 +230,12 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
               legal_notice: ''
             });
           }}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 inline-flex items-center h-10"
-          style={{ backgroundColor: buttonColor }}
+          className="px-4 py-2 rounded text-white flex items-center gap-2 bg-blue-500"
+          style={{ backgroundColor: buttonColor || '#1a73e8' }}
         >
           <Plus size={16} className="mr-2" />
           <span className="leading-none">Novo Documento</span>
         </button>
-
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Pesquisar..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 pr-4 py-2 border rounded"
-          />
-          <Search size={20} className="absolute left-3 top-2.5 text-gray-400" />
-        </div>
       </div>
 
       {/* Formulário */}
@@ -651,69 +639,80 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
 
       {/* Tabela */}
       <div className="overflow-x-auto">
-        <table className="min-w-full bg-white border">
+        <table className="min-w-full bg-white">
           <thead>
             <tr>
-              <th className="px-4 py-2 border">Título</th>
-              <th className="px-4 py-2 border">
-                <select
-                  name="document_type"
-                  value={filters.document_type}
-                  onChange={handleFilterChange}
-                  className="w-full p-1 text-sm border rounded"
-                >
-                  <option value="">Todos os tipos</option>
-                  {constants.documentTypes.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Título
               </th>
-              <th className="px-4 py-2 border">
-                <select
-                  name="document_status"
-                  value={filters.document_status}
-                  onChange={handleFilterChange}
-                  className="w-full p-1 text-sm border rounded"
-                >
-                  <option value="">Todos os status</option>
-                  {constants.documentStatuses.map(status => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Tipo
               </th>
-              <th className="px-4 py-2 border">Data de Criação</th>
-              <th className="px-4 py-2 border">Ações</th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Status
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Data de Criação
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-center text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Ações
+              </th>
             </tr>
           </thead>
           <tbody>
             {currentDocuments.map(doc => (
-              <tr key={doc.id} className="hover:bg-gray-50">
-                <td className="px-4 py-2 border">{doc.title}</td>
-                <td className="px-4 py-2 border">{doc.document_type}</td>
-                <td className="px-4 py-2 border">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                    ${doc.document_status === 'Ativo' ? 'bg-green-100 text-green-800' : 
-                    doc.document_status === 'Em Revisão' ? 'bg-yellow-100 text-yellow-800' : 
-                    'bg-gray-100 text-gray-800'}`}>
-                    {doc.document_status}
-                  </span>
+              <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">{doc.title}</div>
                 </td>
-                <td className="px-4 py-2 border">
-                  {new Date(doc.creation_date).toLocaleDateString()}
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">{doc.document_type}</div>
                 </td>
-                <td className="px-4 py-2 border">
-                  <button
-                    onClick={() => handleEdit(doc)}
-                    className="text-blue-500 hover:text-blue-700 mr-2"
-                  >
-                    <Edit2 size={18} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(doc.id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                      ${doc.document_status === 'Ativo' ? 'bg-green-100 text-green-800' : 
+                      doc.document_status === 'Em Revisão' ? 'bg-yellow-100 text-yellow-800' : 
+                      'bg-gray-100 text-gray-800'}`}>
+                      {doc.document_status}
+                    </span>
+                  </div>
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">
+                    {new Date(doc.creation_date).toLocaleDateString()}
+                  </div>
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-center">
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      onClick={() => handleEdit(doc)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <Edit2 size={18} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(doc.id)}
+                      className="text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -723,25 +722,84 @@ function EnvironmentalDocuments({ sidebarColor, buttonColor }) {
 
       {/* Paginação ajustada */}
       {!isFormOpen && filteredDocuments.length > 0 && (
-        <div className="flex justify-center mt-4">
-          {Array.from({ 
-            length: Math.ceil(filteredDocuments.length / documentsPerPage)
-          }, (_, i) => (
+        <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+          <div className="flex flex-1 justify-between sm:hidden">
             <button
-              key={i}
-              onClick={() => handlePageChange(i + 1)}
-              className={`mx-1 px-3 py-1 rounded ${
-                currentPage === i + 1 
-                  ? 'text-white'
-                  : 'bg-gray-200 hover:bg-gray-300'
-              }`}
-              style={{
-                backgroundColor: currentPage === i + 1 ? buttonColor || '#4F46E5' : undefined
-              }}
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className={`relative inline-flex items-center rounded-md px-4 py-2 text-sm font-medium ${
+                currentPage === 1
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              } border border-gray-300`}
             >
-              {i + 1}
+              Anterior
             </button>
-          ))}
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === Math.ceil(filteredDocuments.length / documentsPerPage)}
+              className={`relative ml-3 inline-flex items-center rounded-md px-4 py-2 text-sm font-medium ${
+                currentPage === Math.ceil(filteredDocuments.length / documentsPerPage)
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              Próximo
+            </button>
+          </div>
+          <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700">
+                Mostrando <span className="font-medium">{indexOfFirstDocument + 1}</span> até{' '}
+                <span className="font-medium">
+                  {Math.min(indexOfLastDocument, filteredDocuments.length)}
+                </span>{' '}
+                de <span className="font-medium">{filteredDocuments.length}</span> resultados
+              </p>
+            </div>
+            <div>
+              <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                    currentPage === 1 ? 'cursor-not-allowed' : 'cursor-pointer'
+                  }`}
+                >
+                  <span className="sr-only">Anterior</span>
+                  <ChevronLeft size={16} className="stroke-[1.5]" />
+                </button>
+                {Array.from(
+                  { length: Math.ceil(filteredDocuments.length / documentsPerPage) },
+                  (_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handlePageChange(i + 1)}
+                      className={`relative inline-flex items-center px-4 py-2 text-sm font-semibold ${
+                        currentPage === i + 1
+                          ? 'z-10 bg-blue-600 text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
+                          : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0'
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  )
+                )}
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === Math.ceil(filteredDocuments.length / documentsPerPage)}
+                  className={`relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 ${
+                    currentPage === Math.ceil(filteredDocuments.length / documentsPerPage)
+                      ? 'cursor-not-allowed'
+                      : 'cursor-pointer'
+                  }`}
+                >
+                  <span className="sr-only">Próximo</span>
+                  <ChevronRight size={16} className="stroke-[1.5]" />
+                </button>
+              </nav>
+            </div>
+          </div>
         </div>
       )}
     </div>
