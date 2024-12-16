@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaSearch, FaExclamationCircle } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaExclamationCircle, FaPlus, FaFilter, FaChevronUp, FaChevronDown } from 'react-icons/fa';
 import { API_URL } from '../config';
 
 // Definir bondTypes fora do componente para evitar recriação a cada render
@@ -170,12 +170,19 @@ function BondManagement({ sidebarColor, buttonColor }) {
     financial_institution_cnpj_formatted: '',
     financial_institution_contact: ''
   });
-  const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [bondsPerPage] = useState(10);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [validationErrors, setValidationErrors] = useState([]);
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+  const [filters, setFilters] = useState({
+    name: '',
+    type: '',
+    value: '',
+    esg_percentage: '',
+    issue_date: ''
+  });
 
   const fetchBonds = useCallback(async () => {
     try {
@@ -376,6 +383,11 @@ function BondManagement({ sidebarColor, buttonColor }) {
         [`${field}_formatted`]: formattedValue // Mantém valor formatado para exibição
       }));
     }
+  };
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({ ...prev, [name]: value }));
   };
 
   const renderBondForm = (bond, isAdding = false) => (
@@ -899,10 +911,7 @@ function BondManagement({ sidebarColor, buttonColor }) {
   );
 
   // Filtragem e paginação
-  const filteredBonds = bonds.filter(bond =>
-    bond.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    bond.type.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredBonds = bonds;
 
   const indexOfLastBond = currentPage * bondsPerPage;
   const indexOfFirstBond = indexOfLastBond - bondsPerPage;
@@ -919,89 +928,171 @@ function BondManagement({ sidebarColor, buttonColor }) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Gerenciamento de Títulos</h2>
+    <div className="space-y-6 bg-gray-50 min-h-screen">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-medium text-gray-800">Gerenciamento de Títulos</h2>
         <button
           onClick={() => setIsAddingBond(true)}
-          className="px-4 py-2 text-white rounded"
+          className="text-white px-4 py-2 rounded hover:opacity-80 transition-all flex items-center gap-2 text-sm"
           style={{ backgroundColor: buttonColor }}
         >
+          <FaPlus size={16} />
           Adicionar Novo Título
         </button>
       </div>
 
-      <div className="flex items-center space-x-2 mb-4">
-        <FaSearch className="text-gray-400" />
-        <input
-          type="text"
-          placeholder="Pesquisar títulos..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="border p-2 rounded w-full"
-        />
-      </div>
-
-      {(isAddingBond || editingBond) && (
-        <div className="mt-4 p-4 bg-gray-100 rounded">
-          <h3 className="text-lg font-bold mb-4">
-            {isAddingBond ? 'Adicionar Novo Título' : 'Editar Título'}
-          </h3>
-          {renderBondForm(isAddingBond ? newBond : editingBond, isAddingBond)}
-          <div className="mt-4 space-x-2">
-            <button
-              onClick={isAddingBond ? handleAddBond : handleUpdateBond}
-              className="px-4 py-2 text-white rounded"
-              style={{ backgroundColor: buttonColor }}
-            >
-              {isAddingBond ? 'Adicionar' : 'Atualizar'}
-            </button>
-            <button
-              onClick={() => {
-                setIsAddingBond(false);
-                setEditingBond(null);
-              }}
-              className="px-4 py-2 bg-red-500 text-white rounded"
-            >
-              Cancelar
-            </button>
+      {/* Seção de Filtros */}
+      <div className="bg-white rounded-lg shadow-sm mb-4 border border-gray-100">
+        <button
+          onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+          className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+          style={{ color: buttonColor }}
+        >
+          <div className="flex items-center gap-2">
+            <FaFilter size={16} style={{ color: buttonColor }} />
+            <span className="font-medium text-sm" style={{ color: buttonColor }}>Filtros</span>
           </div>
-        </div>
-      )}
+          {isFilterExpanded ? 
+            <FaChevronUp size={16} style={{ color: buttonColor }} /> : 
+            <FaChevronDown size={16} style={{ color: buttonColor }} />
+          }
+        </button>
+        
+        {isFilterExpanded && (
+          <div className="p-6 border-t border-gray-100">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">Nome do Título</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={filters.name}
+                  onChange={handleFilterChange}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-shadow text-sm"
+                  placeholder="Filtrar por nome..."
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">Tipo</label>
+                <select
+                  name="type"
+                  value={filters.type}
+                  onChange={handleFilterChange}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-shadow text-sm"
+                >
+                  <option value="">Todos os tipos</option>
+                  {bondTypes.map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">Data de Emissão</label>
+                <input
+                  type="date"
+                  name="issue_date"
+                  value={filters.issue_date}
+                  onChange={handleFilterChange}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-shadow text-sm"
+                />
+              </div>
+            </div>
+            
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={() => setFilters({
+                  name: '',
+                  type: '',
+                  value: '',
+                  esg_percentage: '',
+                  issue_date: ''
+                })}
+                className="px-4 py-2 text-gray-600 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors text-sm font-medium"
+              >
+                Limpar Filtros
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white border">
           <thead>
             <tr>
-              <th className="px-4 py-2 border">Nome</th>
-              <th className="px-4 py-2 border">Tipo</th>
-              <th className="px-4 py-2 border">Valor</th>
-              <th className="px-4 py-2 border">% ESG</th>
-              <th className="px-4 py-2 border">Data de Emissão</th>
-              <th className="px-4 py-2 border">Ações</th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Nome
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Tipo
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Valor
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                % ESG
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-left text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Data de Emissão
+              </th>
+              <th 
+                className="px-4 py-3 border-b border-gray-100 text-center text-sm font-medium text-gray-600 whitespace-nowrap"
+                style={{ backgroundColor: `${buttonColor}15` }}
+              >
+                Ações
+              </th>
             </tr>
           </thead>
           <tbody>
             {currentBonds.map((bond) => (
-              <tr key={bond.id}>
-                <td className="px-4 py-2 border">{bond.name}</td>
-                <td className="px-4 py-2 border">{bond.type}</td>
-                <td className="px-4 py-2 border">{formatCurrencyInput(String(bond.value))}</td>
-                <td className="px-4 py-2 border">{bond.esg_percentage}%</td>
-                <td className="px-4 py-2 border">{bond.issue_date}</td>
-                <td className="px-4 py-2 border">
-                  <button
-                    onClick={() => setEditingBond(bond)}
-                    className="text-blue-500 hover:text-blue-700 mr-2"
-                  >
-                    <FaEdit />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteBond(bond.id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <FaTrash />
-                  </button>
+              <tr key={bond.id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">{bond.name}</div>
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">{bond.type}</div>
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">{formatCurrencyInput(String(bond.value))}</div>
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">{bond.esg_percentage}%</div>
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-sm text-gray-600">
+                  <div className="text-sm text-gray-900">{bond.issue_date}</div>
+                </td>
+                <td className="px-4 py-3 border-b border-gray-100 text-center">
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      onClick={() => setEditingBond(bond)}
+                      className="text-blue-500 hover:text-blue-700 mr-2"
+                    >
+                      <FaEdit />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteBond(bond.id)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <FaTrash />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
