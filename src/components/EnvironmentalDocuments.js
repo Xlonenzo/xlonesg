@@ -43,6 +43,9 @@ function EnvironmentalDocuments({ buttonColor }) {
     legal_notice: ''
   });
 
+  // Adicionar novo estado para controlar a expansão dos filtros
+  const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+
   // Buscar documentos
   const fetchDocuments = async () => {
     try {
@@ -238,6 +241,95 @@ function EnvironmentalDocuments({ buttonColor }) {
           <Plus size={16} className="stroke-[1.5]" />
           {isFormOpen ? 'Cancelar' : 'Adicionar Novo Documento'}
         </button>
+      </div>
+
+      {/* Área de Busca e Filtros */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div 
+          className="p-4 cursor-pointer hover:bg-gray-50"
+          onClick={() => setIsFilterExpanded(!isFilterExpanded)}
+        >
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+              <FaFilter className="mr-1" />
+              Filtros
+            </h3>
+            <div className="text-gray-600">
+              {isFilterExpanded ? <FaChevronUp /> : <FaChevronDown />}
+            </div>
+          </div>
+        </div>
+
+        {/* Área expansível de filtros */}
+        <div className={`border-t ${isFilterExpanded ? 'block' : 'hidden'}`}>
+          <div className="p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Buscar
+                </label>
+                <input
+                  type="text"
+                  placeholder="Buscar documentos..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full p-2 border rounded-md"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Tipo de Documento
+                </label>
+                <select
+                  name="document_type"
+                  value={filters.document_type}
+                  onChange={handleFilterChange}
+                  className="w-full p-2 border rounded-md"
+                >
+                  <option value="">Todos</option>
+                  {constants.documentTypes.map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Status do Documento
+                </label>
+                <select
+                  name="document_status"
+                  value={filters.document_status}
+                  onChange={handleFilterChange}
+                  className="w-full p-2 border rounded-md"
+                >
+                  <option value="">Todos</option>
+                  {constants.documentStatuses.map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Área Temática
+                </label>
+                <select
+                  name="thematic_area"
+                  value={filters.thematic_area}
+                  onChange={handleFilterChange}
+                  className="w-full p-2 border rounded-md"
+                >
+                  <option value="">Todas</option>
+                  {constants.thematicAreas.map(area => (
+                    <option key={area} value={area}>{area}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Formulário */}

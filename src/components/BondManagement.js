@@ -284,7 +284,24 @@ function BondManagement({ sidebarColor, buttonColor }) {
     }
 
     try {
-      const response = await axios.put(`${API_URL}/bonds/${editingBond.id}`, editingBond);
+      // Prepare os dados para envio removendo os campos formatados
+      const bondData = {
+        ...editingBond,
+        value: parseCurrencyValue(editingBond.value_formatted),
+        guarantee_value: parseCurrencyValue(editingBond.guarantee_value_formatted),
+        issuer_cnpj: removeCNPJFormat(editingBond.issuer_cnpj_formatted),
+        intermediary_cnpj: removeCNPJFormat(editingBond.intermediary_cnpj_formatted),
+        financial_institution_cnpj: removeCNPJFormat(editingBond.financial_institution_cnpj_formatted)
+      };
+
+      // Remova os campos formatados antes de enviar
+      delete bondData.value_formatted;
+      delete bondData.guarantee_value_formatted;
+      delete bondData.issuer_cnpj_formatted;
+      delete bondData.intermediary_cnpj_formatted;
+      delete bondData.financial_institution_cnpj_formatted;
+
+      const response = await axios.put(`${API_URL}/bonds/${editingBond.id}`, bondData);
       setBonds(bonds.map(bond => bond.id === editingBond.id ? response.data : bond));
       setEditingBond(null);
       setValidationErrors([]);
@@ -388,6 +405,18 @@ function BondManagement({ sidebarColor, buttonColor }) {
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleEditBond = (bond) => {
+    setEditingBond({
+      ...bond,
+      value_formatted: formatCurrencyInput(String(bond.value || 0)),
+      guarantee_value_formatted: formatCurrencyInput(String(bond.guarantee_value || 0)),
+      issuer_cnpj_formatted: formatCNPJ(bond.issuer_cnpj || ''),
+      intermediary_cnpj_formatted: formatCNPJ(bond.intermediary_cnpj || ''),
+      financial_institution_cnpj_formatted: formatCNPJ(bond.financial_institution_cnpj || '')
+    });
+    setIsAddingBond(false); // Garante que o formulário de adição está fechado
   };
 
   const renderBondForm = (bond, isAdding = false) => (
@@ -1017,6 +1046,37 @@ function BondManagement({ sidebarColor, buttonColor }) {
           </div>
         )}
       </div>
+
+      {/* Formulário de Adição/Edição */}
+      {(isAddingBond || editingBond) && (
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <h3 className="text-lg font-medium mb-4">
+            {isAddingBond ? 'Adicionar Novo Título' : 'Editar Título'}
+          </h3>
+          
+          {renderBondForm(isAddingBond ? newBond : editingBond, isAddingBond)}
+          
+          <div className="mt-6 flex justify-end gap-4">
+            <button
+              onClick={() => {
+                setIsAddingBond(false);
+                setEditingBond(null);
+                setValidationErrors([]);
+              }}
+              className="px-4 py-2 text-gray-600 bg-gray-100 rounded hover:bg-gray-200"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={isAddingBond ? handleAddBond : handleUpdateBond}
+              className="px-4 py-2 text-white rounded hover:opacity-90"
+              style={{ backgroundColor: buttonColor }}
+            >
+              {isAddingBond ? 'Adicionar Título' : 'Salvar Alterações'}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white border">

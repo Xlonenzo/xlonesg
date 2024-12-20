@@ -82,6 +82,7 @@ const BondProjectRelation = ({ sidebarColor, buttonColor }) => {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [editingRelation, setEditingRelation] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -153,41 +154,74 @@ const BondProjectRelation = ({ sidebarColor, buttonColor }) => {
     }
   };
 
+  const handleStartEdit = (relation) => {
+    try {
+      const bond = bonds.find(b => b.id === relation.bond_id);
+      const project = projects.find(p => p.id === relation.project_id);
+      
+      if (!bond || !project) {
+        alert('Erro ao carregar dados para edição');
+        return;
+      }
+      
+      setEditingRelation(relation);
+      setSelectedBond(bond);
+      setSelectedProject(project);
+      setIsFormOpen(true);
+    } catch (error) {
+      console.error('Erro ao editar:', error);
+      alert('Erro ao preparar edição');
+    }
+  };
+
   const handleCreateRelation = async () => {
     if (!selectedBond || !selectedProject) {
-        console.error('Por favor, selecione um título e um projeto.');
-        return;
+      alert('Por favor, selecione um título e um projeto.');
+      return;
     }
 
     try {
-        console.log('Enviando dados para o backend:', {
-            bond_id: selectedBond.id,
-            project_id: selectedProject.id
-        });
+      const data = {
+        bond_id: selectedBond.id,
+        project_id: selectedProject.id
+      };
 
-        const formData = new FormData();
-        formData.append('bond_id', selectedBond.id);
-        formData.append('project_id', selectedProject.id);
-
-        const response = await axios.post(`${API_URL}/bonds/relationships`, formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
+      if (editingRelation) {
+        // Se estiver editando, faz PUT
+        await axios.put(
+          `${API_URL}/bonds/relationships/${editingRelation.id}`,
+          data,
+          {
+            headers: { 
+              'Content-Type': 'application/json'
             },
             withCredentials: true
-        });
+          }
+        );
+      } else {
+        // Se for novo, faz POST
+        await axios.post(
+          `${API_URL}/bonds/relationships`,
+          data,
+          {
+            headers: { 
+              'Content-Type': 'application/json'
+            },
+            withCredentials: true
+          }
+        );
+      }
 
-        console.log('Resposta do backend:', response.data);
-        fetchData();
-        setIsFormOpen(false);
-        
-        // Limpar seleções após sucesso
-        setSelectedBond(null);
-        setSelectedProject(null);
+      await fetchData();
+      setIsFormOpen(false);
+      setEditingRelation(null);
+      setSelectedBond(null);
+      setSelectedProject(null);
     } catch (err) {
-        console.error('Erro ao criar relacionamento:', err);
-        console.error('Detalhes do erro:', err.response?.data);
+      console.error('Erro ao salvar:', err);
+      alert('Erro ao salvar. Tente novamente.');
     }
-};
+  };
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -293,7 +327,9 @@ const BondProjectRelation = ({ sidebarColor, buttonColor }) => {
 
       {isFormOpen && (
         <form className="mt-4 p-4 bg-gray-100 rounded">
-          <h3 className="text-lg font-bold mb-2">Nova Relação</h3>
+          <h3 className="text-lg font-bold mb-2">
+            {editingRelation ? 'Editar Relação' : 'Nova Relação'}
+          </h3>
           <div className="mb-4">
             <label className="block mb-2">Título:</label>
             <CustomSelect
@@ -321,11 +357,16 @@ const BondProjectRelation = ({ sidebarColor, buttonColor }) => {
                 className="text-white px-4 py-2 rounded hover:opacity-80"
                 style={{ backgroundColor: buttonColor }}
             >
-                Criar Relação
+                {editingRelation ? 'Salvar Alterações' : 'Criar Relação'}
             </button>
             <button 
                 type="button" 
-                onClick={() => setIsFormOpen(false)} 
+                onClick={() => {
+                    setIsFormOpen(false);
+                    setEditingRelation(null);
+                    setSelectedBond(null);
+                    setSelectedProject(null);
+                }} 
                 className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
             >
                 Cancelar
@@ -411,7 +452,10 @@ const BondProjectRelation = ({ sidebarColor, buttonColor }) => {
                   </td>
                   <td className="px-4 py-3 border-b border-gray-100 text-center">
                     <div className="flex items-center justify-center gap-3">
-                      <button className="text-blue-500 hover:text-blue-700">
+                      <button 
+                        className="text-blue-500 hover:text-blue-700"
+                        onClick={() => handleStartEdit(relation)}
+                      >
                         <FaEdit />
                       </button>
                       <button className="text-red-500 hover:text-red-700">
